@@ -21,7 +21,7 @@ I made this git repo to simplify the download of the individual files and to aut
 * Logo file already in jpeg format
 
 # How to use it:
-1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220607-1.pdf)  section 15 Step 1 to 3
+1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220607-1.pdf) , Section 15, Step 1 to 3
   - About step 2 of the document:
     - for bullet c.a : I suggest to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
     - for bullet c.d : I suggest a good password for security reason !
@@ -39,6 +39,16 @@ sudo ./setup.sh
 ```
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environnement after reboot at that point
 7. If there is any error during the script execution try to fix it and rerun the script again
+
+# Executing manually
+From a shell, you can run the main python script like this:
+```
+cd ~/cubotino/src
+source .virtualenvs/bin/activate
+python Cubotino_T.py
+```
+or course, you can replace `Cubotino_T.py` by any other python scripts as mentioned in the documentation.
+
 
 # Enabling autostart
 When everything is tuned and you want to autostart the software automatically on reboot, just type :
