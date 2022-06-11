@@ -21,7 +21,7 @@ I made this git repo to simplify the download of the individual files and to aut
 * Logo file already in jpeg format
 
 # How to use it:
-1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220607-1.pdf)  section 15 Step 1 to 3
+1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220607-1.pdf) , Section 15, Step 1 to 3
   - About step 2 of the document:
     - for bullet c.a : I suggest to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
     - for bullet c.d : I suggest a good password for security reason !
