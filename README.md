@@ -44,7 +44,7 @@ sudo ./setup.sh
 From a shell, you can run the main python script like this:
 ```
 cd ~/cubotino/src
-source .venv/bin/activate
+source .virtualenvs/bin/activate
 python Cubotino_T.py
 ```
 or course, you can replace `Cubotino_T.py` by any other python scripts as mentioned in the documentation.
