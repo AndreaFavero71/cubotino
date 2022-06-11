@@ -40,6 +40,16 @@ sudo ./setup.sh
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environnement after reboot at that point
 7. If there is any error during the script execution try to fix it and rerun the script again
 
+# Executing manually
+From a shell, you can run the main python script like this:
+```
+cd ~/cubotino/src
+source .venv/bin/activate
+python Cubotino_T.py
+```
+or course, you can replace `Cubotino_T.py` by any other python scripts as mentioned in the documentation.
+
+
 # Enabling autostart
 When everything is tuned and you want to autostart the software automatically on reboot, just type :
 ```
