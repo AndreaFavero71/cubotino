@@ -31,14 +31,22 @@ print_header "Updating packages"
 apt update
 apt -y -qq upgrade
 
+print_header "Removing old packages"
+apt remove -y -qq python3-numpy python3-picamera
+apt autoremove -y
+
 print_header "Installing required packages"
-apt install -y -qq python3-numpy python3-picamera python3-opencv python3-rpi.gpio python3-pigpio python3-gpiozero python3-pil python3-spidev python3-pip python3-venv
+apt install -y -qq python3-rpi.gpio python3-pigpio python3-gpiozero python3-pil python3-spidev python3-pip python3-venv
+apt install -y -qq libatlas-base-dev python3-h5py libjasper-runtime libqtgui4 libqt4-test
 
 print_header "Creating python virtual env"
 python3 -m venv .virtualenvs --system-site-packages
 source .virtualenvs/bin/activate
 
 print_header "Installing required python packages"
+pip3 install numpy==1.21.4
+pip3 install "picamera[array]"
+pip3 install opencv-contrib-python==4.1.0.25
 pip3 install st7735==0.0.4.post1
 pip3 install RubikTwoPhase==1.0.9
 pip3 install getmac==0.8.3
