@@ -24,8 +24,8 @@ ssh pi@cubotino.local
 5. If you can’t reach the pi like this, you will have to scan your network to find the IP to use
 6. After you are connected via ssh, type the following commands in the shell:
 ```
-git clone --depth 1 https://github.com/heneault/cubotino.git
-cd cubotino/src
+git clone https://github.com/AndreaFavero71/cubotino.git
+cd cubotino
 sudo ./setup.sh
 ```
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environnement after reboot at that point
