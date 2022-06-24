@@ -16,15 +16,37 @@ fi
 print_header "Deactivating graphical login"
 systemctl --quiet set-default multi-user.target
 
+
+print_header "Moving files and folders to intended location"
+FILE=./cubotino/src/twophase
+if [ -d "$FILE" ]; then
+   cd ./cubotino/src
+   mv -v twophase ..
+   mv -v *.* ..
+   FILE=LICENSE
+   if [ "$FILE" ]; then
+      mv -v LICENSE ..
+   fi
+   cd ..
+   rm -r src
+   FILE=setup.sh
+   if [ "$FILE" ]; then
+      rm setup.sh
+   fi
+fi
+
+
 print_header "configuring config file"
 CONFIG=/boot/config.txt
 sed -i '/dtparam=spi/d' $CONFIG
 sed -i '/startx/d' $CONFIG
 sed -i '/gpu_mem/d' $CONFIG
+sed -i '/enable_uart/d' $CONFIG
 cat <<EOT >> $CONFIG
 dtparam=spi=on
 start_x=1
 gpu_mem=128
+enable_uart=1
 EOT
 
 print_header "Updating packages"
