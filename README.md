@@ -1,6 +1,6 @@
 # cubotino
 
-This repo is contain the relevant files for the robot I've developed:
+This repo contains the relevant files for ....
 
 How to make CUBOTino autonomous: A small, 3D printed, Rubik’s cube solver robot
 ![title image](/images/title.jpg)
@@ -9,13 +9,13 @@ Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3
 
 git repo made by heneault (thank you !!!), to simplify the download of the individual files and to automate as much a possible the deployment to the raspberry pi
 
-***Note: at this moment the setup here is still experimental. To the best of my knowledge it should work. I am still waiting for the parts to assemble the robots so I cannot fully test myself. If someone could test it and provide feedback that would be appreciated.***
+***Note: at this moment the setup here is still experimental; On my Raspberry Zero 2 it works faily well***
 
 # How to use it:
 1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220622.pdf) , Section 15, Step 1 to 3
   - About step 2 of the document:
-    - for bullet c.a : Suggested to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
-    - for bullet c.d : Suggested a good password for security reason !
+    - for bullet c.a : heneault suggests to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
+    - for bullet c.d : heneault suggests a good password for security reason !
 2. Put the sd card in the pi and power it. You can monitor the boot process if you connect an hdmi monitor to it but it is not essential. 
 3. Try to connect to the Raspberry Pi via SSH. On Windows you can use Putty. On linux and mac you can type directly:
 ```
@@ -25,7 +25,7 @@ ssh pi@cubotino.local
 6. After you are connected via ssh, type the following commands in the shell:
 ```
 git clone https://github.com/AndreaFavero71/cubotino.git
-sudo ./cubotino/src/setup.sh
+sudo ./cubotino/setup.sh
 ```
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environnement after reboot at that point
 7. If there is any error during the script execution try to fix it and rerun the script again
