@@ -6,6 +6,7 @@ How to make CUBOTino autonomous: A small, 3D printed, Rubik’s cube solver robo
 ![title image](/images/title.jpg)
 
 Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3D-Printed-Rubiks-Cube-R/
+
 An impression of the robot: https://youtu.be/dEOLhvVMcUg
 
 This is forked from the git repo made by heneault (thank you !!!), with some changes.
