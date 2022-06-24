@@ -16,6 +16,16 @@ fi
 print_header "Deactivating graphical login"
 systemctl --quiet set-default multi-user.target
 
+print_header "Moving files and folders to intended location"
+FILE=./cubotino/src/twophase
+if [ -d "$FILE" ]; then
+   cd ./cubotino/src
+   mv -v twophase ..
+   mv -v *.* ..
+   cd ..
+   rm -d src
+fi
+
 print_header "configuring config file"
 CONFIG=/boot/config.txt
 sed -i '/dtparam=spi/d' $CONFIG
@@ -61,16 +71,6 @@ set +e
 print_header "Configuring vnc server to run at startup and prepare setup for cubotino"
 if ! crontab -l 2>/dev/null | grep -q "Cubotino_T_bash.sh"; then
     (crontab -l 2>/dev/null; echo 'MAILTO=""'; echo @reboot su - pi -c \"/usr/bin/vncserver :0\"; echo '#@reboot /bin/sleep 5; bash -l /home/pi/cubotino/src/Cubotino_T_bash.sh > /home/pi/cubotino/src/Cubotino_T_terminal.log 2>&1') | crontab -
-fi
-
-print_header "Moving files and folders to intended location"
-FILE=./cubotino/src/twophase
-if [ -d "$FILE" ]; then
-   cd ./cubotino/src
-   mv -v twophase ..
-   mv -v *.* ..
-   cd ..
-   rm -d src
 fi
 
 print_header "Reboot now? (y/n)"
