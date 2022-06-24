@@ -9,8 +9,9 @@ Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3
 
 An impression of the robot: https://youtu.be/dEOLhvVMcUg
 
-This is forked from the git repo made by heneault (thank you !!!), with some changes.
+This is forked from the git repo made by heneault (thank you !!!), by making some changes and by updating to the latest files versions.
 This git repo simplifies the download of the individual files and automates as much a possible the deployment to the raspberry pi
+
 ***Note: at this moment the setup here is still experimental; On my Raspberry Zero 2 it works faily well***
 
 # How to use it:
