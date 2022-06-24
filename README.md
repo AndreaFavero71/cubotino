@@ -6,9 +6,10 @@ How to make CUBOTino autonomous: A small, 3D printed, Rubik’s cube solver robo
 ![title image](/images/title.jpg)
 
 Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3D-Printed-Rubiks-Cube-R/
+An impression of the robot: https://youtu.be/dEOLhvVMcUg
 
-git repo made by heneault (thank you !!!), to simplify the download of the individual files and to automate as much a possible the deployment to the raspberry pi
-
+This is forked from the git repo made by heneault (thank you !!!), with some changes.
+This git repo simplifies the download of the individual files and automates as much a possible the deployment to the raspberry pi
 ***Note: at this moment the setup here is still experimental; On my Raspberry Zero 2 it works faily well***
 
 # How to use it:
