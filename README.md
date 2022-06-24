@@ -1,30 +1,21 @@
 # cubotino
 
-This repo is contain the relevant files for:
+This repo is contain the relevant files for the robot I've developed:
 
 How to make CUBOTino autonomous: A small, 3D printed, Rubik’s cube solver robot
 ![title image](/images/title.jpg)
 
-based on the work of Andrea Favero available at: https://www.instructables.com/CUBOTino-Autonomous-Small-3D-Printed-Rubiks-Cube-R/
+Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3D-Printed-Rubiks-Cube-R/
 
-I made this git repo to simplify the download of the individual files and to automate as much a possible the deployment to the raspberry pi
+git repo made by heneault (thank you !!!), to simplify the download of the individual files and to automate as much a possible the deployment to the raspberry pi
 
 ***Note: at this moment the setup here is still experimental. To the best of my knowledge it should work. I am still waiting for the parts to assemble the robots so I cannot fully test myself. If someone could test it and provide feedback that would be appreciated.***
-
-# Differences from the documented procedure
-* A single script to execute to get the whole thing set in the raspberry pi
-* Repo contains all relevant file (doc, stl, source file and rubik solver tables)
-* No wait time for the generation of the Rubik table solver (files already included)
-* Use default python package from the OS
-* Virtual screen VNC server. No need to customize the hdmi setting.
-* Original startup script modified to use script path
-* Logo file already in jpeg format
 
 # How to use it:
 1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220622.pdf) , Section 15, Step 1 to 3
   - About step 2 of the document:
-    - for bullet c.a : I suggest to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
-    - for bullet c.d : I suggest a good password for security reason !
+    - for bullet c.a : Suggested to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
+    - for bullet c.d : Suggested a good password for security reason !
 2. Put the sd card in the pi and power it. You can monitor the boot process if you connect an hdmi monitor to it but it is not essential. 
 3. Try to connect to the Raspberry Pi via SSH. On Windows you can use Putty. On linux and mac you can type directly:
 ```
