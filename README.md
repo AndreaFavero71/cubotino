@@ -17,10 +17,6 @@ This git repo simplifies the download of the individual files and automates as m
 
 # How to use it:
 1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220622.pdf) , Section 15, Step 1 to 3
-  - About step 2 of the document:
-    - for bullet 'c.a' : heneault suggests to change the hostname to “cubotino”, especially if you have other raspberry pi on your network !
-    - for bullet 'c.d' : heneault suggests a good password for security reason !
-    ***Note this simplified installation considers using 'pi' as hostname***
 2. Put the sd card in the pi and power it. You can monitor the boot process if you connect an hdmi monitor to it but it is not essential. 
 3. Try to connect to the Raspberry Pi via SSH. On Windows you can use Putty. On linux and mac you can type directly:
 ```
