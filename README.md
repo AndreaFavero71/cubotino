@@ -42,7 +42,7 @@ cd ~/cubotino
 source .virtualenvs/bin/activate
 python Cubotino_T.py
 ```
-or course, you can replace `Cubotino_T.py` by any other python scripts as mentioned in the documentation.
+of course, you can replace `Cubotino_T.py` by any other python scripts as mentioned in the documentation.
 
 
 # Enabling autostart
