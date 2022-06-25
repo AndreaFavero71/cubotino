@@ -6,7 +6,7 @@
 #  the last row)
 ##############################################################################################
 
-source /home/pi/cubotino/src/.virtualenvs/bin/activate
+source /home/pi/cubotino/.virtualenvs/bin/activate
 cd /home/pi/cubotino
 python Cubotino_T.py
 
