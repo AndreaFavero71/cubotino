@@ -21,6 +21,7 @@ FILE=./cubotino/src/twophase
 if [ -d "$FILE" ]; then
    cd ./cubotino/src
    mv -v twophase ..
+   mv -v install ..
    mv -v *.* ..
    cd ..
    rm -d src
