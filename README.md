@@ -16,7 +16,7 @@ This git repo simplifies the download of the individual files and automates as m
 ***Note: This installation is still experimental, yet on my (Andrea Favero) Raspberry Pi Zero 2 it works perfectly ***
 
 # How to use it:
-1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220622.pdf) , Section 15, Step 1 to 3
+1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220625.pdf) , Section 15, Step 1 to 3
 2. Put the sd card in the pi and power it. You can monitor the boot process if you connect an hdmi monitor to it but it is not essential. 
 3. Try to connect to the Raspberry Pi via SSH. On Windows you can use Putty. On linux and mac you can type directly:
 ```
