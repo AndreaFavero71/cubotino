@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#######   Andrea Favero,  01 June 2022  ######################################################
+#######   Andrea Favero,  25 June 2022  ######################################################
 #  This bash script activates the venv, and starts the Cubotino_T.py script after the Pi boots
 #  When the python script is terminated (GPIO26), the Pi shuts down (check notes before
 #  the last row)
