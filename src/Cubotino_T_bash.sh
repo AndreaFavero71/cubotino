@@ -7,7 +7,7 @@
 ##############################################################################################
 
 source /home/pi/cubotino/src/.virtualenvs/bin/activate
-cd /home/pi/cubotino/src
+cd /home/pi/cubotino
 python Cubotino_T.py
 
 
