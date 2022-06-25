@@ -53,4 +53,7 @@ You can always connect with ssh. If you prefere VNC you can download the RealVNC
 ```
 vncviewer cubotino.local
 ```
-It will ask for the credential. Use ‘pi’ and the same password you use for ssh. You should a desktop this way
+It will ask for the credential. Use ‘pi’ and the same password you use for ssh. You should have a desktop version in this way
+
+Check out the "How_to_make ...  .pdf" document for further info
+
