@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 14 June 2022
+#  Andrea Favero, 25 June 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -1613,9 +1613,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
     if HSV_analysis==False:      # case the HSV_analysis is false
         cube_status_URFDLB={}    # an empty dict is assigned to the cube_status_URFDLB variable
         cube_status_detected={}  # an empty dict is assigned to the cube_status_detected variable
-    
-    print('cube_status_URFDLB at row 1339',cube_status_URFDLB)   # feedback is printed to the terminal
-    
+        
     # cube_status_URFDLB uses 'conventional color sequence' (URFDLB being White Red Green Yellow Orange Blue), convenient to later build the cube_status
     # cube_status_detected has the detected colors, via the HSV approach. This dict is used for decoration purpose
     return cube_status_URFDLB, cube_status_detected, cube_color_sequence
