@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 30 June 2022
+#  Andrea Favero, 06 July 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -65,6 +65,8 @@ def import_parameters():
             
         backup_fname = os.path.join(folder,'Cubotino_T_settings_backup.txt')     # folder and file name for the settings backup
         with open(backup_fname, 'w') as f:                        # settings_backup file is opened in writing mode
+            if debug:                                             # case debug variable is set true on __main_
+                print('copy of settings parameter is saved as backup at: ', backup_fname)    # feedback is printed to the terminal
             f.write(json.dumps(settings, indent=0))               # content of the setting file is saved in another file, as backup
             # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
         
@@ -1384,7 +1386,7 @@ def retrieve_cube_color_order(VS_value,Hue):
     
     if debug:                                              # case debug variable is set true on __main__
         print(f'\nHue centers: {Hue[centers[0]]}, {Hue[centers[1]]},'\
-              '{Hue[centers[2]]}, {Hue[centers[3]]}, {Hue[centers[4]]}, {Hue[centers[5]]}') # feedback is printed to the terminal
+              f'{Hue[centers[2]]}, {Hue[centers[3]]}, {Hue[centers[4]]}, {Hue[centers[5]]}') # feedback is printed to the terminal
     
     VS_centers=[VS_value[facelet] for facelet in centers]  # V-S value measured on the cube side center under analysis
     Hcenters=[Hue[facelet] for facelet in centers]         # Hue value measured on the cube side center under analysis
@@ -1886,14 +1888,17 @@ def decoration(deco_info):
     show_time = deco_info[10]
     timestamp = deco_info[11]
 
+
     # collage function is called
     collage=faces_collage(faces, cube_status, color_detection_winner, cube_color_sequence, HSV_analysis, cube_status_string, \
                           URFDLB_facelets_BGR_mean, font, fontScale, lineType)   # call the function that makes the pictures collage
-
+    
     folder = os.path.join('.','CubesStatusPictures')     # folder to store the collage pictures
     if not os.path.exists(folder):                       # if case the folder does not exist
         os.makedirs(folder)                              # folder is made if it doesn't exist
     fname = folder+'/cube_collage'+timestamp+'.png'      # folder+filename with timestamp for the resume picture
+    if debug:                                            # case debug variable is set true on __main__
+        print('unfolded cube status image is saved : ', fname) # feedback is printed to the terminal
     status=cv2.imwrite(fname, collage)                   # cube sketch with detected and interpred colors is saved as image
     
     if not robot_stop and screen:                        # case screen variable is set true on __main__
@@ -1912,7 +1917,6 @@ def decoration(deco_info):
 
 
 
-
 def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequence, HSV_analysis, cube_status_string, \
                   URFDLB_facelets_BGR_mean, font, fontScale, lineType):
     """ This function merges multipe pictures, and it returns the unfolded cube single image.
@@ -1921,11 +1925,10 @@ def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequenc
     Gray rectangles are generated and used to complete the picture
     Once the collage is made, the original dict of images is cleared, to save some memory."""
     
-    face_h = faces[1].shape[0]                                   # height of the cube's face1 image, still on memory
-    face_h = min(face_h,250)                                     # if the cube's face1 image height if bigger than 250, then 250 is chosen
+    face_h = faces[1].shape[0]                                   # height of the cube's face1 image
+    face_h = min(face_h,250)                                     # if the cube's face1 image height if bigger than 250, then 250 is chosen  
     for i in range(1,7):                                         # image of all cube faces (1 to 6 )
         faces[i]=cv2.resize(faces[i], (face_h, face_h), interpolation = cv2.INTER_AREA)  # are resized to square of 300 pixels, or face1 height
-    
     empty_face = np.zeros([face_h, face_h, 3],dtype=np.uint8)    # empty array having same dimensions of cube's faces images
     empty_face.fill(230)                                         # array is filled with light gray
     
@@ -1940,19 +1943,21 @@ def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequenc
     # faces number are 1 to 6 according the the scan order (U,B, D, F, F, L)
     for face in [1, 3, 4, 5]:                                      # these faces are 180 rotate from user view standpoint
         faces[face]=cv2.rotate(faces[face],cv2.ROTATE_180)         # these images are then rotated by 180
+
     seq=[1,5,4,3,6,2]                                              # faces order at robot is hard coded for movements convenience
     col1=np.vstack([empty_face, faces[seq[4]], empty_face])        # vertical stack of images, to generate 1st column for the pictures collage
     col2=np.vstack([faces[seq[0]], faces[seq[2]], faces[seq[3]]])  # vertical stack of images, to generate 2nd column for the pictures collage
     col3=np.vstack([empty_face, faces[seq[1]], empty_face])        # vertical stack of images, to generate 3rd column for the pictures collage
     col4=np.vstack([empty_face, faces[seq[5]], empty_face])        # vertical stack of images, to generate 4th column for the pictures collage
-    
     faces.clear()                                                  # dictionary of images is cleared
 
     collage = np.hstack([col1,col2,col3,col4])                     # horizzontal stack of 4 columns of images, to generate the pictures collage
-    collage_ratio = collage.shape[1] / collage.shape[0]            # collage ratio (width/height) is calculated for resizing 
+    collage_ratio = collage.shape[1] / collage.shape[0]            # collage ratio (width/height) is calculated for resizing
 #     collage_w=1024                                    #(AF 1024)   # colleage width is fixed for consistent pictures archiving at Rpi
     collage_h=int(collage_w/collage_ratio)                         # colleage heigth is calculated to maintain proportions
-    collage = cv2.resize(collage, (collage_w, collage_h), interpolation = cv2.INTER_AREA) # resized collage  
+    
+    if not light_program:                                          # case the light_program (processor type dependant) is set false
+        collage = cv2.resize(collage, (collage_w, collage_h), interpolation = cv2.INTER_AREA) # resized collage
     
     # adds a sketch with interpreted colors (bright) on the collage
     plot_interpreted_colors(cube_status, color_detection_winner, cube_color_sequence, \
@@ -2025,6 +2030,7 @@ def plot_interpreted_colors(cube_status, detect_winner, cube_color_sequence, HSV
     y_start=int(collage_h/40)       # top lef corner of the rectangle where all the cube's faces are plot
     d = int(collage_w/40)           # edge lenght for each facelet reppresentation
     _, square_dict = cube_sketch_coordinates(x_start, y_start, d)     # dict with the top-left coordinates for each of the 54 facelets
+
     
     # some text info are placed close to the cube sketch
     cv2.putText(collage, 'Interpreted', (x_start+7*d, y_start+d), font, fontScale*1.2,(0,0,0),lineType)
@@ -2051,9 +2057,8 @@ def plot_interpreted_colors(cube_status, detect_winner, cube_color_sequence, HSV
         else:                                                            # case the detected 6 center facelets do not have 6 different colors
             cv2.putText(collage, cube_status_string[i], (start_point[0]+int(0.2*d), int(start_point[1]+int(0.8*d))),\
                         font, fontScale*0.9,(0,0,0),lineType)            # facelets side LETTER is printed on the sketch
-    
-    
 
+    
 
 
 
@@ -2069,10 +2074,9 @@ def robot_facelets_rotation(facelets):
 
     # On sides 1, 3, 4, 5, PiCamera reads facelets at 180deg with reference to user point of view
     # These sides numbers refer to the face order during the cube status detection (U, B, D, F, R, L)
-    
     if side in [1, 3, 4, 5]:
         facelets.reverse()   # reversing the order on the original facelet list solves the problem
-
+    
 
 
 
@@ -2400,11 +2404,10 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
         log_data(timestamp, facelets_data, cube_status_string, solution, color_detection_winner, tot_robot_time, \
                  start_time, camera_ready_time, cube_detect_time, cube_solution_time, robot_solving_time)
         
-        # tuple of variables needed for the decoration function
-        deco_info = (fixWindPos, screen, frame, faces, cube_status, cube_color_sequence, HSV_analysis, cube_status_string, \
-                     URFDLB_facelets_BGR_mean, color_detection_winner, show_time, timestamp)
-        
-        decoration(deco_info)      # calss the decoration function, that shows (or just saves, is screen=False) cube's faces pictures  
+        deco_info = (fixWindPos, screen, frame, faces, cube_status, cube_color_sequence,\
+                     HSV_analysis, cube_status_string, URFDLB_facelets_BGR_mean, \
+                     color_detection_winner, show_time, timestamp) # tuple of variables needed for the decoration function
+        decoration(deco_info)  # cals the decoration function, that shows (or just saves, is screen=False) cube's faces pictures  
         
     else:                          # case there is a request to stop the robot
         tot_time_sec = 0           # robot solution time is forced to zero when the solving is interrupted by the stop button
@@ -2681,7 +2684,7 @@ def time_system_synchr():
                 ps.wait()                                        # waits until the ps child completes
                 
                 if b'yes' in output:                             # case the timedatectl status returns true
-                    print('time system is synchronized')         # feedback is printed to the terminal
+                    print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
                     show_on_display('TIME SYSTEM','UPDATED', fs1=16, sleep=1.5)   # feedback is printed to the display
                     show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
                     break                                        # while loop is interrupted
@@ -3047,7 +3050,7 @@ if __name__ == "__main__":
         2) some general settings (if to printout debug prints, internet connection / time synchronization, if screen connected, etc)
         3) waits for user to press the button, and it starts the cube reading phase."""
     
-    global robot_stop, robot_runnig, timeout, side #, debug, screen, fixWindPos, fps
+    global robot_stop, robot_runnig, timeout, side, light_program
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
@@ -3093,6 +3096,26 @@ if __name__ == "__main__":
     
     
     
+    ################    processor version info    ###################################################
+    # when armv6 it skips one openCV comand that crash the script when Raspberry Pi Zero (not 2)
+    import os                              # os is imported to check the machine
+    light_program = False                  # flag of a lighter program (OK on Rpi 3, 4 and Zero2)
+    processor = ''                         # processor string variable is set empty
+    try:                                   # tentative approach
+        processor = os.uname().machine     # processor is inquired
+        print(f'Processor architecture: {processor}')  # print to terminal the processor architecture
+        processor = 'armv6l'
+        if 'armv6' in processor:           # case the string armv6 is contained in processor string
+            light_program = True           # flag for a lighter program is set true (OK for Rpi Zero)
+    except:                                # case an exception is raised
+        pass                               # no actions
+    print('light_program: ', light_program)
+    # ###############################################################################################
+
+    
+    
+    
+    
     ################    screen presence, a pre-requisite for graphical   ############################
     screen_presence = check_screen_presence()                         # checks if a screen is connected (also via VNC)
     
@@ -3101,6 +3124,7 @@ if __name__ == "__main__":
     
     if not screen_presence:                                           # case there is not a screen connected 
         print(f'Screen related function are not activated')           # feedback is printed to the terminal 
+        debug = False                                                 # debug flag is set false
         disp.set_backlight(1)                                         # display backlight is turned on, in case it wasn't
         show_on_display('EXT. SCREEN', 'ABSENCE', fs1=16, fs2=20, sleep=2 )  #feedbak is print to to the display
         screen = False                                                # screen flag is forced false
@@ -3207,4 +3231,5 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
+
 
