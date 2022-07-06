@@ -3104,7 +3104,6 @@ if __name__ == "__main__":
     try:                                   # tentative approach
         processor = os.uname().machine     # processor is inquired
         print(f'Processor architecture: {processor}')  # print to terminal the processor architecture
-        processor = 'armv6l'
         if 'armv6' in processor:           # case the string armv6 is contained in processor string
             light_program = True           # flag for a lighter program is set true (OK for Rpi Zero)
     except:                                # case an exception is raised
