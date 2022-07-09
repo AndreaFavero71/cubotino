@@ -13,7 +13,7 @@ This is forked from the git repo made by heneault (thank you !!!); Updated to la
 
 This git repo simplifies the download of the individual files and automates as much a possible the deployment to the raspberry pi
 
-Note: This installation has proved to work on different Raspberry Pi models; Please report in case you experience issues.
+This installation has proved to work on different Raspberry Pi models; Please report in case you experience issues.
 
 # How to use it:
 1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220625.pdf) , Section 15, Step 1 to 3
