@@ -9,11 +9,10 @@ Further robot info at: https://www.instructables.com/CUBOTino-Autonomous-Small-3
 
 An impression of the robot: https://youtu.be/dEOLhvVMcUg
 
-This is forked from the git repo made by heneault (thank you !!!), by making some changes and by updating to the latest files versions.
+This is forked from the git repo made by heneault (thank you !!!); Updated to latest files versions.
 
 This git repo simplifies the download of the individual files and automates as much a possible the deployment to the raspberry pi
-
-***Note: This installation is still experimental, yet on my (Andrea Favero) Raspberry Pi Zero 2 it works perfectly ***
+Note: This installation has proved to work on different Raspberry Pi models; Please report in case you experience issues.
 
 # How to use it:
 1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20220625.pdf) , Section 15, Step 1 to 3
