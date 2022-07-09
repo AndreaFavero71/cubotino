@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 30 June 2022
+# Andrea Favero 09 July 2022
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -88,7 +88,7 @@ s_debug=False                   # boolean to print out info when debugging
 
 
 
-def init_servo(print_out=s_debug):
+def init_servo(print_out=s_debug, home_pos=True):
     """ Function to initialize the robot (servos position) and some global variables, do be called once, at the start.
         Parameters are imported from a json file, to make easier to list/document/change the variables
         that are expected to vary on each robot.
@@ -159,48 +159,68 @@ def init_servo(print_out=s_debug):
             print('could not find Cubotino_T_servo_settings.txt')               # feedback is printed to the terminal                                  
             return robot_init_status                                            # return robot_init_status variable, that is False
         
-        # t_servo servo object creation
-        t_servo = Servo(t_servo_pin,                                 # GPIO pin associated to the top servo
-                        initial_value = t_servo_open,                # Top_cover positioned in open position
-                        min_pulse_width = t_min_pulse_width/1000,    # min Pulse Width the top servo reacts to
-                        max_pulse_width = t_max_pulse_width/1000,    # max Pulse Width the top servo reacts to
-                        pin_factory=factory)                         # way to use hardware based timers for the PWM 
-        time.sleep(0.7)                                              # wait time to ensure the servo to get its init position
-        t_top_cover = 'open'                                         # variable to track the top cover/lifter position
         
-        # b_servo servo object creation
-        b_servo = Servo(b_servo_pin,                                 # GPIO pin associated to the bottom servo
-                        initial_value = b_home,                      # Cube_holder positioned to home
-                        min_pulse_width = b_min_pulse_width/1000,    # min Pulse Width the bottom servo reacts to
-                        max_pulse_width = b_max_pulse_width/1000,    # max Pulse Width the bottom servo reacts to
-                        pin_factory=factory)                         # way to used hardware based timers for the PWM                   
-        time.sleep(0.7)                                              # wait time to ensure the servo to get its init position
-        b_servo.value = b_home                                       # bottom servo is set to home postion at the start
-        b_servo_home=True                                   # boolean of bottom servo at home
-        b_servo_stopped = True                              # boolean of bottom servo at location the lifter can be operated
-        b_servo_CW_pos=False                                # boolean of bottom servo at full CW position
-        b_servo_CCW_pos=False                               # boolean of bottom servo at full CCW position
+        if not home_pos:                                                 # case the servo init is not meant to force the home positions
+            # t_servo servo object creation
+            t_servo = Servo(t_servo_pin,                                 # GPIO pin associated to the top servo
+                            initial_value = 0,                           # Top_servo set to 0. This happens also if the initial_value parameter is omitted
+                            min_pulse_width = t_min_pulse_width/1000,    # min Pulse Width the top servo reacts to
+                            max_pulse_width = t_max_pulse_width/1000,    # max Pulse Width the top servo reacts to
+                            pin_factory=factory)                         # way to use hardware based timers for the PWM 
+            time.sleep(0.7)                                              # wait time to ensure the servo to get to 0 position
+            
+            # b_servo servo object creation
+            b_servo = Servo(b_servo_pin,                                 # GPIO pin associated to the bottom servo
+                            initial_value = 0,                           # bottomo servo set to 0. This happens also if the initial_value parameter is omitted
+                            min_pulse_width = b_min_pulse_width/1000,    # min Pulse Width the bottom servo reacts to
+                            max_pulse_width = b_max_pulse_width/1000,    # max Pulse Width the bottom servo reacts to
+                            pin_factory=factory)                         # way to used hardware based timers for the PWM                   
+            time.sleep(0.7)                                              # wait time to ensure the servo to get to 0 position
 
-
-        # bottom servo derived positions
-        b_servo_CCW_rel = b_servo_CCW + b_extra_sides       # bottom servo position to rel tensions when fully CW
-        b_servo_CW_rel = b_servo_CW - b_extra_sides         # bottom servo position to rel tensions when fully CCW
-        b_home_from_CW = b_home - b_extra_home              # bottom servo extra home position, when moving back from full CW
-        b_home_from_CCW = b_home + b_extra_home             # bottom servo extra home position, when moving back from full CCW
         
-        # top servo derived position
-        t_servo_rel = t_servo_close - t_servo_rel_delta     # top servo position to release tension
+        elif home_pos:                                                   # case the servo init is meant to force the home positions
+            # t_servo servo object creation
+            t_servo = Servo(t_servo_pin,                                 # GPIO pin associated to the top servo
+                            initial_value = t_servo_open,                # Top_cover positioned in open position
+                            min_pulse_width = t_min_pulse_width/1000,    # min Pulse Width the top servo reacts to
+                            max_pulse_width = t_max_pulse_width/1000,    # max Pulse Width the top servo reacts to
+                            pin_factory=factory)                         # way to use hardware based timers for the PWM 
+            time.sleep(0.7)                                              # wait time to ensure the servo to get its init position
+            t_top_cover = 'open'                                         # variable to track the top cover/lifter position
+        
+            # b_servo servo object creation
+            b_servo = Servo(b_servo_pin,                                 # GPIO pin associated to the bottom servo
+                            initial_value = b_home,                      # Cube_holder positioned to home
+                            min_pulse_width = b_min_pulse_width/1000,    # min Pulse Width the bottom servo reacts to
+                            max_pulse_width = b_max_pulse_width/1000,    # max Pulse Width the bottom servo reacts to
+                            pin_factory=factory)                         # way to used hardware based timers for the PWM                   
+            time.sleep(0.7)                                              # wait time to ensure the servo to get its init position
+            b_servo.value = b_home                                       # bottom servo is set to home postion at the start
+            b_servo_home=True                                   # boolean of bottom servo at home
+            b_servo_stopped = True                              # boolean of bottom servo at location the lifter can be operated
+            b_servo_CW_pos=False                                # boolean of bottom servo at full CW position
+            b_servo_CCW_pos=False                               # boolean of bottom servo at full CCW position
 
-        robot_init_status = True          # boolean to track the inititialization status of the servos is set true
-        if print_out:
-            print("servo init done")
-    
-    
-    servo_start_pos()                 # servos are positioned to the start position    
-    fun_status=False                  # boolean to track the robot fun status, it is True after solving the cube :-)
-    servo_off()                       # PWM signal at GPIO is stopped
-    cam_led_test()                    # makes a very short led test
-    cam_led_Off()                     # forces the led off
+
+            # bottom servo derived positions
+            b_servo_CCW_rel = b_servo_CCW + b_extra_sides       # bottom servo position to rel tensions when fully CW
+            b_servo_CW_rel = b_servo_CW - b_extra_sides         # bottom servo position to rel tensions when fully CCW
+            b_home_from_CW = b_home - b_extra_home              # bottom servo extra home position, when moving back from full CW
+            b_home_from_CCW = b_home + b_extra_home             # bottom servo extra home position, when moving back from full CCW
+            
+            # top servo derived position
+            t_servo_rel = t_servo_close - t_servo_rel_delta     # top servo position to release tension
+
+            robot_init_status = True          # boolean to track the inititialization status of the servos is set true
+            if print_out:
+                print("servo init done")
+        
+        
+            servo_start_pos()                 # servos are positioned to the start position    
+            fun_status=False                  # boolean to track the robot fun status, it is True after solving the cube :-)
+            servo_off()                       # PWM signal at GPIO is stopped
+            cam_led_test()                    # makes a very short led test
+            cam_led_Off()                     # forces the led off
     
     return robot_init_status
 
@@ -926,8 +946,7 @@ if __name__ == "__main__":
     
     
     if args.set != None:                                   # case the Cubotino_T_servo.py has been launched with 'set' argument
-        t_servo = Servo(t_servo_pin, pin_factory=factory)  # top servo object is created, by using HD based timers for the PWM
-        b_servo = Servo(b_servo_pin, pin_factory=factory)  # bottom servo object is created, by using HD based timers for the PWM
+        init_servo(print_out=s_debug, home_pos=False)      # servo objectes are created, and initially set to mid position (by default)
         set_servo(args.set)                                # servos are set according to the value in 'set' argument
         while True:                                        # infinite loop, to give the chance to play with the servos angles
             target = input('\nenter a new PWM value from -1.00 to 1.00 (0 for mid position, any letter to escape): ') # input request with proper info
