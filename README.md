@@ -29,7 +29,7 @@ git clone https://github.com/AndreaFavero71/cubotino.git
 cd cubotino/src
 sudo ./install/setup.sh
 ```
-6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environnement after reboot at that point
+6. Make sure the script runs without error until the end. It should ask you to reboot. Type ‘y’ and hit enter. You should get the proper environment after reboot at that point
 7. If there is any error during the script execution try to fix it and rerun the script again
 
 # Executing manually
