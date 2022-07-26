@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 06 July 2022
+#  Andrea Favero, 26 July 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -2668,8 +2668,7 @@ def time_system_synchr():
         internet = False                                # internet variable is set false
     
     if internet:                                        # case internet is available
-        from subprocess import Popen, PIPE              # classes importing
-        date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S') # date_time variable is assigned        
+        from subprocess import Popen, PIPE              # classes importing        
         once = True                                     # variable once is set true, to print a feedback only once
         i = 0                                           # iterator
         while True:                                     # infinite loop              
@@ -2684,6 +2683,7 @@ def time_system_synchr():
                 ps.wait()                                        # waits until the ps child completes
                 
                 if b'yes' in output:                             # case the timedatectl status returns true
+                    date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S')   # updated date and time assigned to date_time variable
                     print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
                     show_on_display('TIME SYSTEM','UPDATED', fs1=16, sleep=1.5)   # feedback is printed to the display
                     show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
