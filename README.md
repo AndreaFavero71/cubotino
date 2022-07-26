@@ -22,8 +22,8 @@ This installation has proved to work on different Raspberry Pi models; Please re
 ```
 ssh pi@cubotino.local
 ```
-5. If you can’t reach the pi like this, you will have to scan your network to find the IP to use
-6. After you are connected via ssh, type the following commands in the shell:
+4. If you can’t reach the pi like this, you will have to scan your network to find the IP to use
+5. After you are connected via ssh, type the following commands in the shell:
 ```
 git clone https://github.com/AndreaFavero71/cubotino.git
 cd cubotino/src
