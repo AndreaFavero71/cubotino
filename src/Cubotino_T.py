@@ -2683,11 +2683,11 @@ def cubeAF():
     while not robot_stop:                                # substantially the main loop, it can be interrupted by quit_func() 
         if robot_stop:                                   # case the robot has been stopped
             break                                        # while loop is interrupted
-        frame, w, h = read_camera()                      # video stream and frame dimensions
 
         # feedback is printed to the display
         disp.show_on_display('READING FACE', str(sides[side]), x1=15, y1=15, x2=50, y2=35, fs1=16, fs2=80)
-        
+        frame, w, h = read_camera()                      # video stream and frame dimensions
+
         if not robot_stop:                                   # case there are no requests to stop the robot
             (contours, hierarchy)=read_facelets(frame, w, h) # reads cube's facelets and returns the contours
             candidates = []                                  # empties the list of potential contours
@@ -2757,6 +2757,7 @@ def cubeAF():
                         break                                    # with this break the process re-start from contour detection at the next cube face
 
                     if side == 6:                                # last cube's face is acquired
+                        disp.clean_display()                              # cleans the display
                         servo.cam_led_Off()                      # led at top_cover is set off         
                         cube_detect_time = time.time()           # time stored after detecteing all the cube facelets
                         if screen:                               # case screen variable is set true on __main__

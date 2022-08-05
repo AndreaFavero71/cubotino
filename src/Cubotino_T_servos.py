@@ -216,7 +216,9 @@ def init_servo(print_out=s_debug, home_pos=True):
 
 def quit_func():
     """ Sets the used GPIO as output, and force them to low. This wants to prevent servos to move after closing the script."""
-    
+   
+    close_cover();
+ 
     GPIO.setup(top_cover_led_pin, GPIO.OUT, initial=GPIO.LOW)   # GPIO top_cover_led_pin (Top_cover_Led) is set as output, and force low
     GPIO.setup(t_servo_pin, GPIO.OUT, initial=GPIO.LOW)         # GPIO t_servo_pin (Top_cover servo) is set as output, and force low
     GPIO.setup(b_servo_pin, GPIO.OUT, initial=GPIO.LOW)         # GPIO b_servo_pin (Cube_holder servo) is set as output, and force low
