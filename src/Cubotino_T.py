@@ -109,11 +109,6 @@ def import_parameters():
         return False, _                                         # return robot_init_status variable, that is False
 
 
-
-
-
-
-
 def import_libraries():
     """ Import of the needed libraries.
         These librries are imported after those needed for the display management.
@@ -141,7 +136,7 @@ def import_libraries():
     print(f'CV2 version: {cv2.__version__}')               # print to terminal the cv2 version
     
     # Up to here Cubotino logo is shown on display
-    show_on_display('LOADING', 'SOLVER', fs1=24, fs2=27)   # feedback is printed to the display
+    disp.show_on_display('LOADING', 'SOLVER', fs1=24, fs2=27)   # feedback is printed to the display
     disp.set_backlight(1)                                  # display backlight is turned on, in case it wasn't
 
     
@@ -181,221 +176,9 @@ def import_libraries():
 
     if not solver_found and not twophase_solver_found:    # case no one solver has been imported
         print('\nnot found Kociemba solver')              # feedback is printed to the terminal
-        show_on_display('NO SOLVER', 'FOUND', fs1=19, fs2=28, sleep=5) # feedback is printed to the display
+        disp.show_on_display('NO SOLVER', 'FOUND', fs1=19, fs2=28) # feedback is printed to the display
+        time.sleep(5)
         quit_func(quit_script=True)                       # script is quitted
-
-    
-
-
-
-
-
-
-def set_display():
-    """ Imports and set the display (128 x 160 pixels) https://www.az-delivery.de/it/products/1-77-zoll-spi-tft-display.
-        In my case was necessary to play with offset and display dimensions (pixels) to get an acceptable result.
-        For a faster display init, check the Tuning chapter of the project instructions."""
-    
-    from PIL import Image, ImageDraw, ImageFont  # classes from PIL for image manipulation
-    import ST7735                                # library for the TFT display with ST7735 driver               
-    
-    global ST7735, Image, ImageDraw, ImageFont, backlight, disp, disp_w, disp_h, disp_img, disp_draw
-    
-    # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
-    import os.path, pathlib, json                # library for the json parameter parsing for the display
-    from getmac import get_mac_address           # library to get the device MAC ddress
-    
-    folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
-    eth_mac = get_mac_address()                                   # mac address is retrieved
-    if eth_mac == 'e4:5f:01:8d:59:97':                            # case the script is running on AF (Andrea Favero) robot
-        fname = os.path.join(folder,'Cubotino_T_settings_AF.txt') # AF robot settings (do not use these at the start)
-    else:                                                         # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder,'Cubotino_T_settings.txt')    # folder and file name for the settings, to be tuned
-    
-    if os.path.exists(fname):                                     # case the settings file exists
-        with open(fname, "r") as f:                               # settings file is opened in reading mode
-            settings = json.load(f)                               # json file is parsed to a local dict variable
-        try:
-            disp_width = int(settings['disp_width'])              # display width, in pixels
-            disp_height = int(settings['disp_height'])            # display height, in pixels
-            disp_offsetL = int(settings['disp_offsetL'])          # Display offset on width, in pixels, Left if negative
-            disp_offsetT = int(settings['disp_offsetT'])          # Display offset on height, in pixels, Top if negative
-        except:
-            print('error on converting imported parameters to int') # feedback is printed to the terminal
-    else:                                                           # case the settings file does not exists, or name differs
-        print('could not find the file: ', fname)                   # feedback is printed to the terminal 
-    
-    #(AF )  # NOTE: On my display text is parallel to the display if width set to 125 pxl instead of 128
-    #(AF )  # To solve this issue, further than death pixels on two display sides, different width/height and offsets are used 
-    disp = ST7735.ST7735(port=0, cs=0,                              # SPI and Chip Selection                  
-                         dc=27, rst=22, backlight=4,                # GPIO pins used for the SPI, reset and backlight control
-                         width=disp_width,            #(AF 132)     # see note above for width and height !!!
-                         height=disp_height,          #(AF 162)     # see note above for width and height !!!                         
-                         offset_left=disp_offsetL,                  # see note above for offset  !!!
-                         offset_top= disp_offsetT,                  # see note above for offset  !!!
-                         rotation=270,                              # image orientation
-                         invert=False, spi_speed_hz=10000000)       # image invertion, and SPI
-    
-    disp.set_backlight(0)                                           # display backlight is set off
-    disp_w = disp.width                                             # display width, retrieved by display setting
-    disp_h = disp.height                                            # display height, retrieved by display setting
-    disp_img = Image.new('RGB', (disp_w, disp_h),color=(0, 0, 0))   # display image generation, full black
-    disp_draw = ImageDraw.Draw(disp_img)                            # display graphic generation
-    disp.display(disp_img)                                          # image is displayed
-#     disp.set_backlight(1)                                           # display backlight is set on
-    
-    return disp   # this is needed when some display function are called from other files (Cubotino_servos)
-
-
-
-
-
-
-
-def clean_display():
-    """ Cleans the display by settings all pixels to black."""
-
-    disp_img = Image.new('RGB', (disp_w, disp_h), color=(0, 0, 0))  # full black screen as new image
-    disp_draw = ImageDraw.Draw(disp_img)                            # image generation
-    disp.display(disp_img)                                          # display is shown to display
-
-
-
-
-
-
-
-def show_on_display(r1,r2,x1=20,y1=25,x2=20,y2=65,fs1=22,fs2=22, sleep=None):
-    """Shows text on two rows, with parameters to generalize this function"""
-    
-    font1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fs1)  # font and size for first text row
-    font2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fs2)  # font and size for second text row
-    disp_draw.rectangle((0, 0, disp_w, disp_h), (0, 0, 0))            # new image is a full black rectangle
-    disp_draw.text((x1, y1), r1, font=font1, fill=(255, 255, 255))    # first text row start coordinate, text, font, white color
-    disp_draw.text((x2, y2), r2, font=font2, fill=(255, 255, 255))    # second text row start coordinate, text, font, white color
-    disp.display(disp_img)                                            # image is plot to the display
-    if sleep!=None:                                                   # case sleep parameter is not none
-        import time                                                   # time library is imported, if not done yet
-        time.sleep(sleep)                                             # a sleep time, of sleep seconds, is applied
-
-
-
-
-
-
-
-def display_progress_bar(percent):
-    """ Function to print a progress bar on the display."""
-
-    global Image, ImageDraw, ImageFont, display_set, disp, disp_w, disp_h, disp_img, disp_draw
-
-    # percent value printed as text 
-    fs = 40                 # font size
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fs)     # font and its size
-    text_x = int(disp_w/2 - (fs*len(str(percent))+1)/2)                   # x coordinate for the text starting location         
-    text_y = 15                                                           # y coordinate for the text starting location
-    disp_draw.rectangle((0, text_y, disp_w, text_y+fs ), fill=(0,0,0))                     # black rectangule to overwrire previous text
-    disp_draw.text((text_x, text_y), str(percent)+'%', font=font, fill=(255, 255, 255))    # text with percent value
-    
-    # percent value printed as progress bar filling 
-    x = 15                  # x coordinate for the bar starting location
-    y = 60                  # y coordinate for the bar starting location
-    gap = 3                 # gap in pixels between the outer border and inner filling (even value is preferable) 
-    barWidth = 35           # width of the bar, in pixels
-    barLength = 135         # lenght of the bar, in pixels
-    filledPixels = int( x+gap +(barLength-2*gap)*percent/100)  # bar filling length, as function of the percent
-    disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))     # outer bar border
-    disp_draw.rectangle((x+gap, y+gap, filledPixels-1 , y+barWidth-gap), fill=(255,255,255)) # bar filling
-    
-    disp.display(disp_img) # image is plotted to the display
-
-
-
-
-
-
-
-def show_cubotino(delay, jpg_logo):
-    """ Shows the Cubotino logo on the display."""
-    
-    if not jpg_logo:          # case the logo file is not available
-        clean_display()       # cleans the display
-        return                # return the function
-    
-    image = Image.open("Cubotino_T_Logo_265x212_BW.jpg")  # opens the CUBOTino logo image (jpg file, converted and saved from pdf file)
-    image = image.resize((disp_w, disp_h))                # resizes the image to match the display.
-    disp.display(image)                                   # draws the image on the display hardware.
-    
-    if delay is not None:     # case delay parameter is not none
-        import time           # time library is imported, as this function is called before all the libraries import
-        time.sleep(delay)     # sleep time, of delay seconds, is applied
-
-
-
-                      
-
-
-
-def check_if_Cubotino_logo_file():
-    """ from: https://nedbatchelder.com/blog/200712/extracting_jpgs_from_pdfs.html
-        This function extracts the Cubotino_Logo image from Cubotino_T_Logo_265x212_BW.pdf file,
-        and saves it to Cubotino_T_Logo_265x212_BW.jpg file.
-        Image files cannot be shared as support file at Instructables, differently from pdf files; For this
-        reason the Cubotino_Logo is shared as pdf file, and converted to jpg at the first robot usage.
-        Credid to nedbatchelder, who made available this code."""
-       
-    import pathlib, os.path
-    global jpg_logo
-    
-    folder = pathlib.Path().resolve()                                    # active folder (should be home/pi/cube)
-    fname_jpg = os.path.join('.','Cubotino_T_Logo_265x212_BW.jpg')       # folder and file name for the jpg file of Cubotino_logo
-    if os.path.exists(fname_jpg):                                        # case the jpg file of Cubotino_logo exists
-        jpg_logo = True                                                  # jpg_logo variable is set true
-        return                                                           # function is interrupted
-        
-    else:                                                                # case the jpg file of Cubotino_logo does not exist
-        fname_pdf = os.path.join('.','Cubotino_T_Logo_265x212_BW.pdf')   # folder and file name for the pdf file of Cubotino_logo
-        if not os.path.exists(fname_pdf):                                # case pdf file of Cubotino_logo does not exist
-            print('not found Cubotino_T_Logo_265x212_BW.pdf in folder')  # feedback is printed to the terminal
-            jpg_logo = False                                             # jpg_logo variable is set false as no jpg and not pdf files
-        
-        else:                                                            # case pdf file of Cubotino_logo exists
-            
-            # below a code snippet (ref above) I've literally copied at latest moment, and even not tried to understand
-            handle = open(fname_pdf, "rb")
-            pdf = handle.read()
-            startmark = b"\xff\xd8"
-            startfix = 0
-            endmark = b"\xff\xd9"
-            endfix = 2
-            i = 0
-            while True:
-                istream = pdf.find(b"stream", i)
-                if istream < 0:
-                    break
-                istart = pdf.find(startmark, istream, istream+20)
-                if istart < 0:
-                    i = istream+20
-                    continue
-                iend = pdf.find(b"endstream", istart)
-                if iend < 0:
-                    raise Exception("Didn't find end of stream!")
-                iend = pdf.find(endmark, iend-20)
-                if iend < 0:
-                    raise Exception("Didn't find end of JPG!")
-                istart += startfix
-                iend += endfix
-                jpg = pdf[istart:iend]
-                jpgfile = open("Cubotino_T_Logo_265x212_BW.jpg", "wb")
-                jpgfile.write(jpg)
-                jpgfile.close()
-                i = iend
-            
-            if os.path.exists(fname_jpg):   # case the jpg file of Cubotino_logo exists
-                jpg_logo = True             # jpg_logo variable is set true
-
-
-
 
 
 
@@ -406,7 +189,7 @@ def press_to_start():
     txt1 = 'PRESS TO'                                        # text to print at first row
     txt2 = 'START'                                           # text to print at second row
     fs_text2 = 32                                            # font size at second row
-    show_on_display(txt1, txt2, fs2=fs_text2)                # request user to touch the button to start a cycle
+    disp.show_on_display(txt1, txt2, fs2=fs_text2)                # request user to touch the button to start a cycle
     ref_time = time.time()                                   # current time is assigned to ref_time variable
     cubotino_logo = False                                    # boolean to alternate text with Cubotino logo on display
     display_time = 1                                         # time (in sec) for each display page
@@ -414,11 +197,11 @@ def press_to_start():
     while True:                                              # infinite loop
         if time.time() - ref_time >= display_time:           # time is checked
             if not cubotino_logo:                            # case cubotino logo boolean is false  
-                show_cubotino(delay=None, jpg_logo=jpg_logo) # shows the Cubotino logo on the display, for delay time
+                disp.show_cubotino() # shows the Cubotino logo on the display, for delay time
                 ref_time = time.time()                       # current time is assigned to ref_time variable
                 cubotino_logo = True                         # cubotino logo boolean is set true                           
             else:                                            # case cubotino logo boolean is false  
-                show_on_display(txt1, txt2, fs2=fs_text2)    # request user to touch the button to start a cycle
+                disp.show_on_display(txt1, txt2, fs2=fs_text2)    # request user to touch the button to start a cycle
                 ref_time = time.time()                       # current time is assigned to ref_time variable
                 cubotino_logo = False                        # cubotino logo boolean is set false
             time.sleep(0.05)                                 # little sleep time 
@@ -507,7 +290,7 @@ def robot_camera_warmup(camera, start_time):
     
     
     if not robot_stop:
-        show_on_display('CAMERA', 'SETUP', fs1=25, fs2=28)                     # feedback is printed to the display
+        disp.show_on_display('CAMERA', 'SETUP', fs1=25, fs2=28)                     # feedback is printed to the display
         print('\nPiCamera: waiting for AWB and Exposure gains to get stable')  # feedback is printed to the terminal
         if debug:                              # case debug variable is set true on __main__
             print('camera set in auto mode')   # feedback is printed to the terminal
@@ -600,7 +383,7 @@ def robot_camera_warmup(camera, start_time):
                 print('time:', t_list)                    # feedback is printed to the terminal
                 print('datapoints:', len(t_list))         # feedback is printed to the terminal
         
-        clean_display()                                   # cleans the display
+        disp.clean_display()                                   # cleans the display
     
     return PiCamera_param
 
@@ -619,7 +402,7 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     if robot_stop:        # case the robot has been requested to stop
         return            # function is terminated
     
-    show_on_display('MEASURING', 'EXPOSITION', fs1=18, fs2=18)    # feedback is printed to the display
+    disp.show_on_display('MEASURING', 'EXPOSITION', fs1=18, fs2=18)    # feedback is printed to the display
     
     a_gain = PiCamera_param[0]                          # analog gain picamera setting when warmup got stable
     d_gain = PiCamera_param[1]                          # digital gainpicamera setting when warmup got stable
@@ -677,7 +460,7 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
         print('awb_red:',round(float(awb_gains[1]),2))    # feedback is printed to the terminal
         print(f'camera shutter_speed (0=auto): {shutter_time} micro secs, as average measured on UBDF sides') # feedback is printed to the terminal
     
-    clean_display()   # cleans the display
+    disp.clean_display()   # cleans the display
 
 
 
@@ -1842,7 +1625,7 @@ def cube_solution(cube_string):
     (Solve Rubik's Cube in less than 20 moves on average with Python)
     The returned string is slightly manipulated to have the moves amount at the start."""
     
-    show_on_display('SOLUTION', 'SEARCH', fs1=21, fs2=27)
+    disp.show_on_display('SOLUTION', 'SEARCH', fs1=21, fs2=27)
 #     sv_max_moves = 20     #(AF 20)  # solver parameter: max 20 moves or best at timeout
 #     sv_max_time = 2       #(AF 2)   # solver parameter: timeout of 2 seconds, if not solution within max moves
     s = sv.solve(cube_string, sv_max_moves, sv_max_time)  # solver is called
@@ -2284,7 +2067,7 @@ def robot_to_cube_side(side, cam_led_bright):
     # after reading the full cube is positioned to initial position/orientation, to apply Kociemba solution     
     elif side == 6 :   
         servo.cam_led_Off()
-        show_on_display('CUBE START', 'POSITION', fs1=18, fs2=20)    # feedback is printed to the display
+        disp.show_on_display('CUBE START', 'POSITION', fs1=18, fs2=20)    # feedback is printed to the display
         #print('Cube back to initial position')                      # feedback is printed to the terminal
         
         if not robot_stop:                       # case there are not request to stop the robot
@@ -2320,17 +2103,17 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time):
         print('An error occured')                              # error feedback is print at terminal
         robot_solving_time = 0                                 # robot solving time is set to zero to underpin the error
         tot_robot_time = time.time()-start_time                # total time is set to zero to underpin the error
-        show_on_display('DETECTION', 'ERROR', fs1=19)          # feedback is printed to the display
+        disp.show_on_display('DETECTION', 'ERROR', fs1=19)          # feedback is printed to the display
         solved = False                                         # solved variable is set false
     
     elif solution_Text != 'Error' and not robot_stop:          # case there are not error on the cube solution and no request to stop the robot
         solved, tot_robot_time, robot_solving_time = robot_time_to_solution(start_time, start_robot_time,\
                                                                             total_robot_moves)  # cube solved function is called
-        show_on_display('CUBE', 'SOLVED !', y1=22, fs1=36)     # feedback is printed to the display 
+        disp.show_on_display('CUBE', 'SOLVED !', y1=22, fs1=36)     # feedback is printed to the display 
 
         if total_robot_moves != 0:                             # case the robot had to move the cube to solve it
             servo.fun(print_out=debug)                         # cube is rotated CW-CCW for few times, as victory FUN 'dance'
-        show_on_display(f'TOT.: {round(tot_robot_time,1)} s',\
+        disp.show_on_display(f'TOT.: {round(tot_robot_time,1)} s',\
                         f'SOLV.: {round(robot_solving_time,1)} s',\
                         x1=10, fs1=18, x2=10, fs2=18)          # time feedback is printed to the display
         time.sleep(2)                                          # couple of secs delay is applied
@@ -2338,7 +2121,7 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time):
     else:                                                      # case there are not error on the cube solution, but there is a request to stop the robot
         robot_solving_time = time.time()-start_robot_time      # robot solving time is set to zero
         tot_robot_time = time.time()-start_time                # total time is set to zero to underpin the error
-        show_on_display('ROBOT', 'STOPPED', fs1=25, fs2=23)    # feedback is printed to the display
+        disp.show_on_display('ROBOT', 'STOPPED', fs1=25, fs2=23)    # feedback is printed to the display
         solved = False                                         # solved variable is set false
         
         
@@ -2427,8 +2210,8 @@ def robot_timeout_func():
     
     clear_terminal()            # cleares the terminal 
     print(f'\nTimeout for cube status detection: Check if too much reflections, or polluted facelets\n') # feedback is printed to the terminal
-    show_on_display('READING', 'TIME-OUT', fs1=24, sleep=5)  # feedback is printed to the display
-    
+    disp.show_on_display('READING', 'TIME-OUT', fs1=24)  # feedback is printed to the display
+    time.sleep(5)
     servo.servo_start_pos()     # top cover and cube lifter to start position
 
     if screen:                  # case screen variable is set true on __main__
@@ -2456,7 +2239,7 @@ def robot_time_to_solution(start_time, start_robot_time, total_robot_moves):
         print(f'\nTotal time until cube solved: {round(tot_robot_time,1)} secs')  # feedback is printed to the terminal
     elif total_robot_moves == 0:                                # case no manoeuvres are needed to solve the cube
         print(f'\nCube was already solved')                     # feedback is printed to the terminal
-        show_on_display('ALREADY', 'SOLVED')                    # feedback is printed to the display
+        disp.show_on_display('ALREADY', 'SOLVED')                    # feedback is printed to the display
         time.sleep(3)                                           # little delay to allows display reading
 
     return solved, tot_robot_time, robot_solving_time
@@ -2586,11 +2369,11 @@ def stop_cycle(touch_btn):
     if GPIO.input(touch_btn):                       # case touch button is 'pressed'
         if not robot_stop:                          # in case the robot was working and not yet stopped
             disp.set_backlight(1)                   # display backlight is turned on, in case it wasn't
-            show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
+            disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
             robot_stop = True                       # global flag to immediatly interrup the robot movements is set
             servo.stopping_servos(print_out=debug)  # function to stop the servos    
             time.sleep(1)
-            show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display, after the call to servos library
+            disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display, after the call to servos library
             quit_func(quit_script=False)            # quit function is called, without forcing the script quitting
             
     
@@ -2638,7 +2421,7 @@ def cpu_temp(side, delay=10):
     
     if side!=0:                                                                     # case the cube side is not zero 
         print(f'\nCPU temperature: {cpu_temp} degrees C')                           # feedback is printed to the terminal
-        show_on_display('CPU TEMP.', str(str(cpu_temp)+' degC'), fs1=20, fs2=20)    # feedback is printed to the display
+        disp.show_on_display('CPU TEMP.', str(str(cpu_temp)+' degC'), fs1=20, fs2=20)    # feedback is printed to the display
         import time
         time.sleep(delay) # sleep time in arg is applied
 
@@ -2685,8 +2468,9 @@ def time_system_synchr():
                 if b'yes' in output:                             # case the timedatectl status returns true
                     date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S')   # updated date and time assigned to date_time variable
                     print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
-                    show_on_display('TIME SYSTEM','UPDATED', fs1=16, sleep=1.5)   # feedback is printed to the display
-                    show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
+                    disp.show_on_display('TIME SYSTEM','UPDATED', fs1=16)   # feedback is printed to the display
+                    time.sleep(1.5)
+                    disp.show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
                     break                                        # while loop is interrupted
                 else:                                            # case the timedatectl status returns false
                     if once:                                     # case the variable once is true
@@ -2699,8 +2483,8 @@ def time_system_synchr():
                 
     else:                                                        # case the is not an internet connection
         print('time system not synchronized yet')                # feedback is printed to the terminal
-        show_on_display('TIME SYSTEM','NOT UPDATED', fs1=16, fs2=15, sleep=1.5)   # feedback is printed to the display
-
+        disp.show_on_display('TIME SYSTEM','NOT UPDATED', fs1=16, fs2=15)   # feedback is printed to the display
+        time.sleep(1.5)
 
 
 
@@ -2727,7 +2511,7 @@ def quit_func(quit_script):
     if not quit_script:            # case the quit_script variable is false (tipically every time this function is called)
         try:
             disp.set_backlight(1)                   # display backlight is turned on, in case it wasn't
-            show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
+            disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
             if not quitting:                        # case quitting variable is false, meaning all the time entering the quit_func
                 if not timeout:                     # case the timeout variable is false
                     print('stop request')           # feedback is printed to the terminal
@@ -2754,7 +2538,8 @@ def quit_func(quit_script):
         print('script quitting request')      # feedback is printed to the terminal
         try:
             disp.set_backlight(1)                 # display backlight is turned on, in case it wasn't
-            show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28, sleep=1) # feedback is printed to the display
+            disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to the display
+            time.sleep(1)
             disp.set_backlight(0)                 # display backlight is turned off
         except:
             pass
@@ -2784,7 +2569,7 @@ def quit_func(quit_script):
             pass
         
         try:
-            clean_display()         # cleans the display
+            disp.clean_display()         # cleans the display
         except:
             print("raised exception while clean_display at script quitting")   # feedback is printed to the terminal
             pass
@@ -2847,8 +2632,10 @@ def start_up(first_cycle=False):
         robot_init_status = robot_set_servo()                  # settings for the servos
         if not robot_init_status:                                       # case the servo init function returns False
             disp.set_backlight(1)                                       # display backlight is turned on, in case it wasn't
-            show_on_display('SERVOS', 'ERROR', fs1=26, fs2=26, sleep=5) # feedback is printed to display
-            show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28, sleep=5) # feedback is printed to display
+            disp.show_on_display('SERVOS', 'ERROR', fs1=26, fs2=26) # feedback is printed to display
+            time.sleep(5)
+            disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
+            time.sleep(5)
             quit_func(quit_script=True)                                 # qutting function is called, with script clossure
     
 
@@ -2876,7 +2663,7 @@ def cubeAF():
 
     if not camera_opened_check():                   # checks if camera is responsive
         print('\nCannot open camera')               # feedback is printed to the terminal
-        show_on_display('CAMERA', 'ERROR')          # feedback is printed to the display
+        disp.show_on_display('CAMERA', 'ERROR')          # feedback is printed to the display
         time.sleep(10)                              # delay to allows display to be read
         quit_func(quit_script=True)                 # script is closed, in case of irresponsive camera
 
@@ -2899,7 +2686,7 @@ def cubeAF():
         frame, w, h = read_camera()                      # video stream and frame dimensions
 
         # feedback is printed to the display
-        show_on_display('READING FACE', str(sides[side]), x1=15, y1=15, x2=50, y2=35, fs1=16, fs2=80)
+        disp.show_on_display('READING FACE', str(sides[side]), x1=15, y1=15, x2=50, y2=35, fs1=16, fs2=80)
         
         if not robot_stop:                                   # case there are no requests to stop the robot
             (contours, hierarchy)=read_facelets(frame, w, h) # reads cube's facelets and returns the contours
@@ -2956,7 +2743,7 @@ def cubeAF():
                             cv2.imshow('cube', frame)            # shows the frame 
                             cv2.waitKey(1)                       # refresh time is minimized (1ms), yet real time is much higher
                     
-                    clean_display()                              # cleans the display
+                    disp.clean_display()                              # cleans the display
                     robot_to_cube_side(side, cam_led_bright)     # cube is rotated/flipped to the next face
 
                     if side < 6:                                 # actions when a face has been completely detected, and there still are other to come
@@ -3077,9 +2864,8 @@ if __name__ == "__main__":
     
     
     ################    Display setting       ######################################################
-    set_display()                  # sets the display object (the one on the robot) 
-    clean_display()                # cleans the display
-    check_if_Cubotino_logo_file()  # checks if the Cubotino logo is available
+    from Cubotino_T_display import display as disp # sets the display object (the one on the robot)             
+    disp.clean_display()                # cleans the display
     # ##############################################################################################
         
     
@@ -3116,6 +2902,7 @@ if __name__ == "__main__":
     
     
     ################    screen presence, a pre-requisite for graphical   ############################
+    import time
     screen_presence = check_screen_presence()                         # checks if a screen is connected (also via VNC)
     
     if debug:                                                         # case the debug print-out are requested
@@ -3125,13 +2912,15 @@ if __name__ == "__main__":
         print(f'Screen related function are not activated')           # feedback is printed to the terminal 
         debug = False                                                 # debug flag is set false
         disp.set_backlight(1)                                         # display backlight is turned on, in case it wasn't
-        show_on_display('EXT. SCREEN', 'ABSENCE', fs1=16, fs2=20, sleep=2 )  #feedbak is print to to the display
+        disp.show_on_display('EXT. SCREEN', 'ABSENCE', fs1=16, fs2=20)  #feedbak is print to to the display
+        time.sleep(2)
         screen = False                                                # screen flag is forced false
         fps = False                                                   # fps flag is forced false
     
     if screen_presence:                                               # case there is a screen connected 
         disp.set_backlight(1)                                         # display backlight is turned on, in case it wasn't
-        show_on_display('EXT. SCREEN', 'PRESENCE', fs1=16, fs2=19, sleep=2 )  #feedbak is print to to the display
+        disp.show_on_display('EXT. SCREEN', 'PRESENCE', fs1=16, fs2=19 )  #feedbak is print to to the display
+        time.sleep(2)
         print(f'Screen related function are activated')               # feedback is printed to the terminal 
         if fixWindPos:                                                # case the graphical windows is forced to the top left monitor corner
             print(f'CV2 windows forced to top-left screen corner')    # feedback is printed to the terminal     
@@ -3197,16 +2986,16 @@ if __name__ == "__main__":
 
                     while warning:                                # case warning is true
                         disp.set_backlight(1)                     # display backlight is turned on, in case it wasn't
-                        show_on_display('SURE TO', 'QUIT ?')      # feedback is printed to display
+                        disp.show_on_display('SURE TO', 'QUIT ?')      # feedback is printed to display
                         if not GPIO.input(touch_btn):             # case the touch_btn is 'released'
-                            clean_display()                       # cleans the display
-                            show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
+                            disp.clean_display()                       # cleans the display
+                            disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
                             break                                 # while loop is interrupted
                         
                         if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
                             print('quitting request')             # feedback is printed to display
                             for i in range(5):                    
-                                show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
+                                disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
                             servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
                             servo.init_servo(print_out=debug)     # servos are moved to their starting positions
                             quit_func(quit_script=True)           # qutting function is called, with script clossure
@@ -3215,8 +3004,9 @@ if __name__ == "__main__":
             if robot_stop or warning:          # case the robot has been stopped or the putton is pressend long
                 time.sleep(5)                  # time to mask the touch button pressing time (interrupt), eventually used to quit the script 
                 disp.set_backlight(1)          # display backlight is turned on, in case it wasn't
-                show_on_display('ROBOT', 'RESTARTING', fs1=30, fs2=18, sleep=1) # feedback is printed to display
-            
+                disp.show_on_display('ROBOT', 'RESTARTING', fs1=30, fs2=18) # feedback is printed to display
+                time.sleep(1)
+
             elif not (robot_stop or timeout):  # case the robot has not been stopped, or it has reach the timeout
                 disp.set_backlight(1)          # display backlight is turned on, in case it wasn't
                 cpu_temp(side, delay=3)        # cpu temperature is verified, printed at terminal and show at display for delay time

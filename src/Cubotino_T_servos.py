@@ -29,25 +29,9 @@
 """
 
 ##################    imports for the display part   ################################
-from PIL import Image, ImageDraw #, ImageFont
-from Cubotino_T import set_display                # function to generate the display object
-from Cubotino_T import show_cubotino              # function to show Cubotino logo
-from Cubotino_T import display_progress_bar       # function to show the progress on display while the servos are operated
-
-s_disp = set_display()                            # display object creation
+from Cubotino_T_display import display as s_disp
 s_disp.set_backlight(0)                           # display backlight is set off
-s_disp_w = s_disp.width                           # display width
-s_disp_h = s_disp.height                          # display height
-s_disp_img = Image.new('RGB', (s_disp_w, s_disp_h), color=(0, 0, 0)) # display image generation, fullt black
-s_disp_draw = ImageDraw.Draw(s_disp_img)          # display graphic generation
-
-import os.path, pathlib
-folder = pathlib.Path().resolve()                 # active folder (should be home/pi/cube)
-fname = os.path.join(folder,'Cubotino_T_Logo_265x212_BW.jpg')   # folder and file name for the jpg file of Cubotino_logo
-jpg_logo = False                                  # jpg_logo variable is set false
-if os.path.exists(fname):                         # case the jpg file of Cubotino_logo exists
-    jpg_logo = True                               # jpg_logo variable is set true
-show_cubotino(delay=None, jpg_logo=jpg_logo)      # show cubotino logo on display, when this script is imported
+s_disp.show_cubotino()      # show cubotino logo on display, when this script is imported
 s_disp.set_backlight(1)                             # activates the display backlight
 # ##################################################################################
 
@@ -818,7 +802,7 @@ def servo_solve_cube(moves, print_out=s_debug):
             break                                  # the foor loop in interrupted
         
         if i%2==0:
-            display_progress_bar(remaining_moves[i])
+            s_disp.display_progress_bar(remaining_moves[i])
         
         if moves[i]=='F':                          # case there is a flip on the move string
             flips=int(moves[i+1])                  # number of flips
