@@ -104,10 +104,37 @@ class Display:
         image = Image.open("Cubotino_T_Logo_265x212_BW.jpg")  # opens the CUBOTino logo image (jpg file, converted and saved from pdf file)
         image = image.resize((self.disp_w, self.disp_h))                # resizes the image to match the display.
         self.disp.display(image)                                   # draws the image on the display hardware.
-        
+
+    def test(self):
+        """ Test showing some text into some rectangles."""
+
+        w = self.disp_w                                            # display width, retrieved by display setting
+        h = self.disp_h                                            # display height, retrieved by display setting
+        disp_img = Image.new('RGB', (w, h), color=(0, 0, 0))       
+        disp_draw = ImageDraw.Draw(disp_img)
+        disp_draw.rectangle((2, 2, w-4, h-4), outline="white", fill=(0,0,0))    # border 1
+        disp_draw.rectangle((5, 5, w-7, h-7), outline="white", fill=(0,0,0))    # border 2
+        disp_draw.rectangle((8, 8, w-10, h-10), outline="white", fill=(0,0,0))  # border 3
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 23)  # font
+        disp_draw.text((20, 25), 'DISPLAY', font=font, fill=(255, 255, 255))    # first row text test
+        disp_draw.text((23, 65), 'TEST', font=font, fill=(255, 255, 255))       # second row text test
+        self.disp.display(disp_img)                                             # image is plotted to the display 
+
 display = Display()
 
 if __name__ == "__main__":
-    display.set_backlight(0)  
-    display.show_cubotino() 
-    display.set_backlight(1)  
+    import time
+
+    display.set_backlight(1)
+
+    print("\nDisplay test for 20 seconds, started")
+    print("Display shows rectangles, text and Cubotino logo")
+
+    for i in range(5):
+        display.test()
+        time.sleep(2)
+        display.show_cubotino()
+        time.sleep(2)
+
+    display.set_backlight(0)
+    print("Display test finished\n")
