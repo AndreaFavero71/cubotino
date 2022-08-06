@@ -22,4 +22,5 @@
 "detect_timeout": "40",
 "show_time": "7",
 "warn_time": "1.5",
-"quit_time": "4.5"}
+"quit_time": "4.5",
+"cover_self_close": "true"}
