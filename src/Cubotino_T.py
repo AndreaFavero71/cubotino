@@ -42,7 +42,7 @@ def import_parameters():
     global frameless_cube, camera_width_res, camera_hight_res
     global kl, x_l, x_r, y_u, y_b, warp_fraction, warp_slicing, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright
-    global detect_timeout, show_time, warn_time, quit_time
+    global detect_timeout, show_time, warn_time, quit_time, cover_self_close
     global pathlib
     
     # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac address check
@@ -84,11 +84,11 @@ def import_parameters():
                 elif settings['frameless_cube'].lower().strip() == 'auto': # case frameless_cube parameter is a string == auto
                     frameless_cube = 'auto'                                # cube without black frame around the facelets
                 else:                                                      # case the frameless parameter is not 'false', 'true' or 'auto'
-                    print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto" \n')  # feedback is printed to the terminal
+                    print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto".\n')  # feedback is printed to the terminal
                     return False, ''   # parameter import process is interrupted,  return robot_init_status variable False and empty parameters
             else:                      # case the frameless parameter key is not available at settings file (back compatibility...)
-                print("NOTE: Add 'frameless_cube' parameter in yout Cubotino_T_settings.txt file") # feedback is printed to the terminal
-                print("NOTE: When absent, the classic cube is considered\n\n") # feedback is printed to the terminal
+                print("NOTE: Add 'frameless_cube' parameter in yout Cubotino_T_settings.txt file.") # feedback is printed to the terminal
+                print("NOTE: When absent, the classic cube is considered.\n\n") # feedback is printed to the terminal
                 frameless_cube = 'false'                                       # cube with black frame around the facelets
             
             camera_width_res = int(settings['camera_width_res'])      # Picamera resolution on width 
@@ -112,6 +112,18 @@ def import_parameters():
             show_time = int(settings['show_time'])                    # showing time of the unfolded cube image collage
             warn_time = float(settings['warn_time'])                  # touch button pressing time before get a worning
             quit_time = float(settings['quit_time'])                  # touch button pressing time before the quit process
+            
+            if 'cover_self_close' in settings:      # case the cover_self_close key is available at settings file (back compatibility...)
+                if settings['cover_self_close'].lower().strip() == 'false':  # case cover_self_close parameter is a string == false
+                    cover_self_close = False                                 # cover_self_close parameter is set boolean False
+                elif settings['cover_self_close'].lower().strip() == 'true': # case cover_self_close parameter is a string == true
+                    cover_self_close = True                                  # cover_self_close parameter is set boolean True
+                else:                                                        # case the frameless parameter is not 'false', 'true' or 'auto'
+                    print('\n\nAttention: Wrong cover_self_close parameter: It should be "true" or "false."\n')  # feedback is printed to the terminal
+                    return False, ''   # parameter import process is interrupted,  return robot_init_status variable False and empty parameters
+            else:                                   # case the cover_self_close key is not available at settings file (back compatibility...)
+                print("NOTE: Add 'cover_self_close' parameter in yout Cubotino_T_settings.txt file.\n") # feedback is printed to the terminal
+                cover_self_close = False            # cover_self_close parameter is set boolean False
             
             return True, settings
             
@@ -2724,12 +2736,29 @@ def quit_func(quit_script):
     
     
     ##################### closing the python script, and via bash shutting off the raspberry OS ########
-    elif quit_script:
-        print('script quitting request')      # feedback is printed to the terminal
-        try:
+    elif quit_script:                             # case the quit_script is set true (long button pressing)
+        print('script quitting request')          # feedback is printed to the terminal
+        
+        try:                                      # tentative
             disp.set_backlight(1)                 # display backlight is turned on, in case it wasn't
             disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to the display
-            time.sleep(1)
+            time.sleep(1.5)                       # wait time to let the message visible on the display
+            
+            countdown = 3                         # count-down variable
+            if cover_self_close:                  # case the cover_self_close is set true at the settings file
+                disp.show_on_display('CLOSING', 'COVER',fs1=24, fs2=26) # feedback is printed to the display
+                time.sleep(1.5)                   # wait time to let the message visible on the display
+                for i in range(countdown,-1, -1): # iteration down the countdown variable
+                    dots = ''                     # dot string variable is set empty
+                    for k in range(min(i,3)):     # iteration over the residual cont-down, with max of three
+                        dots = dots + '.'         # dot string variable adds a dot character          
+                    row2_text = str(i) + dots     # string variable to be printed on the second disply row
+                    disp.show_on_display('CLOSING IN', row2_text, x1=20, y1=20, x2=20, y2=50, fs1=18, fs2=60)# feedback is printed to the display
+                    if i > 0:                     # case the cont-down is above 0
+                        time.sleep(1)             # wait time to let the message visible on the display
+                servo.close_cover()               # top cover is closed
+                time.sleep(0.5)                   # time to allow the servo reaching the close position
+            
             disp.set_backlight(0)                 # display backlight is turned off
         except:
             pass
@@ -3223,4 +3252,5 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
+
 
