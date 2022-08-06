@@ -2,3 +2,6 @@
 __pycache__/
 *.py[cod]
 .virtualenvs/
+src/CubesDataLog/
+src/CubesStatusPictures/
+*_backup.txt
