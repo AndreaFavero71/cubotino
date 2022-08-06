@@ -1,6 +1,19 @@
 #!/usr/bin/python
 # coding: utf-8
 
+"""
+#############################################################################################################
+#  Andrea Favero 06 August 2022
+#
+# This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
+# CUBOTino autonomous is the 'Top version', of the CUBOTino versions
+# This specific script manages the display, and it's imported by Cubotino_T.py and Cubotino_T_servos.py
+# Improvement made by Yannick: Thank you !
+#
+#############################################################################################################
+"""
+
+
 from PIL import Image, ImageDraw, ImageFont  # classes from PIL for image manipulation
 import ST7735                                # library for the TFT display with ST7735 driver 
 import os.path, pathlib, json                # library for the json parameter parsing for the display
@@ -123,6 +136,7 @@ class Display:
 display = Display()
 
 if __name__ == "__main__":
+    """the main function can be used to test the disply once connected to the Rpi. """
     import time
 
     display.set_backlight(1)
