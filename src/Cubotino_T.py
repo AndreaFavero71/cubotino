@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 26 July 2022
+#  Andrea Favero, 06 August 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -20,7 +20,7 @@
 #  Search for CUBOTino autonomous on www.intructable.com, to find more info about this robot.
 #
 #  Developped on:
-#  - Raspberry pi Zero 2 
+#  - Raspberry pi Zero 2
 #  - Raspberry Pi OS (Legacy) A port of Debian Buster with security updates and desktop environment
 #    (Linux raspberry 5.10.103-v7+ #1529 SMP Tue 8 12:21:37 GMT 2022 armv71 GNU/Linux)
 #  - OpenCV cv2 ver: 4.1.0
@@ -39,10 +39,11 @@ def import_parameters():
     """ Function to import parameters from a json file, to make easier to list/document/change the variables
         that are expected to vary on each robot."""
        
-    global camera_width_res, camera_hight_res
+    global frameless_cube, camera_width_res, camera_hight_res
     global kl, x_l, x_r, y_u, y_b, warp_fraction, warp_slicing, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright
     global detect_timeout, show_time, warn_time, quit_time
+    global pathlib
     
     # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac address check
     import os.path, pathlib, json                                 # libraries needed for the json, and parameter import
@@ -74,7 +75,22 @@ def import_parameters():
             print('\nimported parameters are saved to the backup file\n') # feedback is printed to the terminal
 
 
-        try:
+        try:                                  # tentative
+            if 'frameless_cube' in settings:  # case the frameless parameter key is available at settings file (back compatibility...)
+                if settings['frameless_cube'].lower().strip() == 'false':  # case frameless_cube parameter is a string == false
+                    frameless_cube = 'false'                               # cube with black frame around the facelets
+                elif settings['frameless_cube'].lower().strip() == 'true': # case frameless_cube parameter is a string == true
+                    frameless_cube = 'true'                                # cube without black frame around the facelets
+                elif settings['frameless_cube'].lower().strip() == 'auto': # case frameless_cube parameter is a string == auto
+                    frameless_cube = 'auto'                                # cube without black frame around the facelets
+                else:                                                      # case the frameless parameter is not 'false', 'true' or 'auto'
+                    print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto" \n')  # feedback is printed to the terminal
+                    return False, ''   # parameter import process is interrupted,  return robot_init_status variable False and empty parameters
+            else:                      # case the frameless parameter key is not available at settings file (back compatibility...)
+                print("NOTE: Add 'frameless_cube' parameter in yout Cubotino_T_settings.txt file") # feedback is printed to the terminal
+                print("NOTE: When absent, the classic cube is considered\n\n") # feedback is printed to the terminal
+                frameless_cube = 'false'                                       # cube with black frame around the facelets
+            
             camera_width_res = int(settings['camera_width_res'])      # Picamera resolution on width 
             camera_hight_res = int(settings['camera_hight_res'])      # Picamera resolution on heigh
             kl = float(settings['kl'])                                # coff. for PiCamera stabili acceptance
@@ -101,12 +117,12 @@ def import_parameters():
             
         
         except:   # exception will be raised if json keys differs, or parameters cannot be converted to int/float
-            print('error on converting the imported parameters to int or float')   # feedback is printed to the terminal                                  
-            return False, _                                     # return robot_init_status variable, that is False
+            print('error on converting the imported parameters to int, float or string')   # feedback is printed to the terminal                                  
+            return False, ''                                    # return robot_init_status variable, that is False
     
     else:                                                       # case the settings file does not exists, or name differs
         print('could not find Cubotino_T_servo_settings.txt')   # feedback is printed to the terminal                                  
-        return False, _                                         # return robot_init_status variable, that is False
+        return False, ''                                        # return robot_init_status variable, that is False
 
 
 def import_libraries():
@@ -136,8 +152,8 @@ def import_libraries():
     print(f'CV2 version: {cv2.__version__}')               # print to terminal the cv2 version
     
     # Up to here Cubotino logo is shown on display
-    disp.show_on_display('LOADING', 'SOLVER', fs1=24, fs2=27)   # feedback is printed to the display
-    disp.set_backlight(1)                                  # display backlight is turned on, in case it wasn't
+    disp.show_on_display('LOADING', 'SOLVER', fs1=24, fs2=27)  # feedback is printed to the display
+    disp.set_backlight(1)                                      # display backlight is turned on, in case it wasn't
 
     
     # importing Kociemba solver
@@ -448,8 +464,8 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
  
     print(f'Exposition time measured on 4 cube sides, in: {round(time.time()-start_time,1)} secs')# feedback is printed to the terminal
     
-    if debug:                                                 # case debug variable is set true on __main__
-        print('\nexposition time on 4 faces : ', exp_list)    # feedback is printed to the terminal
+    if debug:                                                   # case debug variable is set true on __main__
+        print('\nexposition time on UBDF faces : ', exp_list)   # feedback is printed to the terminal
         print('\naverage exposition time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
         print('shutter_speed time set by PiCamera: ',camera.shutter_speed, ' micro secs')    # feedback is printed to the terminal
         print('\nPiCamera parameters, for consistent images, are set to:')                   # feedback is printed to the terminal
@@ -616,21 +632,44 @@ def add_fps(frame, w, h):
 
 
 
-def edge_analysis(frame):
-    """ Image analysis that returns a black & white image, based on the colors borders."""
+def edge_analysis(frame, w, h):
+    """ Image analysis that returns a black & white image, based on the colors borders.
+        From 30th July 2022 differentiated the analysis for cube with /withouth the black frame around the facelets."""
     
-    if cv_wow and screen:                                # case screen and cv_wow variables are set true on __main__
-        global gray, blurred, canny, dilated, eroded     # images are set as global variable
-    
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)       # from BGR color space to gray scale
-    blurred = cv2.GaussianBlur(gray, (9, 9), 0)          # low pass filter is applied, with a 9x9 gaussian filter
-    canny = cv2.Canny(blurred, 10, 30)                   # single pixel edges, having intensity gradient between  10 and 30                      
-    kernel = np.ones((5,5), np.uint8)                    # at robot the kernel is fixed
-    dilated = cv2.dilate(canny, kernel, iterations = 4)  # higher "iterations" is overall faster
-    kernel = np.ones((3,3), np.uint8)                    # smaller kernel is used for the erosion
-    eroded = cv2.erode(dilated, kernel, iterations = 2)  # smaller "iterations" keeps the contour apart from the edges
+    if cv_wow and screen:                                    # case screen and cv_wow variables are set true on __main__
+        global gray, blurred, canny, dilated, eroded         # images are set as global variable
 
-    return eroded
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)           # from BGR color space to gray scale
+    
+    if frameless_cube == 'false':                            # case the cube has black frame around the facelets
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)          # low pass gaussian filter, with a 5x5 gaussian filter (9x9 until 30th July 2022)
+        canny = cv2.Canny(blurred, 10, 30)                   # single pixel edges, with intensity gradient range 10 to 30
+        kernel = np.ones((5,5), np.uint8)                    # kernel of 5x5 pixels for the dilate transformation
+        dilated = cv2.dilate(canny, kernel, iterations = 4)  # higher "iterations" is overall faster
+        kernel = np.ones((3,3), np.uint8)                    # smaller kernel is used for the erosion
+        eroded = cv2.erode(dilated, kernel, iterations = 2)  # smaller "iterations" keeps the contour apart from the edges
+    
+    elif frameless_cube == 'true':                           # case the cube is a frameless cube
+        blurred = cv2.bilateralFilter(gray,3, 80, 80)        # low pass bilateral filter, to de-noise while safegarding edges
+        canny = cv2.Canny(blurred, 4, 25)                    # single pixel edges, with intensity gradient range 4 to 25
+        kernel = np.ones((7,7), np.uint8)                    # kernel of 7x7 pixels for the dilate transformation
+        dilated = cv2.dilate(canny, kernel, iterations = 4)  # higher "iterations" is overall faster
+        kernel = np.ones((5,5), np.uint8)                    # smaller kernel is used for the erosion
+        eroded = cv2.erode(dilated, kernel, iterations = 1)  # smaller "iterations" keeps the contour apart from the edges
+    
+    # note: when frameless_cube == 'auto' the cube detection takes slightly longer
+    elif frameless_cube == 'auto':                           # case for cubes with and without the black frame around the facelets
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)          # low pass gaussian filter, with a 5x5 gaussian filter
+        canny_01 = cv2.Canny(blurred, 10, 30)                # single pixel edges, with intensity gradient range 10 to 30
+        blurred = cv2.bilateralFilter(gray,3, 80, 80)        # low pass bilateral filter, to de-noise while safegarding edges
+        canny_02 = cv2.Canny(blurred, 4, 25)                 # single pixel edges, with intensity gradient range 4 to 25
+        canny = cv2.bitwise_or(canny_01, canny_02, mask = None) # canny image, by (OR) combining those generated with parameters with and without frames
+        kernel = np.ones((7,7), np.uint8)                    # kernel of 7x75 pixels for the dilate transformation
+        dilated = cv2.dilate(canny, kernel, iterations = 3)  # higher "iterations" is overall faster
+        kernel = np.ones((3,3), np.uint8)                    # smaller kernel is used for the erosion
+        eroded = cv2.erode(dilated, kernel, iterations = 2)  # smaller "iterations" keeps the contour apart from the edges
+        
+    return eroded, w, h
 
 
 
@@ -675,9 +714,10 @@ def show_cv_wow(cube, time=2000):
     
     cv2.waitKey(time)    # windows show time (ms), for longer time increase timeout variable at start_up()
     
-    save_images = False                                         # boolean to enable/disable saving cv_wow images 
+    save_images = False                                         # boolean to enable/disable saving cv_wow images
+    folder = pathlib.Path().resolve()                           # active folder (should be home/pi/cube)  
     if save_images:                                             # case the save_image is True
-        folder = os.path.join('.','cv_wow_pictures')            # folder to store the cv_wow pictures
+        folder = os.path.join(folder,'cv_wow_pictures')         # folder to store the cv_wow pictures
         if not os.path.exists(folder):                          # if case the folder does not exist
             os.makedirs(folder)                                 # folder is made if it doesn't exist
         datetime = dt.datetime.now().strftime('%Y%m%d_%H%M%S')  # date_time variable is assigned, for file name
@@ -808,12 +848,14 @@ def read_facelets(frame, w, h):
     Approximation (v2.CHAIN_APPROX_SIMPLE) reduces the amount of pixel down to only vertes."""
     
     global prev_side
-    
+ 
     if side!=prev_side:                           # case the current side differs from the previous side
+        if debug:                                 # case debug variable is set true on __main__
+            print()                               # print an empty line to the terminal
         print(f'Reading side {sides[side]}')      # feedback is printed to the terminal
         prev_side=side                            # current side is assigned to previous side variable
 
-    image = edge_analysis(frame)                  # image edges analysis is applied to the frame
+    image, w, h = edge_analysis(frame, w, h)      # image edges analysis is applied to the frame
     if fps:                                       # case the fps is requested
         image = image[:h,:]                       # image (from edge analysis) is sliced to ROI to prevent reading contours on the fps value
     
@@ -848,7 +890,7 @@ def get_approx_contours(component):
 
 
 
-def get_facelets(frame, contour, hierarchy):
+def get_facelets(facelets, frame, contour, hierarchy):
     """ Contours are analyzed in order to detect the cube's facelets; Argument are simplified contours.
     Returns contours having square characteristics
     
@@ -856,9 +898,9 @@ def get_facelets(frame, contour, hierarchy):
     (to prevent rhonbus), limited area variation between the 9 facelets].
     This function is called on each of the cube sides, therefore the return relates to the face under analysis.""" 
     
-    min_area = int(0.08*(w*h)/9)    #(AF int(0.08*(w*h)/9))  # min area limit for a single facelet's contour
-    max_area = 6*min_area           #(AF 6*min_area)         # max area limit for a single facelet's contour 
-#     print("min_area:",min_area, "    max_area",max_area)         # feedback is printed to the terminal
+    min_area = int(0.08*(w*h)/9)        #(AF int(0.08*(w*h)/9))  # min area limit for a single facelet's contour
+    max_area = 6*min_area               #(AF 6*min_area)         # max area limit for a single facelet's contour       
+
 #     square_ratio=1       #(AF 1)    # it is like a square when min side/max side < square_ratio (0==perfect square, 1 is rather permissive)
 #     rhombus_ratio=0.3    #(AF 0.3)  # considered like a square when diagonal1/diagonal2 > rhombus_ratio (1==perfect, 0.3 is rather permissive)
          
@@ -871,7 +913,7 @@ def get_facelets(frame, contour, hierarchy):
             cont, in_cont, out_cont = order_4points(contour_squeeze, w, h)  # vertex of each contour are ordered CW from top left
             contour_tmp = [cont]                                          # list is made with the ordered detected contour
             cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the contour (1 px thickness)
-            if debug:  # case debug variable is set true on __main__
+            if debug:                                                     # case debug variable is set true on __main__
                 # a white circle is drawn on the 1st vertex (top left), as visual check of proper vertices ordering
                 cv2.circle(frame, (contour_tmp[0][0][0],contour_tmp[0][0][1]), 5, (255, 255, 255), -1)
             contour_tmp = [out_cont]                                      # list is made with the ordered outer contour
@@ -883,15 +925,17 @@ def get_facelets(frame, contour, hierarchy):
                 cY = int(M['m01'] / M['m00'])           # Y value for the contour center
             
             tmp = {'area': area, 'cx': cX, 'cy': cY, 'contour': contour, 'cont_ordered':in_cont}  # dict with relevant contour info
-            
             facelets.append(tmp)                        # list with the dictionary of the potential facelets contrours
-            
-            if len(facelets)>=7:                        # case there are more than 7 potential contours
-                a_to_exclude = area_deviation(facelets) # function that analyzes facelets area, and list those eventually with high dev from median
+                                
+            if len(facelets)>=7:                        # case there are at least 7 potential contours
+                a_to_exclude = area_deviation(facelets, min_area, max_area) # function that analyzes facelets area, and list those with high dev from median
                 if len(a_to_exclude)>=1:                # case when there are facelets to be excluded, due to too different area from median one
                     a_to_exclude.sort(reverse=True)     # list order is reversed, making easy easy to remove
                     for i in a_to_exclude:              # contour deviating too much on area are removed from list of potential facelets
                         facelets.pop(i)                 # contour deviating too much on area are removed from list of potential facelets
+                else:                                   # case there are not facelets to be excluded, due to large area deviation
+                    if frameless_cube != 'false':       # case the cube status reading is for frameless cubes or auto (with and without frames)
+                        facelets = estimate_facelets(facelets,frame, w, h)  # calls the function to estimate the remaining facelets                                 
     
     return facelets   # list of potential facelet's contour is returned
 
@@ -902,7 +946,135 @@ def get_facelets(frame, contour, hierarchy):
 
 
 
-def area_deviation(data):
+def estimate_facelets(facelets, frame, w, h):
+    """Estimates the remaing facelets location when the first 7 are located.
+        This function is called when the cube detection is set to frameless cube type or auto (with and without frame):
+        This means this function is not called when the the setting is (exclusively) for cubes with black frame around facelets."""
+      
+    contours_x = []                                       # empty list to fill with contours centers x coordinates
+    contours_y = []                                       # empty list to fill with contours centers y coordinates
+    contours_area = []                                    # empty list to fill with contours areas
+    facelets_detected = len(facelets)                     # number of facelets alerady detected
+    
+    for i in range(facelets_detected):                    # iteration ofr the quantity of facelets already detected
+        contours_x.append(facelets[i]['cx'])              # all the contours centers x coordinates are listed
+        contours_y.append(facelets[i]['cy'])              # all the contours centers y coordinates are listed
+        contours_area.append(facelets[i]['area'])         # all the contours areas are listed
+
+    med_a = int(median(contours_area))                    # median area for the facelets in argument
+    
+    x_1 = []                       # empty list to fill with x coordinates of first row (smaller x)
+    x_2 = []                       # empty list to fill with x coordinates of second row (medium x)
+    x_3 = []                       # empty list to fill with x coordinates of third row (larger x)
+    y_1 = []                       # empty list to fill with y coordinates of first column (smaller y)
+    y_2 = []                       # empty list to fill with y coordinates of second column (medium y)
+    y_3 = []                       # empty list to fill with y coordinates of third column (larger y)
+    
+    contours_x.sort()              # sorted list with contours centers x coordinates
+    contours_y.sort()              # sorted list with contours centers y coordinates
+    
+    x_low = contours_x[0]          # smaller x coordinate of facelets countours is assigned to the variable x_low
+    x_high = contours_x[-1]        # bigger x coordinate of facelets countours is assigned to the variable x_high
+    y_low = contours_y[0]          # smaller y coordinate of facelets countours is assigned to the variable y_low
+    y_high = contours_y[-1]        # bigger y coordinate of facelets countours is assigned to the variable y_high
+    
+    dist = int((x_high-x_low + y_high-y_low)/8)   # average facelets separation distance from min/max detected contours centers
+    
+    x_1.append(x_low)              # smaller x coordinate of facelets countours is appended to the first row list (x coordinates)
+    y_1.append(y_low)              # smaller x coordinate of facelets countours is appended to the first column list (y coordinates)
+    
+    for i in range(1, facelets_detected):                                      # iteration on detected facelets contours
+        if x_low <= contours_x[i] and contours_x[i] < x_low + dist:            # case the contour center x coordinate is "small"
+            x_1.append(contours_x[i])                                          # contour x coordinate is appended to the of first row list (small x)
+        elif x_low + dist <= contours_x[i] and contours_x[i] < x_high - dist:  # case the contour center x coordinate is "medium"
+            x_2.append(contours_x[i])                                          # contour x coordinate is appended to the of second row list (medium x)
+        else:                                                                  # case the contour center x coordinate is "large"
+            x_3.append(contours_x[i])                                          # contour x coordinate is appended to the of third row list (large x)
+        
+        if y_low <= contours_y[i] and contours_y[i] < y_low + dist:            # case the contour center y coordinate is "small"
+            y_1.append(contours_y[i])                                          # contour y coordinate is appended to the of first column list (small y)
+        elif y_low + dist <= contours_y[i] and contours_y[i] < y_high - dist:  # case the contour center y coordinate is "medium"
+            y_2.append(contours_y[i])                                          # contour y coordinate is appended to the of second column list (medium y)
+        else:                                                                  # case the contour center y coordinate is "large"
+            y_3.append(contours_y[i])                                          # contour y coordinate is appended to the of third column list (large y)
+    
+    if screen and debug and frameless_cube:                                    # case there is a connected screen, debug and Frameless_cube set True
+        cv2.line(frame, (x_low+dist,0), (x_low+dist,h), (255, 255, 255), 2)    # vertical line is drawn between first and second columns of facelets
+        cv2.line(frame, (x_high-dist,0), (x_high-dist,h), (255, 255, 255), 2)  # vertical line is drawn between second and third columns of facelets
+        cv2.line(frame, (0,y_low+dist), (w,y_low+dist), (255, 255, 255), 2)    # horizontal line is drawn between first and second rows of facelets
+        cv2.line(frame, (0,y_high-dist), (w,y_high-dist), (255, 255, 255), 2)  # horizontal line is drawn between second and third rows of facelets
+    
+    if len(x_1)>0 and len(x_2)>0 and len(x_3)>0 and len(y_1)>0 and len(y_2)>0 and len(y_3)>0: # case the six lists are not empty
+        x1_avg = int(sum(x_1)/len(x_1))        # average x coordinate for the contours on first row (small x)
+        x2_avg = int(sum(x_2)/len(x_2))        # average x coordinate for the contours on second row (medium x)
+        x3_avg = int(sum(x_3)/len(x_3))        # average x coordinate for the contours on third row (large x)
+        y1_avg = int(sum(y_1)/len(y_1))        # average y coordinate for the contours on first column (small y)
+        y2_avg = int(sum(y_2)/len(y_2))        # average y coordinate for the contours on second column (medium y)
+        y3_avg = int(sum(y_3)/len(y_3))        # average y coordinate for the contours on third column (large y)
+    else:                                      # case one or more of the six lists is empty
+        return facelets                        # function returns the current detected facelets
+        
+    toAdd_x = []                               # empty list to be filled with x coordinate for the estimated facelet locations
+    toAdd_y = []                               # empty list to be filled with y coordinate for the estimated facelet locations
+    
+    for i in range(9-facelets_detected):       # iteration over the missed facelets
+        if len(x_1)<3:                         # case the first row list (small x) has less than 3 values (x coordinates)
+            toAdd_x.append(x1_avg)             # average x coordinate for the first row (small x) is appended to x coordinates to be added
+            x_1.append(x1_avg)                 # average x coordinate for the first row (small x) is appended to x coordinates of detected facelets
+        elif len(x_2)<3:                       # case the second row list (medium x) has less than 3 values (x coordinates)
+            toAdd_x.append(x2_avg)             # average x coordinate for the second row (medium x) is appended to x coordinates to be added
+            x_2.append(x2_avg)                 # average x coordinate for the second row (medium x) is appended to x coordinates of detected facelets
+        elif len(x_3)<3:                       # case the third row list (large x) has less than 3 values (x coordinates)
+            toAdd_x.append(x3_avg)             # average x coordinate for the third row (large x) is appended to x coordinates to be added
+            x_3.append(x3_avg)                 # average x coordinate for the third row (large x) is appended to x coordinates of detected facelets
+        
+        if len(y_1)<3:                         # case the first column list (small y) has less than 3 values (y coordinates)
+            toAdd_y.append(y1_avg)             # average y coordinate for the first column (small y) is appended to y coordinates to be added
+            y_1.append(y1_avg)                 # average y coordinate for the first column (small y) is appended to y coordinates of detected facelets
+        elif len(y_2)<3:                       # case the second column list (medium y) has less than 3 values (y coordinates)
+            toAdd_y.append(y2_avg)             # average y coordinate for the second column (medium y) is appended to y coordinates to be added
+            y_2.append(y2_avg)                 # average y coordinate for the second column (medium y) is appended to y coordinates of detected facelets
+        elif len(y_3)<3:                       # case the third column list (large y) has less than 3 values (y coordinates)
+            toAdd_y.append(y3_avg)             # average y coordinate for the third column (large y) is appended to y coordinates to be added
+            y_3.append(y3_avg)                 # average y coordinate for the third column (large y) is appended to y coordinates of detected facelets
+    
+    semi_side = int(0.85*dist/2)                                # hals side dimension for the estimated contour square
+    for i in range(9-facelets_detected):                        # iteration over the missed facelets
+        tl = [toAdd_x[i] - semi_side, toAdd_y[i] - semi_side]   # top left contour coordinate, calculated from the estimated contour center point
+        tr = [toAdd_x[i] + semi_side, toAdd_y[i] - semi_side]   # top right contour coordinate, calculated from the estimated contour center point
+        br = [toAdd_x[i] + semi_side, toAdd_y[i] + semi_side]   # bottom right contour coordinate, calculated from the estimated contour center point
+        bl = [toAdd_x[i] - semi_side, toAdd_y[i] + semi_side]   # bottom left contour coordinate, calculated from the estimated contour center point
+        pts=np.array([tl, tr, br, bl], dtype="int32")           # estimated contour coordinates      
+        
+        gap=6                                  # pixels gap
+        tl[0]=max(tl[0]-gap,0)                 # top left x coordinate, shifted toward the contour outer side
+        tl[1]=max(tl[1]-gap,0)                 # top left y coordinate, shifted toward the contour outer side
+        tr[0]=min(tr[0]+gap,w)                 # top right x coordinate, shifted toward the contour outer side
+        tr[1]=max(tr[1]-gap,0)                 # top right y coordinate, shifted toward the contour outer side
+        br[0]=min(br[0]+gap,w)                 # bottom right x coordinate, shifted toward the contour outer side
+        br[1]=min(br[1]+gap,h)                 # bottom right y coordinate, shifted toward the contour outer side
+        bl[0]=max(bl[0]-gap,0)                 # bottom left x coordinate, shifted toward the contour outer side
+        bl[1]=min(bl[1]+gap,h)                 # bottom left y coordinate, shifted toward the contour outer side
+        outer_pts=np.array([tl, tr, br, bl], dtype="int32")     # estimated contour coordinates, sligtly shifted toward the contour outer side
+        
+        contour_tmp = [pts]                                           # list is made with the ordered outer contour
+        cv2.drawContours(frame, contour_tmp, -1, (0, 0, 0), 1)        # a black polyline is drawn on the contour (1 px thickness)
+        contour_tmp = [outer_pts]                                     # list is made with the ordered outer contour
+        cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the outer contour (1 px thickness)
+
+        tmp = {'area': med_a, 'cx': toAdd_x[i], 'cy': toAdd_y[i], 'contour': pts, 'cont_ordered':pts} # dict with relevant contour info
+        facelets.append(tmp)                    # estimated contour relevant info are appended to the facelets list
+    
+    return facelets                             # function returns the updated facelets list, dtected plus estimated
+
+
+
+
+
+
+
+
+def area_deviation(data, min_area, max_area):
     """ Checks whether the areas of 9 facelets are within a pre-defined deviation from the median one
     This function is called when there are a pre-defined amount of potential facelet contours
     Argument is a list of dictionary, wherein the area is one of the dict values
@@ -913,17 +1085,28 @@ def area_deviation(data):
     to_exclude = []                  # list of the contours index to be removed, due to excess of their area deviation
 #     delta_area_limit = 0.7            #(AF 0.7)   # 70% of area deviation from the median is set as threshold (quite permissive)
     area_list = []                   # list to store the contour areas
+    
     for i in range(len(data)):
-        area_list.append(data[i]['area'])                  # all the contour areas are listed
-    area_median = median(area_list)                        # median area values
-    for i in range(len(area_list)):          
-        delta_area=(area_list[i]-area_median)/area_median  # area deviation from the median
-        if delta_area > delta_area_limit:                  # filter on area deviating more than threshold
-            to_exclude.append(i)                           # list of the contours to exclude is populated
-    
-#     if len(to_exclude)==0:
-#         print("median area:", area_median, "\tareas min:", min(area_list), "\tareas_max:", max(area_list))
-    
+        area_list.append(data[i]['area'])                       # all the contour areas are listed
+#         print("contours areas detected:",area_list)             # feedback is printed to the terminal
+
+    area_median = median(area_list)                             # median area values
+    for i in range(len(area_list)):                             # iteration over the facelets areas received
+        delta_area=abs((area_list[i]-area_median)/area_median)  # area deviation from the median
+        if delta_area > delta_area_limit:                       # filter on area deviating more than threshold
+            to_exclude.append(i)                                # list of the contours to exclude is populated
+            if debug:                                           # case debug variable is set true on __main__
+                print('removed contour with area: ',area_list[i], " having delta_area of:",delta_area) # feedback is printed to the terminal
+
+    if debug:                                                   # case debug variable is set true on __main__
+        if len(to_exclude)==0 and len(area_list)>=9:            # case all the face facelets have been detected
+            if side == 1:                                       # case the face is the first one (U)
+                print("acceptable facelets area from min:",min_area, ",  to max:", max_area, ", with max area_delta <=", delta_area_limit)
+            print("median facelets area:", area_median, "\tareas min:", min(area_list), "\tareas_max:", max(area_list))  # feedback is printed to the terminal
+            print("minimum facelet area delta vs median:", round(abs((min(area_list)-area_median)/area_median),2))       # feedback is printed to the terminal
+            print("maximum facelet area delta vs median:", round(abs((max(area_list)-area_median)/area_median),2))       # feedback is printed to the terminal
+            print()
+                      
     return to_exclude                # returns list of contours to be removed
 
 
@@ -1676,7 +1859,9 @@ def decoration(deco_info):
     collage=faces_collage(faces, cube_status, color_detection_winner, cube_color_sequence, HSV_analysis, cube_status_string, \
                           URFDLB_facelets_BGR_mean, font, fontScale, lineType)   # call the function that makes the pictures collage
     
-    folder = os.path.join('.','CubesStatusPictures')     # folder to store the collage pictures
+    folder = pathlib.Path().resolve()                    # active folder (should be home/pi/cube)  
+    folder = os.path.join(folder,'CubesStatusPictures')  # folder to store the collage pictures
+
     if not os.path.exists(folder):                       # if case the folder does not exist
         os.makedirs(folder)                              # folder is made if it doesn't exist
     fname = folder+'/cube_collage'+timestamp+'.png'      # folder+filename with timestamp for the resume picture
@@ -1980,7 +2165,11 @@ def face_image(frame, facelets, side, faces):
     Cx = int(facelets[8].get('cont_ordered')[2][0])      # x coordinate for the bottom-right vertex 9th facelet (8)
     Cy = int(facelets[8].get('cont_ordered')[2][1])      # y coordinate for the bottom-right vertex 9th facelet (8)
     diagonal = int(math.sqrt((Cy-Ay)**2+(Cx-Ax)**2))     # cube face diagonal length
-    margin = int(marg_coef*diagonal)  #(AF 0.06)   # 6% of cube diagonal is used as crop margin (bandwidth outside the detected contours)
+    
+    if frameless_cube == 'true':                         # case the cube detection status is set for cubes with frame around the facelets
+        margin = int(marg_coef*diagonal)    #(AF 0.06)   # 6% of cube diagonal is used as crop margin (bandwidth outside the detected contours)
+    else:                                                # case the cube detection status is set for frameless cubes
+        margin = int(1.33*marg_coef*diagonal)            # larger value is used as as crop margin (bandwidth outside the detected contours)
     
     robot_facelets_rotation(facelets) # facelets are rotated to URFDLB related order
     
@@ -2259,7 +2448,8 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
     HSV color approach is used when the BGR approach fails; If the HSV succedes on cube status detection it become the winner.
     If the cube solver returns an error it means both the approaches have failed on detecting a coherent cube status."""
     
-    folder = os.path.join('.','CubesDataLog')           # folder to store the relevant cube data
+    folder = pathlib.Path().resolve()                   # active folder (should be home/pi/cube)  
+    folder = os.path.join(folder,'CubesDataLog')        # folder to store the relevant cube data
     if not os.path.exists(folder):                      # if case the folder does not exist
         os.makedirs(folder)                             # folder is made if it doesn't exist
     
@@ -2655,10 +2845,10 @@ def cubeAF():
         Cube solving at robot."""
     
     # global variables
-    global camera, rawCapture, width, height, h, w, cam_led_bright, fixWindPos, screen         # camera and frame related variables          
-    global sides, side, prev_side, faces, facelets, BGR_mean, H_mean, URFDLB_facelets_BGR_mean # cube status detection related variables
-    global font, fontScale, fontColor, lineType                                                # cv2 text related variables
-    global servo, robot_stop, timeout, detect_timeout                                          # robot related variables
+    global camera, rawCapture, width, height, h, w, cam_led_bright, fixWindPos, screen    # camera and frame related variables          
+    global sides, side, prev_side, faces, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables
+    global font, fontScale, fontColor, lineType                                           # cv2 text related variables
+    global servo, robot_stop, timeout, detect_timeout                                     # robot related variables
 
 
     if not camera_opened_check():                   # checks if camera is responsive
@@ -2669,7 +2859,8 @@ def cubeAF():
 
     if side==0:
         start_time = time.time()                    # initial time is stored before picamera warmup and setting
-        faces.clear()                               # empties the dict of images (6 sides) recorded during previous solving cycle 
+        faces.clear()                               # empties the dict of images (6 sides) recorded during previous solving cycle
+        facelets = []                               # empties the list of contours having cube's square characteristics
         robot_to_cube_side(side, cam_led_bright)    # robot set with camera on read position
         servo.cam_led_On(cam_led_bright)            # led on top_cover is switched on before the PiCamera warmup phase     
         PiCamera_param = robot_camera_warmup(camera, start_time)    # calls the warmup function for PiCamera
@@ -2683,22 +2874,23 @@ def cubeAF():
     while not robot_stop:                                # substantially the main loop, it can be interrupted by quit_func() 
         if robot_stop:                                   # case the robot has been stopped
             break                                        # while loop is interrupted
-        frame, w, h = read_camera()                      # video stream and frame dimensions
-
+        
         # feedback is printed to the display
         disp.show_on_display('READING FACE', str(sides[side]), x1=15, y1=15, x2=50, y2=35, fs1=16, fs2=80)
+        
+        frame, w, h = read_camera()                          # video stream and frame dimensions
         
         if not robot_stop:                                   # case there are no requests to stop the robot
             (contours, hierarchy)=read_facelets(frame, w, h) # reads cube's facelets and returns the contours
             candidates = []                                  # empties the list of potential contours
         
-        if not robot_stop and hierarchy is not None:     # analyze the contours in case these are previously retrieved
-            hierarchy = hierarchy[0]                     # only top level contours (no childs)
-            facelets = []                                # empties the list of contours having cube's square characteristics
+        if not robot_stop and hierarchy is not None:         # analyze the contours in case these are previously retrieved
+            hierarchy = hierarchy[0]                         # only top level contours (no childs)
+            facelets = []                                    # empties the list of contours having cube's square characteristics
             
-            if timeout or robot_stop:                    # in case of reached timeout or stop_button pressed
-                quit_func(quit_script=False)             # quit function is called, withou forcing the script quitting
-                break                                    # while loop is interrupted
+            if timeout or robot_stop:                        # in case of reached timeout or stop_button pressed
+                quit_func(quit_script=False)                 # quit function is called, withou forcing the script quitting
+                break                                        # while loop is interrupted
             
             for component in zip(contours, hierarchy):                # each contour is analyzed   
                 contour, hierarchy, corners = get_approx_contours(component)  # contours are approximated
@@ -2718,7 +2910,7 @@ def cubeAF():
                     cv2.waitKey(1)      # refresh time is minimized to 1ms, refresh time mostly depending to all other functions
                 
                 if corners==4:                                         # contours with 4 corners are of interest
-                    facelets = get_facelets(frame, contour, hierarchy) # returns a dict with cube compatible contours
+                    facelets = get_facelets(facelets,frame, contour, hierarchy) # returns a dict with cube compatible contours
 
                 if len(facelets)==9:                                   # case there are 9 contours having facelets compatible characteristics
                     facelets = order_9points(facelets, new_center=[])  # contours are ordered from top left
@@ -2743,7 +2935,7 @@ def cubeAF():
                             cv2.imshow('cube', frame)            # shows the frame 
                             cv2.waitKey(1)                       # refresh time is minimized (1ms), yet real time is much higher
                     
-                    disp.clean_display()                              # cleans the display
+                    disp.clean_display()                         # cleans the display
                     robot_to_cube_side(side, cam_led_bright)     # cube is rotated/flipped to the next face
 
                     if side < 6:                                 # actions when a face has been completely detected, and there still are other to come
@@ -2757,6 +2949,7 @@ def cubeAF():
                         break                                    # with this break the process re-start from contour detection at the next cube face
 
                     if side == 6:                                # last cube's face is acquired
+                        disp.clean_display()                     # cleans the display
                         servo.cam_led_Off()                      # led at top_cover is set off         
                         cube_detect_time = time.time()           # time stored after detecteing all the cube facelets
                         if screen:                               # case screen variable is set true on __main__
@@ -2924,12 +3117,22 @@ if __name__ == "__main__":
         print(f'Screen related function are activated')               # feedback is printed to the terminal 
         if fixWindPos:                                                # case the graphical windows is forced to the top left monitor corner
             print(f'CV2 windows forced to top-left screen corner')    # feedback is printed to the terminal     
+        
         if cv_wow:                                                    # case the cv image analysis plot is set true
             print(f'cv image analysis is plot on screen')             # feedback is printed to the terminal 
+        
         if fps:                                                            # case the fps flas is set true
             print(f'FPS calculation and plot on frame are activated')      # feedback is printed to the terminal 
         else:                                                              # case the fps flas is set true
-            print(f'FPS calculation and plot on frame are not activated')  # feedback is printed to the terminal    
+            print(f'FPS calculation and plot on frame are not activated')  # feedback is printed to the terminal
+        
+        if frameless_cube == 'false':                                      # case the frameless string variale equals to false
+            print('\nCube status detection set for cube with black frame around the facelets')  # feedback is printed to the terminal 
+        elif frameless_cube == 'true':                                             # case the frameless string variale equals to true:                                                                      # case the frameless flag is set true
+            print('\nCube status detection set for frameless cube')                # feedback is printed to the terminal
+        elif frameless_cube == 'auto':                                             # case the frameless string variale equals to true:                                                                      # case the frameless flag is set true
+            print('\nCube status detection set for both cubes with and without black frame')   # feedback is printed to the terminal 
+            print('This setting takes slightly longer time for the cube status detection\n')   # feedback is printed to the terminal 
     # ###############################################################################################
     
     
@@ -3020,5 +3223,4 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
-
 
