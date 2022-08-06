@@ -1,4 +1,4 @@
-{"disp_width": "132",
+{"frameless_cube": "auto",
 "disp_height": "162",
 "disp_offsetL": "-4",
 "disp_offsetT": "-2",
