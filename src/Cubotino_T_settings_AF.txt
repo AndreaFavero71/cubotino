@@ -1,4 +1,5 @@
 {"frameless_cube": "auto",
+"disp_width": "130",
 "disp_height": "162",
 "disp_offsetL": "-4",
 "disp_offsetT": "-2",
