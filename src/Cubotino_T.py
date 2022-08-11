@@ -986,9 +986,9 @@ def facelet_grid_pos(x, y):
 
 
 def estimate_facelets(facelets, frame, w, h):
-    """Estimates the remaing facelets location when the first 5 are located; 
-        With 5 detected facelets, and accepted only when there are a complete column AND a complete row,
-        the cube width and height is well known; This enables a good estimation for the missed facelets.
+    """Estimates the remaing facelets location, when there are at least 5 detected facelets.
+        This function is interrupted if one row or column is fully empty; In this way the cube width and height
+        is well known, enabling a good estimation for the missed facelets position.
         This function is called when the frameless_cube is set true or auto.
         This function is not called when the the setting is exclusively set for cubes with black frame around the facelets.
     
