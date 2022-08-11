@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 06 August 2022
+#  Andrea Favero, 11 August 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -64,8 +64,9 @@ def import_parameters():
         if debug:                                                 # case debug variable is set true on __main_
             print('\nimported parameters: ', settings, '\n')      # feedback is printed to the terminal
             
-        backup_fname = os.path.join(folder,'Cubotino_T_settings_backup.txt')     # folder and file name for the settings backup
-        with open(backup_fname, 'w') as f:                        # settings_backup file is opened in writing mode
+        os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
+        backup_fname = os.path.join(folder,'Cubotino_T_settings_backup.txt')          # folder and file name for the settings backup
+        with open(os.open(backup_fname, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:  # settings_backup file is opened in writing mode
             if debug:                                             # case debug variable is set true on __main_
                 print('copy of settings parameter is saved as backup at: ', backup_fname)    # feedback is printed to the terminal
             f.write(json.dumps(settings, indent=0))               # content of the setting file is saved in another file, as backup
@@ -662,7 +663,7 @@ def edge_analysis(frame, w, h):
         eroded = cv2.erode(dilated, kernel, iterations = 2)  # smaller "iterations" keeps the contour apart from the edges
     
     elif frameless_cube == 'true':                           # case the cube is a frameless cube
-        blurred = cv2.bilateralFilter(gray,3, 80, 80)        # low pass bilateral filter, to de-noise while safegarding edges
+        blurred = cv2.bilateralFilter(gray, 3, 80, 80)       # low pass bilateral filter, to de-noise while safegarding edges
         canny = cv2.Canny(blurred, 4, 25)                    # single pixel edges, with intensity gradient range 4 to 25
         kernel = np.ones((7,7), np.uint8)                    # kernel of 7x7 pixels for the dilate transformation
         dilated = cv2.dilate(canny, kernel, iterations = 4)  # higher "iterations" is overall faster
@@ -673,14 +674,22 @@ def edge_analysis(frame, w, h):
     elif frameless_cube == 'auto':                           # case for cubes with and without the black frame around the facelets
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)          # low pass gaussian filter, with a 5x5 gaussian filter
         canny_01 = cv2.Canny(blurred, 10, 30)                # single pixel edges, with intensity gradient range 10 to 30
-        blurred = cv2.bilateralFilter(gray,3, 80, 80)        # low pass bilateral filter, to de-noise while safegarding edges
+        blurred = cv2.bilateralFilter(gray,4, 200, 200)  # 3, 80, 80)        # low pass bilateral filter, to de-noise while safegarding edges
         canny_02 = cv2.Canny(blurred, 4, 25)                 # single pixel edges, with intensity gradient range 4 to 25
         canny = cv2.bitwise_or(canny_01, canny_02, mask = None) # canny image, by (OR) combining those generated with parameters with and without frames
         kernel = np.ones((7,7), np.uint8)                    # kernel of 7x75 pixels for the dilate transformation
         dilated = cv2.dilate(canny, kernel, iterations = 3)  # higher "iterations" is overall faster
         kernel = np.ones((3,3), np.uint8)                    # smaller kernel is used for the erosion
         eroded = cv2.erode(dilated, kernel, iterations = 2)  # smaller "iterations" keeps the contour apart from the edges
-        
+    
+############ visual check edge detection #############
+#     cv2.imshow("Gray", gray)           # gray is shown, on a window called Gray
+#     cv2.imshow("blurred", blurred)     # blurred is shown, on a window called Blurred
+#     cv2.imshow("Canny", canny)         # canny is shown, on a window called Canny
+#     cv2.imshow("Dilated", dilated)     # dilated is shown, on a window called Dilated
+#     cv2.imshow("Eroded", eroded)       # eroded is shown, on a window called Eroded
+######################################################
+    
     return eroded, w, h
 
 
@@ -939,7 +948,7 @@ def get_facelets(facelets, frame, contour, hierarchy):
             tmp = {'area': area, 'cx': cX, 'cy': cY, 'contour': contour, 'cont_ordered':in_cont}  # dict with relevant contour info
             facelets.append(tmp)                        # list with the dictionary of the potential facelets contrours
                                 
-            if len(facelets)>=7:                        # case there are at least 7 potential contours
+            if len(facelets)>=5:                        # case there are at least 5 potential contours
                 a_to_exclude = area_deviation(facelets, min_area, max_area) # function that analyzes facelets area, and list those with high dev from median
                 if len(a_to_exclude)>=1:                # case when there are facelets to be excluded, due to too different area from median one
                     a_to_exclude.sort(reverse=True)     # list order is reversed, making easy easy to remove
@@ -952,113 +961,173 @@ def get_facelets(facelets, frame, contour, hierarchy):
     return facelets   # list of potential facelet's contour is returned
 
 
-   
+
+
+
+
+
+def facelet_grid_pos(x, y):
+    """returns the face facelet number, based on the coordinates of the contour center, and other parameters.
+        This is used to map which in facelets a contour has been detected, and which not."""
+    
+    # Below dict has the face facelets number as value; keys are facelet coordinate expressed as string combination of column and row
+    facelet_number = {'11':0, '21':1, '31':2,
+                      '12':3, '22':4, '32':5,
+                      '13':6, '23':7, '33':8}
+    
+    facelet = str(x) + str(y)                 # facelet string combining column (x) and row (y) of the facelet
+    if facelet in facelet_number:             # case the facelecet is in the dict
+        return facelet_number[facelet]        # facelet number is returned
+
+
 
 
 
 
 
 def estimate_facelets(facelets, frame, w, h):
-    """Estimates the remaing facelets location when the first 7 are located.
-        This function is called when the cube detection is set to frameless cube type or auto (with and without frame):
-        This means this function is not called when the the setting is (exclusively) for cubes with black frame around facelets."""
-      
-    contours_x = []                                       # empty list to fill with contours centers x coordinates
-    contours_y = []                                       # empty list to fill with contours centers y coordinates
-    contours_area = []                                    # empty list to fill with contours areas
-    facelets_detected = len(facelets)                     # number of facelets alerady detected
+    """Estimates the remaing facelets location, when there are at least 5 detected facelets.
+        This function is interrupted if one row or column is fully empty; In this way the cube width and height
+        is well known, enabling a good estimation for the missed facelets position.
+        This function is called when the frameless_cube is set true or auto.
+        This function is not called when the the setting is exclusively set for cubes with black frame around the facelets.
     
-    for i in range(facelets_detected):                    # iteration ofr the quantity of facelets already detected
-        contours_x.append(facelets[i]['cx'])              # all the contours centers x coordinates are listed
-        contours_y.append(facelets[i]['cy'])              # all the contours centers y coordinates are listed
-        contours_area.append(facelets[i]['area'])         # all the contours areas are listed
+    
+                x_1     x_2     x_3              X
+           --|----------------------------------->
+             |       |       |       |
+        y_1  |   1   |   2   |   3   |   row 1
+             |       |       |       |
+             |-----------------------
+             |       |       |       |
+        y_2  |   4   |   5   |   6   |   row 2
+             |       |       |       |
+             |----------------------- 
+             |       |       |       |
+        y_3  |   7   |   8   |   9   |   row 3
+             |       |       |       |
+             |-----------------------
+             |
+             | clmn1   clmn2   clmn3
+             |
+             |
+           Y v
+         
+    """
+    
+    
+    cont_x = []                                # empty list to fill with contours centers x coordinates
+    cont_y = []                                # empty list to fill with contours centers y coordinates
+    cont_area = []                             # empty list to fill with contours areas
+    facelets_detected = len(facelets)          # number of facelets alerady detected
+    
+    for i in range(facelets_detected):         # iteration over the quantity of facelets already detected
+        cont_x.append(facelets[i]['cx'])       # all the contours centers x coordinates are listed
+        cont_y.append(facelets[i]['cy'])       # all the contours centers y coordinates are listed
+        cont_area.append(facelets[i]['area'])  # all the contours areas are listed
+    
+    med_a = int(median(cont_area))             # median area for the facelets in function argument
+    
+    cx = cont_x.copy()         # list copy of contours centers x coordinates
+    cy = cont_y.copy()         # list copy of contours centers y coordinates
+    cont_x.sort()              # sorted list with contours centers x coordinates
+    cont_y.sort()              # sorted list with contours centers y coordinates
+    
+    x_1 = []                   # empty list to fill with x coordinates of first column (smaller x)
+    x_2 = []                   # empty list to fill with x coordinates of second column (medium x)
+    x_3 = []                   # empty list to fill with x coordinates of third column (larger x)
+    y_1 = []                   # empty list to fill with y coordinates of first row (smaller y)
+    y_2 = []                   # empty list to fill with y coordinates of second row (medium y)
+    y_3 = []                   # empty list to fill with y coordinates of third row (larger y)
 
-    med_a = int(median(contours_area))                    # median area for the facelets in argument
+    x_low = cont_x[0]          # smaller x coordinate of facelets countours is assigned to the variable x_low
+    x_high = cont_x[-1]        # bigger x coordinate of facelets countours is assigned to the variable x_high
+    y_low = cont_y[0]          # smaller y coordinate of facelets countours is assigned to the variable y_low
+    y_high = cont_y[-1]        # bigger y coordinate of facelets countours is assigned to the variable y_high 
     
-    x_1 = []                       # empty list to fill with x coordinates of first row (smaller x)
-    x_2 = []                       # empty list to fill with x coordinates of second row (medium x)
-    x_3 = []                       # empty list to fill with x coordinates of third row (larger x)
-    y_1 = []                       # empty list to fill with y coordinates of first column (smaller y)
-    y_2 = []                       # empty list to fill with y coordinates of second column (medium y)
-    y_3 = []                       # empty list to fill with y coordinates of third column (larger y)
+    dist = int(max(x_high-x_low, y_high-y_low)/4) # facelets separation distance from min/max detected contours centers
     
-    contours_x.sort()              # sorted list with contours centers x coordinates
-    contours_y.sort()              # sorted list with contours centers y coordinates
+    x_1.append(x_low)          # smaller x coordinate of facelets countours is appended to the first column list
+    y_1.append(y_low)          # smaller y coordinate of facelets countours is appended to the first row list
     
-    x_low = contours_x[0]          # smaller x coordinate of facelets countours is assigned to the variable x_low
-    x_high = contours_x[-1]        # bigger x coordinate of facelets countours is assigned to the variable x_high
-    y_low = contours_y[0]          # smaller y coordinate of facelets countours is assigned to the variable y_low
-    y_high = contours_y[-1]        # bigger y coordinate of facelets countours is assigned to the variable y_high
-    
-    dist = int((x_high-x_low + y_high-y_low)/8)   # average facelets separation distance from min/max detected contours centers
-    
-    x_1.append(x_low)              # smaller x coordinate of facelets countours is appended to the first row list (x coordinates)
-    y_1.append(y_low)              # smaller x coordinate of facelets countours is appended to the first column list (y coordinates)
-    
-    for i in range(1, facelets_detected):                                      # iteration on detected facelets contours
-        if x_low <= contours_x[i] and contours_x[i] < x_low + dist:            # case the contour center x coordinate is "small"
-            x_1.append(contours_x[i])                                          # contour x coordinate is appended to the of first row list (small x)
-        elif x_low + dist <= contours_x[i] and contours_x[i] < x_high - dist:  # case the contour center x coordinate is "medium"
-            x_2.append(contours_x[i])                                          # contour x coordinate is appended to the of second row list (medium x)
-        else:                                                                  # case the contour center x coordinate is "large"
-            x_3.append(contours_x[i])                                          # contour x coordinate is appended to the of third row list (large x)
+    for i in range(1, facelets_detected):                              # iteration on detected facelets contours
+        if x_low <= cont_x[i] and cont_x[i] < x_low + dist:            # case the contour center x coordinate is "small"
+            x_1.append(cont_x[i])                                      # contour x coordinate is appended to the of first column list (small x)
+        elif x_low + dist <= cont_x[i] and cont_x[i] < x_high - dist:  # case the contour center x coordinate is "medium"
+            x_2.append(cont_x[i])                                      # contour x coordinate is appended to the of second column list (medium x)
+        else:                                                          # case the contour center x coordinate is "large"
+            x_3.append(cont_x[i])                                      # contour x coordinate is appended to the of third column list (large x)
         
-        if y_low <= contours_y[i] and contours_y[i] < y_low + dist:            # case the contour center y coordinate is "small"
-            y_1.append(contours_y[i])                                          # contour y coordinate is appended to the of first column list (small y)
-        elif y_low + dist <= contours_y[i] and contours_y[i] < y_high - dist:  # case the contour center y coordinate is "medium"
-            y_2.append(contours_y[i])                                          # contour y coordinate is appended to the of second column list (medium y)
-        else:                                                                  # case the contour center y coordinate is "large"
-            y_3.append(contours_y[i])                                          # contour y coordinate is appended to the of third column list (large y)
+        if y_low <= cont_y[i] and cont_y[i] < y_low + dist:            # case the contour center y coordinate is "small"
+            y_1.append(cont_y[i])                                      # contour y coordinate is appended to the of first row list (small y)
+        elif y_low + dist <= cont_y[i] and cont_y[i] < y_high - dist:  # case the contour center y coordinate is "medium"
+            y_2.append(cont_y[i])                                      # contour y coordinate is appended to the of second row list (medium y)
+        else:                                                          # case the contour center y coordinate is "large"
+            y_3.append(cont_y[i])                                      # contour y coordinate is appended to the of third row list (large y)
     
-    if screen and debug and frameless_cube:                                    # case there is a connected screen, debug and Frameless_cube set True
-        cv2.line(frame, (x_low+dist,0), (x_low+dist,h), (255, 255, 255), 2)    # vertical line is drawn between first and second columns of facelets
-        cv2.line(frame, (x_high-dist,0), (x_high-dist,h), (255, 255, 255), 2)  # vertical line is drawn between second and third columns of facelets
-        cv2.line(frame, (0,y_low+dist), (w,y_low+dist), (255, 255, 255), 2)    # horizontal line is drawn between first and second rows of facelets
-        cv2.line(frame, (0,y_high-dist), (w,y_high-dist), (255, 255, 255), 2)  # horizontal line is drawn between second and third rows of facelets
+    if len(x_1)==0 or len(x_2)==0 or len(x_3)==0 or len(y_1)==0 or len(y_2)==0 or len(y_3)==0: # case one or more of the six lists are empty
+        return facelets                                                # function returns the already detected facelets
     
-    if len(x_1)>0 and len(x_2)>0 and len(x_3)>0 and len(y_1)>0 and len(y_2)>0 and len(y_3)>0: # case the six lists are not empty
-        x1_avg = int(sum(x_1)/len(x_1))        # average x coordinate for the contours on first row (small x)
-        x2_avg = int(sum(x_2)/len(x_2))        # average x coordinate for the contours on second row (medium x)
-        x3_avg = int(sum(x_3)/len(x_3))        # average x coordinate for the contours on third row (large x)
-        y1_avg = int(sum(y_1)/len(y_1))        # average y coordinate for the contours on first column (small y)
-        y2_avg = int(sum(y_2)/len(y_2))        # average y coordinate for the contours on second column (medium y)
-        y3_avg = int(sum(y_3)/len(y_3))        # average y coordinate for the contours on third column (large y)
-    else:                                      # case one or more of the six lists is empty
-        return facelets                        # function returns the current detected facelets
+    else:                                      # case no one of the six lists is empty
+        x1_avg = int(sum(x_1)/len(x_1))        # average x coordinate for the contours on first column (small x)
+        x2_avg = int(sum(x_2)/len(x_2))        # average x coordinate for the contours on second column (medium x)
+        x3_avg = int(sum(x_3)/len(x_3))        # average x coordinate for the contours on third column (large x)
+        y1_avg = int(sum(y_1)/len(y_1))        # average y coordinate for the contours on first row (small y)
+        y2_avg = int(sum(y_2)/len(y_2))        # average y coordinate for the contours on second row (medium y)
+        y3_avg = int(sum(y_3)/len(y_3))        # average y coordinate for the contours on third row (large y)
+    
+    dist = int((x_high - x_low + y_high - y_low)/8)   # facelets separation distance from min/max detected contours centers
+    detected = []                                     # list for the column row of the face grid
+    for i in range(facelets_detected):                # iteration over the detected facelets
+        if cx[i]<x_low+dist:                          # case the facelet contour center x coordinate is on first grid column
+            x=1                                       # 1 (as column 1) is assigned
+        elif cx[i]>x_low+dist and cx[i]<x_high-dist:  # case the facelet contour center x coordinate is on second grid column
+            x=2                                       # 2 (as column 2) is assigned
+        elif cx[i]>x_high-dist:                       # case the facelet contour center x coordinate is on third grid column
+            x=3                                       # 3 (as column 3) is assigned
+        if cy[i]<y_low+dist:                          # case the facelet contour center x coordinate is on first grid row                          
+            y=1                                       # 1 (as row 1) is assigned
+        elif cy[i]>y_low+dist and cy[i]<y_high-dist:  # case the facelet contour center x coordinate is on second grid row
+            y=2                                       # 2 (as row 2) is assigned
+        elif cy[i]>y_high-dist:                       # case the facelet contour center x coordinate is on third grid row
+            y=3                                       # 3 (as row 3) is assigned
+        detected.append(facelet_grid_pos(x, y))       # list with facelet number is populated
+    
+    s = set(detected)                                        # list with detected facelets numbers is transformed to set
+    missed = [x for x in (0,1,2,3,4,5,6,7,8) if x not in s]  # list with missed facelets numbers
+    
+    est = []                                  # list for xy coordinates for the estimated facelet center locations
+    for facelet in missed:                    # iteration over the missed facelets numbers
+        if facelet == 0:                      # case the missed facelet is 0
+            est.append((x1_avg, y1_avg))      # average xy coordinates for column 1 and row 1 are appended
+        elif facelet == 1:                    # case the missed facelet is 1
+            est.append((x2_avg, y1_avg))      # average xy coordinatees for column 2 and row 1 are appended
+        elif facelet == 2:                    # case the missed facelet is 2
+            est.append((x3_avg, y1_avg))      # average xy coordinats for column 3 and row 1 are appended
+        elif facelet == 3:                    # case the missed facelet is 3
+            est.append((x1_avg, y2_avg))      # average xy coordinates for column 1 and row 2 are appended
+        elif facelet == 4:                    # case the missed facelet is 4
+            est.append((x2_avg, y2_avg))      # average xy coordinates for column 2 and row 2 are appended
+        elif facelet == 5:                    # case the missed facelet is 5
+            est.append((x3_avg, y2_avg))      # average xy coordinates for column 3 and row 2 are appended
+        elif facelet == 6:                    # case the missed facelet is 6
+            est.append((x1_avg, y3_avg))      # average xy coordinates for column 1 and row 3 are appended
+        elif facelet == 7:                    # case the missed facelet is 7
+            est.append((x2_avg, y3_avg))      # average xy coordinates for column 2 and row 3 are appended
+        elif facelet == 8:                    # case the missed facelet is 8
+            est.append((x3_avg, y3_avg))      # average xy coordinates for column 3 and row 3 are appended
+        else:                                 # case that shouldn't exist
+            print("error on estimating the missed facelets")  # feedback is printed to the terminal
+
+    semi_side = int(0.85*dist/2)                              # half side dimension for the estimated contour square
+    for i in range(len(missed)):                              # iteration over the missed facelets
+        tl = [est[i][0] - semi_side, est[i][1] - semi_side]   # top left contour coordinate, calculated from the estimated contour center point
+        tr = [est[i][0] + semi_side, est[i][1] - semi_side]   # top right contour coordinate, calculated from the estimated contour center point
+        br = [est[i][0] + semi_side, est[i][1] + semi_side]   # bottom right contour coordinate, calculated from the estimated contour center point
+        bl = [est[i][0] - semi_side, est[i][1] + semi_side]   # bottom left contour coordinate, calculated from the estimated contour center point
+        pts=np.array([tl, tr, br, bl], dtype="int32")         # estimated contour coordinates      
         
-    toAdd_x = []                               # empty list to be filled with x coordinate for the estimated facelet locations
-    toAdd_y = []                               # empty list to be filled with y coordinate for the estimated facelet locations
-    
-    for i in range(9-facelets_detected):       # iteration over the missed facelets
-        if len(x_1)<3:                         # case the first row list (small x) has less than 3 values (x coordinates)
-            toAdd_x.append(x1_avg)             # average x coordinate for the first row (small x) is appended to x coordinates to be added
-            x_1.append(x1_avg)                 # average x coordinate for the first row (small x) is appended to x coordinates of detected facelets
-        elif len(x_2)<3:                       # case the second row list (medium x) has less than 3 values (x coordinates)
-            toAdd_x.append(x2_avg)             # average x coordinate for the second row (medium x) is appended to x coordinates to be added
-            x_2.append(x2_avg)                 # average x coordinate for the second row (medium x) is appended to x coordinates of detected facelets
-        elif len(x_3)<3:                       # case the third row list (large x) has less than 3 values (x coordinates)
-            toAdd_x.append(x3_avg)             # average x coordinate for the third row (large x) is appended to x coordinates to be added
-            x_3.append(x3_avg)                 # average x coordinate for the third row (large x) is appended to x coordinates of detected facelets
-        
-        if len(y_1)<3:                         # case the first column list (small y) has less than 3 values (y coordinates)
-            toAdd_y.append(y1_avg)             # average y coordinate for the first column (small y) is appended to y coordinates to be added
-            y_1.append(y1_avg)                 # average y coordinate for the first column (small y) is appended to y coordinates of detected facelets
-        elif len(y_2)<3:                       # case the second column list (medium y) has less than 3 values (y coordinates)
-            toAdd_y.append(y2_avg)             # average y coordinate for the second column (medium y) is appended to y coordinates to be added
-            y_2.append(y2_avg)                 # average y coordinate for the second column (medium y) is appended to y coordinates of detected facelets
-        elif len(y_3)<3:                       # case the third column list (large y) has less than 3 values (y coordinates)
-            toAdd_y.append(y3_avg)             # average y coordinate for the third column (large y) is appended to y coordinates to be added
-            y_3.append(y3_avg)                 # average y coordinate for the third column (large y) is appended to y coordinates of detected facelets
-    
-    semi_side = int(0.85*dist/2)                                # hals side dimension for the estimated contour square
-    for i in range(9-facelets_detected):                        # iteration over the missed facelets
-        tl = [toAdd_x[i] - semi_side, toAdd_y[i] - semi_side]   # top left contour coordinate, calculated from the estimated contour center point
-        tr = [toAdd_x[i] + semi_side, toAdd_y[i] - semi_side]   # top right contour coordinate, calculated from the estimated contour center point
-        br = [toAdd_x[i] + semi_side, toAdd_y[i] + semi_side]   # bottom right contour coordinate, calculated from the estimated contour center point
-        bl = [toAdd_x[i] - semi_side, toAdd_y[i] + semi_side]   # bottom left contour coordinate, calculated from the estimated contour center point
-        pts=np.array([tl, tr, br, bl], dtype="int32")           # estimated contour coordinates      
-        
-        gap=6                                  # pixels gap
+        gap=5                                  # pixels gap
         tl[0]=max(tl[0]-gap,0)                 # top left x coordinate, shifted toward the contour outer side
         tl[1]=max(tl[1]-gap,0)                 # top left y coordinate, shifted toward the contour outer side
         tr[0]=min(tr[0]+gap,w)                 # top right x coordinate, shifted toward the contour outer side
@@ -1074,10 +1143,16 @@ def estimate_facelets(facelets, frame, w, h):
         contour_tmp = [outer_pts]                                     # list is made with the ordered outer contour
         cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the outer contour (1 px thickness)
 
-        tmp = {'area': med_a, 'cx': toAdd_x[i], 'cy': toAdd_y[i], 'contour': pts, 'cont_ordered':pts} # dict with relevant contour info
-        facelets.append(tmp)                    # estimated contour relevant info are appended to the facelets list
+        tmp = {'area': med_a, 'cx': est[i][0], 'cy': est[i][1], 'contour': pts, 'cont_ordered':pts} # dict with relevant contour info
+        facelets.append(tmp)                   # estimated facelets relevant info are appended to the detected facelets list
     
-    return facelets                             # function returns the updated facelets list, dtected plus estimated
+    if screen and debug and frameless_cube!=False:                             # case there is a connected screen, debug and Frameless_cube not False
+        cv2.line(frame, (x_low+dist,0), (x_low+dist,h), (255, 255, 255), 2)    # vertical line is drawn between first and second row of facelets
+        cv2.line(frame, (x_high-dist,0), (x_high-dist,h), (255, 255, 255), 2)  # vertical line is drawn between second and third row of facelets
+        cv2.line(frame, (0,y_low+dist), (w,y_low+dist), (255, 255, 255), 2)    # horizontal line is drawn between first and second column of facelets
+        cv2.line(frame, (0,y_high-dist), (w,y_high-dist), (255, 255, 255), 2)  # horizontal line is drawn between second and third column of facelets
+        
+    return facelets     # detected facelets combined with estimated facelets
 
 
 
@@ -2471,35 +2546,37 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
             print(f'\ngenerated AF_cube_solver_log_Rpi.txt file with headers') # feedback is printed to the terminal
         
         a = 'Date'                                      # 1st column header
-        b = 'ColorAnalysisWinner'                       # 2nd column header
-        c = 'TotRobotTime(s)'                           # 3rd column header
-        d = 'CameraWarmUpTime(s)'                       # 4th column header
-        e = 'FaceletsDetectionTime(s)'                  # 5th column header
-        f = 'CubeSolutionTime(s)'                       # 6th column header
-        g = 'RobotSolvingTime(s)'                       # 7th column header
-        h = 'CubeStatus(BGR or HSV or BGR,HSV)'         # 8th column header
-        i = 'CubeStatus'                                # 9th column header
-        k = 'CubeSolution'                              # 10th column header
-        s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\n'  # tab separated string of the the headers
+        b = 'FramelessCube'                             # 2nd column header
+        c = 'ColorAnalysisWinner'                       # 3rd column header
+        d = 'TotRobotTime(s)'                           # 4th column header
+        e = 'CameraWarmUpTime(s)'                       # 5th column header
+        f = 'FaceletsDetectionTime(s)'                  # 6th column header
+        g = 'CubeSolutionTime(s)'                       # 7th column header
+        h = 'RobotSolvingTime(s)'                       # 8th column header
+        i = 'CubeStatus(BGR or HSV or BGR,HSV)'         # 9th column header
+        k = 'CubeStatus'                                # 10th column header
+        l = 'CubeSolution'                              # 11th column header
+        s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\n'  # tab separated string of the the headers
         
+        os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
         # 'a'means: file will be generated if it does not exist, and data will be appended at the end
-        with open(fname,'a') as f:    
-            f.write(s)       
+        with open(os.open(fname, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:    # text file is temporary opened
+            f.write(s)               # data is appended
 
-    
 
     # info to log
     a=str(timestamp)                                                   # date and time
-    b=str(color_detection_winner)                                      # wich method delivered the coherent cube status
-    c=str(round(tot_robot_time,1))                                     # total time from camera warmup to cube solved
-    d=str(round(camera_ready_time-start_time,1))                       # time to get the camera gains stable
-    e=str(round(cube_detect_time-camera_ready_time,1))                 # time to read the 6 cube faces
-    f=str(round(cube_solution_time-cube_detect_time,1))                # time to get the cube solution from the solver
-    g=str(round(robot_solving_time,1))                                 # time to manoeuvre the cube to solve it
-    h=str(facelets_data)                                               # according to which methos delivered the solution (BGR, HSV, both)
-    i=str(cube_status_string)                                          # string with the detected cbe status
-    k=str(solution)                                                    # solution returned by Kociemba solver
-    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\n'      # tab separated string with info to log
+    b=frameless_cube                                                   # frameless cube setting
+    c=str(color_detection_winner)                                      # wich method delivered the coherent cube status
+    d=str(round(tot_robot_time,1))                                     # total time from camera warmup to cube solved
+    e=str(round(camera_ready_time-start_time,1))                       # time to get the camera gains stable
+    f=str(round(cube_detect_time-camera_ready_time,1))                 # time to read the 6 cube faces
+    g=str(round(cube_solution_time-cube_detect_time,1))                # time to get the cube solution from the solver
+    h=str(round(robot_solving_time,1))                                 # time to manoeuvre the cube to solve it
+    i=str(facelets_data)                                               # according to which methos delivered the solution (BGR, HSV, both)
+    k=str(cube_status_string)                                          # string with the detected cbe status
+    l=str(solution)                                                    # solution returned by Kociemba solver
+    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\n'      # tab separated string with info to log
     
     # 'a'means: file will be generated if it does not exist, and data will be appended at the end
     with open(fname,'a') as f:   # text file is temporary opened
@@ -3252,5 +3329,6 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
+
 
 
