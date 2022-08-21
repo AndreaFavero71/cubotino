@@ -3,7 +3,7 @@
 "t_servo_close": "-0.1",
 "t_servo_open": "-0.44",
 "t_servo_read": "-0.6",
-"t_servo_flip": "-0.94",
+"t_servo_flip": "-0.92",
 "t_servo_rel_delta": "0",
 "t_flip_to_close_time": "0.38",
 "t_close_to_flip_time": "0.42",
