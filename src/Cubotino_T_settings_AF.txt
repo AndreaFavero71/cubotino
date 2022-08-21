@@ -1,7 +1,7 @@
 {"frameless_cube": "auto",
 "disp_width": "130",
 "disp_height": "162",
-"disp_offsetL": "-4",
+"disp_offsetL": "-2",
 "disp_offsetT": "-2",
 "camera_width_res": "640",
 "camera_hight_res": "480",

@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 11 August 2022
+#  Andrea Favero, 21 August 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -53,6 +53,8 @@ def import_parameters():
     eth_mac = get_mac_address()                                   # mac address is retrieved
     if eth_mac == 'e4:5f:01:8d:59:97':                            # case the script is running on AF (Andrea Favero) robot
         fname = os.path.join(folder,'Cubotino_T_settings_AF.txt') # AF robot settings (do not use these at the start)
+    elif eth_mac == 'e4:5f:01:8b:5f:e5':                          # case the script is running on AF (Andrea Favero) robot
+        fname = os.path.join(folder,'Cubotino_T_settings_AF2.txt')# AF second robot settings (do not use these at the start)
     else:                                                         # case the script is not running on AF (Andrea Favero) robot
         fname = os.path.join(folder,'Cubotino_T_settings.txt')    # folder and file name for the settings, to be tuned
     
@@ -3329,6 +3331,3 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
-
-
-

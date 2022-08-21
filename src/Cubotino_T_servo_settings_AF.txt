@@ -15,8 +15,8 @@
 "b_servo_CCW": "-1",
 "b_servo_CW": "1",
 "b_home": "0",
-"b_extra_sides": "0",
-"b_extra_home": "0.13",
+"b_extra_sides": "0.06",
+"b_extra_home": "0.1",
 "b_spin_time": "0.45",
 "b_rotate_time": "0.55",
 "b_rel_time": "0"}
