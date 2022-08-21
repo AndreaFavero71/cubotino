@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 06 August 2022
+# Andrea Favero 21 August 2022
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -96,7 +96,9 @@ def init_servo(print_out=s_debug, home_pos=True):
         folder = pathlib.Path().resolve()                                # active folder (should be home/pi/cube)  
         eth_mac = get_mac_address()                                      # mac address is retrieved
         if eth_mac == 'e4:5f:01:8d:59:97':                               # case the script is running on AF (Andrea Favero) robot
-            fname = os.path.join(folder,'Cubotino_T_servo_settings_AF.txt') # AF robot settings (do not use these at the start)
+            fname = os.path.join(folder,'Cubotino_T_servo_settings_AF.txt')   # AF robot settings (do not use these at the start)
+        elif eth_mac == 'e4:5f:01:8b:5f:e5':                                  # case the script is running on AF (Andrea Favero) robot
+            fname = os.path.join(folder,'Cubotino_T_servo_settings_AF2.txt')  # AF second robot settings (do not use these at the start)
         else:                                                            # case the script is not running on AF (Andrea Favero) robot
             fname = os.path.join(folder,'Cubotino_T_servo_settings.txt') # folder and file name for the settings, to be tuned
  
@@ -514,12 +516,12 @@ def spin_out(direction):
                 b_servo_CCW_pos=False                # boolean of bottom servo at full CCW position
                 
                 if direction=='CCW':                 # case the set direction is CCW
-                    b_servo.value = b_servo_CCW      # bottom servo moves to the most CCW position
+                    b_servo.value = b_servo_CCW_rel  # bottom servo moves to the most CCW position
                     time.sleep(b_spin_time)          # time for the bottom servo to reach the most CCW position
                     b_servo_CCW_pos=True             # boolean of bottom servo at full CCW position
                 
                 elif direction=='CW':                # case the set direction is CW
-                    b_servo.value = b_servo_CW       # bottom servo moves to the most CCW position
+                    b_servo.value = b_servo_CW_rel   # bottom servo moves to the most CCW position
                     time.sleep(b_spin_time)          # time for the bottom servo to reach the most CCW position
                     b_servo_CW_pos=True              # boolean of bottom servo at full CW position
                 
@@ -1079,7 +1081,7 @@ if __name__ == "__main__":
     parser.add_argument("--set", type=float, 
                         help="Set both servos to PWM value (value range from -1.00 to 1.00)")        # argument is added to the parser
     parser.add_argument("--tune", type=str2bool,
-                        help="Check individual servo default positions, and to find the best tune")  # argument is added to the parser
+                        help="Check individual servo default positions, to find the best tune ('true'to enter')")  # argument is added to the parser
     args = parser.parse_args()                                              # argument parsed assignement
     
 
@@ -1132,4 +1134,5 @@ if __name__ == "__main__":
 
         s_disp.set_backlight(0)                # de-activates the display backlight
     # #############################################################################################
+
 
