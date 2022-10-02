@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 21 August 2022
+#  Andrea Favero, 27 August 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -64,7 +64,11 @@ def import_parameters():
             # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
         
         if debug:                                                 # case debug variable is set true on __main_
-            print('\nimported parameters: ', settings, '\n')      # feedback is printed to the terminal
+            print('\nimporting settings from the text file:', fname)    # feedback is printed to the termina
+            print('\nimported parameters: ')                      # feedback is printed to the terminal
+            for parameter, setting in settings.items():           # iteration over the settings dict
+                print(parameter,': ', setting)                    # feedback is printed to the terminal
+            print()
             
         os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
         backup_fname = os.path.join(folder,'Cubotino_T_settings_backup.txt')          # folder and file name for the settings backup
@@ -240,6 +244,19 @@ def press_to_start():
         if GPIO.input(touch_btn):                            # case touch_button is 'pressed'
             start=True                                       # local boolean (set true) indicating the robot will operate
             break                                            # infinite loop is interrupted
+
+##### addition for faire setup ##########
+""" it uses two inputs in logic AND to start the robot
+    These buttons don't do enything else
+    No pressing time filters"""
+
+        if GPIO.input(touch_btn1_faire) and GPIO.input(touch_btn2_faire):
+            # case both the touch buttons on the faire setup are 'pressed'
+            start=True                                       # local boolean (set true) indicating the robot will operate
+            break                                            # infinite loop is interrupted
+#########################################
+    
+
 
 
 
@@ -2675,13 +2692,27 @@ def robot_set_GPIO():
     GPIO.setmode(GPIO.BCM)                                          # GPIO modulesetting
     touch_btn = 26                                                  # GPIO pin used for the touch button (start/stop button)
     GPIO.setup(touch_btn, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)      # set the touch_button_pin as an input
-
-    
     try:
         # interrupt usage (of the same input pin), to quicly stop the robot movements
         GPIO.add_event_detect(touch_btn, GPIO.RISING, callback=stop_cycle, bouncetime=20)
     except:
         pass
+
+
+###### addition for faire demo setup #####
+""" it uses two inputs in logic AND to start the robot
+    These buttons don't do enything else
+    No pressing time filters"""
+
+    global touch_btn1_faire, touch_btn2_faire
+
+    touch_btn1_faire = 23                                              # GPIO pin used for the touch button1 at faire (only start function)
+    GPIO.setup(touch_btn1_faire, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # set the touch_button_pin as an input
+    touch_btn2_faire = 24                                              # GPIO pin used for the touch button2 at faire (only start function)
+    GPIO.setup(touch_btn2_faire, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # set the touch_button_pin as an input
+##########################################
+    
+
 
 
 
@@ -3331,3 +3362,5 @@ if __name__ == "__main__":
                 robot_stop = False                     # flag used to stop or allow robot movements
                 timeout = False                        # flag to limit the cube facelet detection time
                 warning = False                        # warning is set False
+
+
