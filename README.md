@@ -56,5 +56,5 @@ vncviewer cubotino.local
 ```
 It will ask for the credential. Use ‘pi’ and the same password you use for ssh. You should have a desktop version in this way
 
-Check out the "How_to_make ...  .pdf" document for further info
+Check out the "How_to_make ...  .pdf" document (at /doc folder) for further info
 
