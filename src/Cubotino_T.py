@@ -246,10 +246,7 @@ def press_to_start():
             break                                            # infinite loop is interrupted
 
 ##### addition for faire setup ##########
-""" it uses two inputs in logic AND to start the robot
-    These buttons don't do enything else
-    No pressing time filters"""
-
+# it uses two inputs in logic AND to start the robot. These buttons don't do enything else. No pressing time filters
         if GPIO.input(touch_btn1_faire) and GPIO.input(touch_btn2_faire):
             # case both the touch buttons on the faire setup are 'pressed'
             start=True                                       # local boolean (set true) indicating the robot will operate
@@ -2700,12 +2697,8 @@ def robot_set_GPIO():
 
 
 ###### addition for faire demo setup #####
-""" it uses two inputs in logic AND to start the robot
-    These buttons don't do enything else
-    No pressing time filters"""
-
+# it uses two inputs in logic AND to start the robot. These buttons don't do enything else. No pressing time filters
     global touch_btn1_faire, touch_btn2_faire
-
     touch_btn1_faire = 23                                              # GPIO pin used for the touch button1 at faire (only start function)
     GPIO.setup(touch_btn1_faire, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # set the touch_button_pin as an input
     touch_btn2_faire = 24                                              # GPIO pin used for the touch button2 at faire (only start function)
