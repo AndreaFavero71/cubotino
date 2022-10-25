@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 27 August 2022
+#  Andrea Favero, 25 October 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -286,7 +286,7 @@ def webcam():
     
     global camera, PiRGBArray
     
-    # PiCamera is set as camera object, with binning. Framerate range limited to 10 allows longer exposition time (when needed)
+    # PiCamera is set as camera object, with binning. Framerate range limited to 10 allows longer exposure time (when needed)
     # higher framerate does not really speed up the cube reading process.
     s_mode = 7                             # sensor mode 7 means 4x4 binning
     camera = PiCamera(sensor_mode=s_mode, framerate_range = (1, 10))  
@@ -375,7 +375,7 @@ def robot_camera_warmup(camera, start_time):
             awb_blue_list.append(round(float(awb_gains[0]),2))          # awb blue part gain is appended to a list
             awb_red_list.append(round(float(awb_gains[1]),2))           # awb blue part gain is appended to a list
             exp_list.append(exposure)                                   # exposure time (micro secs) is appended to a list
-            t_list.append(round(time.time()- t_start,2))                # time (from AWB and Exposition start adjustement) is appended to a list
+            t_list.append(round(time.time()- t_start,2))                # time (from AWB and Exposure start adjustement) is appended to a list
             
             a_check=False                                               # a flag is negatively set for analog gain (being stable...)
             d_check=False                                               # a flag is negatively set for digital gain (being stable...)
@@ -442,12 +442,12 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     """ Picamera is left in Auto mode for Exposure and AWB, untill the first 9 facelets of first side are detected.
     For consistent color detection, on the following sides, these two parameters are retrieved from PiCamera right after
     the first side detection, and se back to PiCamera as 'manual' parametes.
-    This prevents the PiCamera to keep adjusting the AWB and Exposition while reading the following 5 cube faces (sides)."""
+    This prevents the PiCamera to keep adjusting the AWB and Exposure while reading the following 5 cube faces (sides)."""
     
     if robot_stop:        # case the robot has been requested to stop
         return            # function is terminated
     
-    disp.show_on_display('MEASURING', 'EXPOSITION', fs1=18, fs2=18)    # feedback is printed to the display
+    disp.show_on_display('MEASURING', 'EXPOSURE', fs1=18, fs2=20)    # feedback is printed to the display
     
     a_gain = PiCamera_param[0]                          # analog gain picamera setting when warmup got stable
     d_gain = PiCamera_param[1]                          # digital gainpicamera setting when warmup got stable
@@ -470,7 +470,7 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     time.sleep(0.1)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
 
     
-    # PiCamera exposition is inquired to PiCaera on 4 cube sides reachable via a simple cube flip, to later fix an average exposition time
+    # PiCamera exposure is inquired to PiCaera on 4 cube sides reachable via a simple cube flip, to later fix an average exposure time
     exp_list=[]                                         # list to store the Picamera exposure time, for the first 4 faces
     exp_list.append(camera.exposure_speed)              # read picamera exposure time (microsec) on first face
     for i in range(3):                                  # iterate over the 4 faces reachable via a single cube flip
@@ -483,7 +483,7 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
             cv2.waitKey(1)                              # refresh time is minimized to 1ms 
         
         robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
-        time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposition time at PiCamera
+        time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposure time at PiCamera
         exp_list.append(camera.exposure_speed)          # read picamera exposure time (microsec) on the face i
         
     robot_to_cube_side(1,cam_led_bright)                # flipping the cube, to reach the next side
@@ -491,11 +491,11 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     camera.shutter_speed = shutter_time                 # sets the shutter time to the PiCamera, for consinstent images
     time.sleep(0.15)
  
-    print(f'Exposition time measured on 4 cube sides, in: {round(time.time()-start_time,1)} secs')# feedback is printed to the terminal
+    print(f'Exposure time measured on 4 cube sides, in: {round(time.time()-start_time,1)} secs')# feedback is printed to the terminal
     
     if debug:                                                   # case debug variable is set true on __main__
-        print('\nexposition time on UBDF faces : ', exp_list)   # feedback is printed to the terminal
-        print('\naverage exposition time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
+        print('\nexposure time on UBDF faces : ', exp_list)     # feedback is printed to the terminal
+        print('\naverage exposure time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
         print('shutter_speed time set by PiCamera: ',camera.shutter_speed, ' micro secs')    # feedback is printed to the terminal
         print('\nPiCamera parameters, for consistent images, are set to:')                   # feedback is printed to the terminal
         print('analog_gain:',round(float(a_gain),2))      # feedback is printed to the terminal
@@ -2622,7 +2622,7 @@ def camera_opened_check():
 
 def close_camera():
     """ Closes the camera object; It's important to close the camera, if the script runs again.
-    On PiCamera it's importan to close it, at the end of a cube solving cycle to drop the AWB and Exposition setting used before."""
+    On PiCamera it's importan to close it, at the end of a cube solving cycle to drop the AWB and Exposure setting used before."""
     
     try:
         camera.close()                  # necessary to close the camera to release the fix settings, like analog/digital gains
