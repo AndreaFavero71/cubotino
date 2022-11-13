@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 21 August 2022
+#  Andrea Favero 13 November 2022
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -22,8 +22,8 @@ from getmac import get_mac_address           # library to get the device MAC ddr
 class Display:
     def __init__(self):
         """ Imports and set the display (128 x 160 pixels) https://www.az-delivery.de/it/products/1-77-zoll-spi-tft-display.
-            In my case was necessary to play with offset and display dimensions (pixels) to get an acceptable result.
-            For a faster display init, check the Tuning chapter of the project instructions."""
+            In my (AF) case was necessary to play with offset and display dimensions (pixels) to get an acceptable result.
+            For a faster display init: Reduce the time.sleep to 0.1 (3 times, iso 0.5) at reset at __init__ of ST7735 module."""
                 
         # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
         folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
@@ -63,8 +63,9 @@ class Display:
         self.disp_w = self.disp.width                                             # display width, retrieved by display setting
         self.disp_h = self.disp.height                                            # display height, retrieved by display setting
         disp_img = Image.new('RGB', (self.disp_w, self.disp_h),color=(0, 0, 0))   # display image generation, full black
-        self.disp.display(disp_img)                                          # image is displayed        
-
+        self.disp.display(disp_img)                                          # image is displayed
+        
+    
     def set_backlight(self, value):
         """Set the backlight on/off."""
         self.disp.set_backlight(value)
@@ -88,7 +89,7 @@ class Display:
         disp_draw.text((x2, y2), r2, font=font2, fill=(255, 255, 255))    # second text row start coordinate, text, font, white color
         self.disp.display(disp_img)                                       # image is plot to the display
 
-    def display_progress_bar(self, percent):
+    def display_progress_bar(self, percent, scrambling=False):
         """ Function to print a progress bar on the display."""
 
         # percent value printed as text 
@@ -104,10 +105,17 @@ class Display:
         x = 15                  # x coordinate for the bar starting location
         y = 60                  # y coordinate for the bar starting location
         gap = 3                 # gap in pixels between the outer border and inner filling (even value is preferable) 
-        barWidth = 35           # width of the bar, in pixels
+        if not scrambling:      # case the robot is solving a cube
+            barWidth = 35       # width of the bar, in pixels
+        elif scrambling:        # case the robot is scrambling a cube
+            barWidth = 18       # width of the bar, in pixels
+            fs = 18             # font size
+            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fs)  # font and its size
+            disp_draw.text((15, 85), 'SCRAMBLING', font=font, fill=(255, 255, 255))                # SCRAMBLING text
+            
         barLength = 135         # lenght of the bar, in pixels
         filledPixels = int( x+gap +(barLength-2*gap)*percent/100)  # bar filling length, as function of the percent
-        disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))     # outer bar border
+        disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))      # outer bar border
         disp_draw.rectangle((x+gap, y+gap, filledPixels-1 , y+barWidth-gap), fill=(255,255,255)) # bar filling
         
         self.disp.display(disp_img) # image is plotted to the display

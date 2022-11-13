@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 21 August 2022
+# Andrea Favero 13 November 2022
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -778,7 +778,7 @@ def fun(print_out=s_debug):
 
 
 
-def servo_solve_cube(moves, print_out=s_debug):
+def servo_solve_cube(moves, scrambling=False, print_out=s_debug):
     """ Function that translates the received string of moves, into servos sequence activations.
         This is substantially the main function."""
     
@@ -803,8 +803,9 @@ def servo_solve_cube(moves, print_out=s_debug):
         if stop_servos:                            # case there is a stop request for servos
             break                                  # the foor loop in interrupted
         
-        if i%2==0:
-            s_disp.display_progress_bar(remaining_moves[i])
+        if i%2==0 and not stop_servos:             # string index having robot movements
+            # calls the display progress bar function. SCRAMBLING is displayed when that fuction is used
+            s_disp.display_progress_bar(remaining_moves[i], scrambling)
         
         if moves[i]=='F':                          # case there is a flip on the move string
             flips=int(moves[i+1])                  # number of flips

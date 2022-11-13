@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 25 October 2022
+#  Andrea Favero, 13 November 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -107,6 +107,8 @@ def import_parameters():
             y_b = int(settings['y_b'])                                # image crop on bottom (before warping)
             warp_fraction = float(settings['warp_fraction'])          # coeff for warping the image
             warp_slicing = float(settings['warp_slicing'])            # coeff for cropping the bottom warped image
+            if warp_slicing == 0:                                     # case the parameter equals to zero
+                warp_slicing = 0.1                                    # the parameter is set to 0.1
             square_ratio = float(settings['square_ratio'])            # acceptance threshold for square sides difference
             rhombus_ratio = float(settings['rhombus_ratio'])          # acceptance threshold for rhombus axes difference
             delta_area_limit = float(settings['delta_area_limit'])    # acceptance threshold for facelet area dev from median
@@ -149,7 +151,7 @@ def import_libraries():
         These librries are imported after those needed for the display management.
         Kociemba solver is tentatively imported considering three installation/copy methods."""
     
-    global camera_set_gains, dist, PiRGBArray, PiCamera, servo, rm, GPIO, median, dt, sv, np, math, time, cv2, os
+    global camera_set_gains, dist, PiRGBArray, PiCamera, servo, rm, GPIO, median, dt, sv, cubie, np, math, time, cv2, os
     
     # import custom libraries
     import Cubotino_T_set_picamera_gain as camera_set_gains  # script that allows to fix some parameters at picamera
@@ -180,6 +182,7 @@ def import_libraries():
     # there are thre import attempts, that considers different solver installation methods
     try:                                                  # attempt
         import solver as sv                               # import Kociemba solver copied in /home/pi/cube
+        import cubie as cubie                             # import cubie Kociemba solver library part
         solver_found = True                               # boolean to track no exception on import the copied solver
         if debug:                                         # case debug variable is set true on __main__            
             print('found Kociemba solver copied in active folder')   # feedback is printed to the terminal
@@ -193,6 +196,7 @@ def import_libraries():
         if os.path.exists(fname):                         # case the solver exists in 'twophase' subfolder
             try:                                          # attempt
                 import twophase.solver as sv              # import Kociemba solver copied in twophase sub-folder
+                import twophase.cubie as cubie            # import cubie Kociemba solver library part
                 solver_found = True                       # boolean to track the  import the copied solver in sub-folder
                 if debug:                                 # case debug variable is set true on __main__            
                     print('found Kociemba solver copied in subfolder')  # feedback is printed to the terminal
@@ -202,6 +206,7 @@ def import_libraries():
     if not solver_found:                                  # case the library is not in folder or twophase' sub-folder
         try:                                              # attempt
             import twophase.solver as sv                  # import Kociemba solver installed in venv
+            import twophase.cubie as cubie                # import cubie Kociemba solver library part
             twophase_solver_found = True                  # boolean to track no exception on import the installed solver
             if debug:                                     # case debug variable is set true on __main__
                 print('found Kociemba solver installed')  # feedback is printed to the terminal
@@ -217,14 +222,20 @@ def import_libraries():
 
 
 
+
+
+
 def press_to_start():
     """ Print PRESS TO START to display, and waits until the touch button is pressed to escape the infinite loop"""
     
+    global robot_idle
+    
+    robot_idle = True                                        # robot is idling
     disp.set_backlight(1)                                    # display backlight is turned on, in case it wasn't
     txt1 = 'PRESS TO'                                        # text to print at first row
     txt2 = 'START'                                           # text to print at second row
     fs_text2 = 32                                            # font size at second row
-    disp.show_on_display(txt1, txt2, fs2=fs_text2)                # request user to touch the button to start a cycle
+    disp.show_on_display(txt1, txt2, fs2=fs_text2)           # request user to touch the button to start a cycle
     ref_time = time.time()                                   # current time is assigned to ref_time variable
     cubotino_logo = False                                    # boolean to alternate text with Cubotino logo on display
     display_time = 1                                         # time (in sec) for each display page
@@ -232,7 +243,7 @@ def press_to_start():
     while True:                                              # infinite loop
         if time.time() - ref_time >= display_time:           # time is checked
             if not cubotino_logo:                            # case cubotino logo boolean is false  
-                disp.show_cubotino() # shows the Cubotino logo on the display, for delay time
+                disp.show_cubotino()                         # shows the Cubotino logo on the display, for delay time
                 ref_time = time.time()                       # current time is assigned to ref_time variable
                 cubotino_logo = True                         # cubotino logo boolean is set true                           
             else:                                            # case cubotino logo boolean is false  
@@ -242,19 +253,54 @@ def press_to_start():
             time.sleep(0.05)                                 # little sleep time 
             
         if GPIO.input(touch_btn):                            # case touch_button is 'pressed'
-            start=True                                       # local boolean (set true) indicating the robot will operate
-            break                                            # infinite loop is interrupted
+            servo.cam_led_On(cam_led_bright)                 # led on top_cover is switched on as button feedback
+            choice = solve_or_scramble()                     # function for single/double touch (solve or scramble)
+            return choice                                    # choice is returned, breaking inner and outer while loop
 
 ##### addition for faire setup ##########
-# it uses two inputs in logic AND to start the robot. These buttons don't do enything else. No pressing time filters
+# it uses two inputs in logic AND to start the robot. These buttons don't do enything else (no scrambling, no time filtering)
         if GPIO.input(touch_btn1_faire) and GPIO.input(touch_btn2_faire):
             # case both the touch buttons on the faire setup are 'pressed'
-            start=True                                       # local boolean (set true) indicating the robot will operate
-            break                                            # infinite loop is interrupted
+            choice = 'solve'                                 # 'solve' is assigned to choice variable
+            return choice                                    # choice is returned, breaking inner and outer while loop
 #########################################
     
 
 
+
+
+
+
+
+
+def solve_or_scramble():
+    """ Sense for a single or double touches at the touch sensor, within a time limit.
+        Returns 'solve' when single touch and 'scramble' when multiple touches."""
+    
+    state = False                         # set a first state condition to false
+    max_delay = 0.8                       # fix max time between touches, to decide if single or multi touches
+
+    last_time = time.time()               # variable holding the time of the last sensed 'pressed' button
+    pulse_count = 0                       # pulses counter is initially set to zero
+    while True:                           # infinite loop
+        new_state = GPIO.input(touch_btn) # touch button satus is assigned (it's ON when pressed)
+        if new_state and not state:       # case the touch sensor changes from 'not pressed' to 'pressed'
+            pulse_count += 1              # pulse counter is incremented
+            state = True                  # set the state to true
+            last_time = time.time()       # updtaes the variable that hold
+        elif not new_state:               # case the touch sensor is 'not pressed'
+            state = False                 # state is changed to false
+        
+        # case the elapsed time is bigger than max time and at least 1 pulse
+        if time.time() > (last_time + max_delay) and pulse_count > 0:
+            if pulse_count == 1: # and not GPIO.input(touch_btn):    # case pulses equal one, and button not 'pressed'
+                return 'solve'            # return 'solve'
+            elif pulse_count >= 2: # and not GPIO.input(touch_btn):  # case pulses are two or more,  and button not 'pressed'
+                servo.cam_led_Off()       # led OFF at Top_cover when scrambling is chosen
+                return 'scramble'         # return 'scramble'
+            else:                         # other cases (button kept pressed long without a release within maxtime)
+                pulse_count = 0           # pulse counter is reset to zero
+                return ''                 # return empty string
 
 
 
@@ -583,7 +629,7 @@ def warp_image(frame, w, h):
         hh = h                        # frame height before warping is assigned to a local variable
     
     grid_vertices = np.float32([[0,0], [h,0], [h,w], [0,w]])  # original frame vertices
-    #warp_fraction = 7           #(AF 7) fractional frame width part to be 'removed' on top left and right of the frame
+#     warp_fraction = 7           #(AF 7) fractional frame width part to be 'removed' on top left and right of the frame
     d_x = int(w/warp_fraction)  # pixels to 'remove' on top left and top righ sides of frame, to warp the image
     straight = 1+d_x/h          # corrects the cube face deformation 
 
@@ -593,9 +639,9 @@ def warp_image(frame, w, h):
     # do perspective transformation, by adding black pixels where needed
     frame = cv2.warpPerspective(frame, matrix, (max(w,h), max(w,h)), cv2.INTER_LINEAR, cv2.BORDER_CONSTANT, borderValue=(0,0,0))
     
-#     warp_slicing = 1.5                  #(AF 7)   # Fractional part of the warping portion to be used as slicing from frame bottom
-    frame = frame[: -d_x, :-int(d_x/warp_slicing)]  # frame slicing to remove part of the added (black) pixels on the bottomn frame side 
-    h, w = frame.shape[:2]                          # new frame height and width
+#     warp_slicing = 1.5                   #(AF 1.5)  # Fractional part of the warping portion to be used as slicing from frame bottom
+    frame = frame[: -d_x, :-int(d_x/warp_slicing)]   # frame slicing to remove part of the added (black) pixels on the right frame side 
+    h, w = frame.shape[:2]                           # new frame height and width
     
     if cv_wow:                                           # case the cv image analysis plot is set true
         pre_warp, _, _ = frame_resize(pre_warp, ww, hh)  # re-sized frame is assigned to the pre_warp global variable
@@ -794,7 +840,7 @@ def show_cv_wow(cube, time=2000):
 def square_check(data):  
     """Sanity check if a contour has a square like shape; Argument is a contour
     Calculates quadrilateral's edge delta lenght: [(max edge - min edge)/average of sides length]
-    Calculates the ratio between the 2 diagonals (rhonbus axes): max diagonal / min diagonal
+    Calculates the ratio between the 2 diagonals (rhonbus axes): min diagonal / max diagonal
     These parameter are later used to verify if the contour can be considered like a square.
     A perfect square will have edge_delta==0 and axes_delta==1."""
     
@@ -935,8 +981,8 @@ def get_facelets(facelets, frame, contour, hierarchy):
     (to prevent rhonbus), limited area variation between the 9 facelets].
     This function is called on each of the cube sides, therefore the return relates to the face under analysis.""" 
     
-    min_area = int(0.08*(w*h)/9)        #(AF int(0.08*(w*h)/9))  # min area limit for a single facelet's contour
-    max_area = 6*min_area               #(AF 6*min_area)         # max area limit for a single facelet's contour       
+    min_area = int(0.08*(w*h)/9)    #(AF int(0.08*(w*h)/9))  # min area limit for a single facelet's contour
+    max_area = 6*min_area           #(AF 6*min_area)         # max area limit for a single facelet's contour       
 
 #     square_ratio=1       #(AF 1)    # it is like a square when min side/max side < square_ratio (0==perfect square, 1 is rather permissive)
 #     rhombus_ratio=0.3    #(AF 0.3)  # considered like a square when diagonal1/diagonal2 > rhombus_ratio (1==perfect, 0.3 is rather permissive)
@@ -1905,13 +1951,52 @@ def cube_string(cube_status):
 
 
 
-def cube_solution(cube_string):
+def scrambling_cube():
+    """function to scramble the cube via the robot.
+        The function first generate a random cube status, via a function available form the Kociemba solver package.
+        After, the robot generates the moves to solve that specific cube status."""
+    
+    global robot_idle  
+    
+    robot_idle = False              # robot is not anymore idling
+    disp.show_on_display('CUBE', 'SCRAMBLING', fs1=28, fs2=17)  # feedback is printed on the display
+    time.sleep(1)                   # little delay, to let user reading the screen
+    start_time = time.time()        # current time 
+    cc = cubie.CubieCube()          # cube in cubie reppresentation
+    cc.randomize()                  # randomized cube in cubie reppresentation 
+    random_cube_string = str(cc.to_facelet_cube())   # randomized cube in facelets string reppresentation
+    print("Random cube status:", random_cube_string) # feedback is printed to the terminal
+    solution, solution_Text = cube_solution(random_cube_string, scrambling = True) # Kociemba solver is called to have the solution string
+    print(solution_Text)            # feedback is printed to the terminal
+    
+    # dict and string with robot movements, and total movements
+    _, robot_moves, total_robot_moves = rm.robot_required_moves(solution, solution_Text)
+    print(f'Total robot movements: {total_robot_moves}')  # nice information to print at terminal
+    if not robot_stop:              # case there are no request to stop the robot
+        robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, scrambling=True) # movements to the robot are finally applied
+    
+    if not robot_stop:              # case there are not request to stop the robot
+#         servo.stop_release(print_out=debug)   # servoa are enabled
+        servo.read()                # top cover positioned to have the PiCamera in read position
+        servo.cam_led_test()        # the led on top_cover is shortly activated once the scrambilng is done
+
+    elif robot_stop:                # case the robot has been requested to stop
+        stop_or_quit()              # check is the intention is to stop the cycle or quit (shut Rpi off)
+
+
+
+
+
+        
+
+def cube_solution(cube_string, scrambling=False):
     """ Calls the Hegbert Kociemba solver, and returns the solution's moves
     from: https://github.com/hkociemba/RubiksCube-TwophaseSolver 
     (Solve Rubik's Cube in less than 20 moves on average with Python)
     The returned string is slightly manipulated to have the moves amount at the start."""
     
-    disp.show_on_display('SOLUTION', 'SEARCH', fs1=21, fs2=27)
+    if not scrambling:
+        disp.show_on_display('SOLUTION', 'SEARCH', fs1=21, fs2=27)
 #     sv_max_moves = 20     #(AF 20)  # solver parameter: max 20 moves or best at timeout
 #     sv_max_time = 2       #(AF 2)   # solver parameter: timeout of 2 seconds, if not solution within max moves
     s = sv.solve(cube_string, sv_max_moves, sv_max_time)  # solver is called
@@ -2378,7 +2463,7 @@ def robot_to_cube_side(side, cam_led_bright):
 
 
 
-def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time):
+def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, scrambling=False):
     """This fuction calls the robot servo function to apply the solving movements to the cube; Arguments of this function are:
         - robot_moves, a string with the calculated movements for the robot based on the kociemba solution
         - total_robot_moves value, used to visualize on display a robot moves count-down
@@ -2388,36 +2473,47 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time):
     start_robot_time = time.time()    # this time is used as reference to measure (and visualize) how long the robot takes to solve the cube
 #     remaining_moves = total_robot_moves  # remaining movements are visualized, to manage expectations while in front of the robot
     
-    print()                           # print an empty row
-    robot_status, robot_time = servo.servo_solve_cube(robot_moves, print_out=debug)   # robot solver is called
+    if not scrambling:                # case the robot is used to solve a cube
+        print()                       # print an empty row
+    robot_status, robot_time = servo.servo_solve_cube(robot_moves, scrambling, print_out=debug)   # robot solver is called
         
     if solution_Text == 'Error':      # if there is an error (tipicallya bad color reading, leading to wrong amount of facelets per color)                                      
         print('An error occured')                              # error feedback is print at terminal
         robot_solving_time = 0                                 # robot solving time is set to zero to underpin the error
         tot_robot_time = time.time()-start_time                # total time is set to zero to underpin the error
-        disp.show_on_display('DETECTION', 'ERROR', fs1=19)          # feedback is printed to the display
+        disp.show_on_display('DETECTION', 'ERROR', fs1=19)     # feedback is printed to the display
         solved = False                                         # solved variable is set false
+        time.sleep(5)                                          # 5 secs delay is applied, to let user reading info on screen
     
-    elif solution_Text != 'Error' and not robot_stop:          # case there are not error on the cube solution and no request to stop the robot
-        solved, tot_robot_time, robot_solving_time = robot_time_to_solution(start_time, start_robot_time,\
+    elif solution_Text != 'Error' and not robot_stop: # case there are not error on the cube solution and no request to stop the robot
+        if not scrambling:                                     # case the robot is used to solve a cube
+            solved, tot_robot_time, robot_solving_time = robot_time_to_solution(start_time, start_robot_time,\
                                                                             total_robot_moves)  # cube solved function is called
-        disp.show_on_display('CUBE', 'SOLVED !', y1=22, fs1=36)     # feedback is printed to the display 
-
-        if total_robot_moves != 0:                             # case the robot had to move the cube to solve it
-            servo.fun(print_out=debug)                         # cube is rotated CW-CCW for few times, as victory FUN 'dance'
-        disp.show_on_display(f'TOT.: {round(tot_robot_time,1)} s',\
-                        f'SOLV.: {round(robot_solving_time,1)} s',\
-                        x1=10, fs1=18, x2=10, fs2=18)          # time feedback is printed to the display
-        time.sleep(2)                                          # couple of secs delay is applied
-    
+            disp.show_on_display('CUBE', 'SOLVED !', y1=22, fs1=36)     # feedback is printed to the display 
+            if total_robot_moves != 0:                         # case the robot had to move the cube to solve it
+                servo.fun(print_out=debug)                     # cube is rotated CW-CCW for few times, as victory FUN 'dance'
+            disp.show_on_display(f'TOT.: {round(tot_robot_time,1)} s',\
+                            f'SOLV.: {round(robot_solving_time,1)} s',\
+                            x1=10, fs1=18, x2=10, fs2=18)      # time feedback is printed to the display
+            if not screen:                                     # case a screen is not connected
+                time.sleep(7)                                  # 7 secs delay is applied, to let user reading info on screen
+            else:                                              # case a screen is connected
+                time.sleep(1)                                  # 1 sec delay is applied, to let user reading info on screen
+        
+        elif scrambling:                                       # case the robot is used to scramble a cube
+            disp.show_on_display('CUBE', 'SCRAMBLED', fs1=22, fs2=18)     # feedback is printed to the display
+            solved = False                                     # solved variable is set false
+            tot_robot_time = 0                                 # total robot time variable is set to zero
+            robot_solving_time = 0                             # total robot solving time variable is set to zero
+            time.sleep(2)                                      # 2 secs delay is applied, to let user reading info on screen
+            
     else:                                                      # case there are not error on the cube solution, but there is a request to stop the robot
         robot_solving_time = time.time()-start_robot_time      # robot solving time is set to zero
         tot_robot_time = time.time()-start_time                # total time is set to zero to underpin the error
-        disp.show_on_display('ROBOT', 'STOPPED', fs1=25, fs2=23)    # feedback is printed to the display
+        disp.show_on_display('STOPPED', 'CYCLE')               # feedback is printed to the display
         solved = False                                         # solved variable is set false
-        
-        
-    time.sleep(5)                                              # 5 secs delay is applied
+        time.sleep(1)                                          # 1 secs delay is applied, to let user reading info on screen
+
     return solved, tot_robot_time, robot_solving_time
 
 
@@ -2661,18 +2757,17 @@ def stop_cycle(touch_btn):
     global robot_stop
     
     time.sleep(0.5)  # delay between function being called, and new GPIO check, to filter unintentionally touches
-    if GPIO.input(touch_btn):                       # case touch button is 'pressed'
-        if not robot_stop:                          # in case the robot was working and not yet stopped
-            disp.set_backlight(1)                   # display backlight is turned on, in case it wasn't
-            disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
-            robot_stop = True                       # global flag to immediatly interrup the robot movements is set
-            servo.stopping_servos(print_out=debug)  # function to stop the servos    
+    if GPIO.input(touch_btn) and not robot_idle:     # case touch button is 'pressed' while robot not idling
+        if not robot_stop:                           # in case the robot was working and not yet stopped
+            disp.set_backlight(1)                    # display backlight is turned on, in case it wasn't
+            disp.show_on_display('STOPPED', 'CYCLE') # feedback is printed to the display
+            robot_stop = True                        # global flag to immediatly interrup the robot movements is set
+            servo.stopping_servos(print_out=debug)   # function to stop the servos    
             time.sleep(1)
-            disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display, after the call to servos library
-            quit_func(quit_script=False)            # quit function is called, without forcing the script quitting
-            
-    
+            disp.show_on_display('STOPPED', 'CYCLE') # feedback is printed to the display a second time
+            quit_func(quit_script=False)             # quit function is called, without forcing the script quitting
 
+        
 
 
 
@@ -2807,6 +2902,70 @@ def clear_terminal():
 
 
 
+def robot_reset():
+    
+    global robot_stop
+    
+    disp.set_backlight(1)                  # display backlight is turned on, in case it wasn't
+    disp.show_on_display('ROBOT', 'RESTARTING', fs1=30, fs2=18) # feedback is printed to display
+    time.sleep(2)                          # delay time to let user reading the display
+    servo.stop_release(print_out=debug)    # stop_release at servo script, to enable the servos movements
+#     servo.init_servo(print_out=debug)      # servos are moved to their starting positions
+    servo.servo_start_pos()                # servos are rotated to the start position
+    robot_stop = False                     # flag used to stop or allow robot movements
+    timeout = False                        # flag to limit the cube facelet detection time
+    warning = False                        # warning is set False
+    if not GPIO.input(touch_btn):          # case the button has been released
+        disp.clean_display()               # cleans the display
+        disp.__init__() # display is re-initlized (not elegant, yet it removes random issues at robot stop)
+    
+
+
+
+
+
+
+def stop_or_quit():
+    """Distinguishes the request to just stop a cycle (scrambling or solving) or to SHUT the Rpi OFF.
+        The input is the touch button and time.
+        When the button is pressed longer than warning_time, a warning message is displayed.
+        When the button is not released within the quit_time, the Rpi SHUT-OFF."""
+    
+    print('stop request')                    # feedback is printed to the terminal
+    ref_time=time.time()                     # reference time used to measure how long the button has been kept pressed
+#     warn_time = 1.5         #(AF 1.5)        # delay used as threshold to print a warning on display
+#     quit_time = 4.5         #(AF 4.5)        # delay used as threshold to quit the script
+    warning = False                          # warning is set false, to warn user to keep or release the button
+    if GPIO.input(touch_btn):                # case touch_btn is still 'pressed' once the cube_AF function returns           
+        while GPIO.input(touch_btn):                      # while touch_btn is 'pressed'
+            if not warning:                               # case warning is false
+                if time.time() - ref_time >= warn_time:   # case time elapsed is >= warn time reference
+                    warning = True                        # warning is set true
+
+            while warning:                                # case warning is true
+                disp.set_backlight(1)                     # display backlight is turned on, in case it wasn't
+                disp.show_on_display('SURE TO', 'QUIT ?')      # feedback is printed to display
+                if not GPIO.input(touch_btn):             # case the touch_btn is 'released'
+                    disp.clean_display()                       # cleans the display
+                    disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
+                    break                                 # while loop is interrupted
+                
+                if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
+                    print('quitting request')             # feedback is printed to display
+                    for i in range(5):                    
+                        disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
+                    servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
+                    servo.init_servo(print_out=debug)     # servos are moved to their starting positions
+                    quit_func(quit_script=True)           # qutting function is called, with script clossure
+    
+    time.sleep(5)       # time to mask the touch button pressing time (interrupt), eventually used to quit the script
+    robot_reset()       # call the robot reset function
+
+
+
+
+
+
 def quit_func(quit_script):   
     """ Quitting function, that properly closes stuff: Camera is closed, OpenCV windows are closed,
         Servos are positioned to their start position, Led at top_cover is switched off, set GPIO used for PWM to low level."""
@@ -2817,9 +2976,7 @@ def quit_func(quit_script):
         try:
             disp.set_backlight(1)                   # display backlight is turned on, in case it wasn't
             disp.show_on_display('STOPPED', 'CYCLE')     # feedback is printed to the display
-            if not quitting:                        # case quitting variable is false, meaning all the time entering the quit_func
-                if not timeout:                     # case the timeout variable is false
-                    print('stop request')           # feedback is printed to the terminal
+            if not quitting:                        # case quitting variable is false, meaning all the times entering the quit_func
                 quitting = True                     # (global) quitting variable is set true
         except:
             pass
@@ -2980,15 +3137,16 @@ def cubeAF():
     global camera, rawCapture, width, height, h, w, cam_led_bright, fixWindPos, screen    # camera and frame related variables          
     global sides, side, prev_side, faces, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables
     global font, fontScale, fontColor, lineType                                           # cv2 text related variables
-    global servo, robot_stop, timeout, detect_timeout                                     # robot related variables
+    global servo, robot_stop, robot_idle, timeout, detect_timeout                                     # robot related variables
 
 
     if not camera_opened_check():                   # checks if camera is responsive
         print('\nCannot open camera')               # feedback is printed to the terminal
-        disp.show_on_display('CAMERA', 'ERROR')          # feedback is printed to the display
+        disp.show_on_display('CAMERA', 'ERROR')     # feedback is printed to the display
         time.sleep(10)                              # delay to allows display to be read
         quit_func(quit_script=True)                 # script is closed, in case of irresponsive camera
-
+    
+    robot_idle = False                              # robot is not anymore idling
     if side==0:
         start_time = time.time()                    # initial time is stored before picamera warmup and setting
         faces.clear()                               # empties the dict of images (6 sides) recorded during previous solving cycle
@@ -3129,7 +3287,7 @@ def cubeAF():
                                             solution, solution_Text, color_detection_winner, cube_status_string, BGR_mean,
                                             HSV_detected, start_time, camera_ready_time, cube_detect_time, cube_solution_time) 
                         
-                        return          # closes the cube reading/solver function in case it reaches the end
+                        return              # closes the cube reading/solver function in case it reaches the end
                 
                 
                 if not robot_stop and screen:        # case screen variable is set true on __main__
@@ -3162,7 +3320,7 @@ if __name__ == "__main__":
         2) some general settings (if to printout debug prints, internet connection / time synchronization, if screen connected, etc)
         3) waits for user to press the button, and it starts the cube reading phase."""
     
-    global robot_stop, robot_runnig, timeout, side, light_program
+    global robot_stop, robot_idle, timeout, side, light_program
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
@@ -3202,11 +3360,9 @@ if __name__ == "__main__":
     except:
         pass
     # ###############################################################################################
-
     
     
-    
-    
+        
     ################    processor version info    ###################################################
     # when armv6 it skips one openCV comand that crash the script when Raspberry Pi Zero (not 2)
     import os                              # os is imported to check the machine
@@ -3222,9 +3378,7 @@ if __name__ == "__main__":
     print('light_program: ', light_program)
     # ###############################################################################################
 
-    
-    
-    
+ 
     
     ################    screen presence, a pre-requisite for graphical   ############################
     import time
@@ -3269,91 +3423,75 @@ if __name__ == "__main__":
     
     
     
+    ###################################    import libraries    ######################################
+    print('\nimport libraries:')                  # feedback is printed to the terminal    
+    import_libraries()                            # imports libraries
+    # ###############################################################################################
     
-    print('\nimport libraries:')                     # feedback is printed to the terminal    
-    import_libraries()                               # imports libraries
+    
     
     print('\nother settings and environment status:')  # feedback is printed to the terminal                
-    first_cycle=True                                 # boolean variable to execute some settings only once
-    start_up(first_cycle=first_cycle)                # sets the initial variables, in this case it is the first cycle 
+    first_cycle=True                              # boolean variable to execute some settings only once
+    start_up(first_cycle=first_cycle)             # sets the initial variables, in this case it is the first cycle
+    first_cycle = False                           # first_cycle variable is set false
+    print('\n#############################################################################\n')
     
-    print('\nWaiting for user to start a cycle')     # print on terminal to suggest to press the robot button, to start a cycle
-    press_to_start()                                 # request user to touch the button to start a cycle (infinite loop)
-    cycle = 1                                        # counter, for the number of cycles perfomed within a session, is set to one
-    
-    while True:                                      # infinite loop, until the Rpi power off
-        quitting = False                             # flag used during the quitting phase
-        robot_stop = False                           # flag used to stop or allow robot movements
-        timeout = False                              # flag used to limit the cube facelet detection time
+    cycle = 0                                     # variable cycle (to count the solving cycles per session) is set to zero
+    while True:                                   # infinite loop, until the Rpi power off
+        quitting = False                          # flag used during the quitting phase
+        robot_stop = False                        # flag used to stop or allow robot movements
+        robot_idle = True                         # robot is idling                           
+        timeout = False                           # flag used to limit the cube facelet detection time
+        once = True                               # variable once is set true, to print a feedback only once
         
-        if side != 0:                                # this case gives the possibility to start a new cycle       
-            close_camera()                           # this is necessary to get rid of analog/digital gains previously blocked
-            time.sleep(0.5)                          # little delay between the camera closing, and a new camera opening
+        if side != 0:                             # this case gives the possibility to start a new cycle       
+            close_camera()                        # this is necessary to get rid of analog/digital gains previously blocked
+            time.sleep(0.5)                       # little delay between the camera closing, and a new camera opening
             camera, rawCapture, width, height = webcam()  # camera has to be re-initialized, to removes previous settings
-            start_up(first_cycle = first_cycle)      # sets the initial variables, in this case it is not the first cycle
-            side = 0                                 # cube side is set back to 0, that allows specifi start up setting at each new cycle
-            print(f'###########################    END  CYCLE  {cycle}   ##############################')
-            press_to_start()                         # request user to touch the button to start a cycle
-            cycle += 1                               # cycle counter is increased
+            start_up(first_cycle = first_cycle)   # sets the initial variables, in this case it is not the first cycle
+            side = 0                              # cube side is set back to 0, that allows specifi start up setting at each new cycle
             
-        elif side == 0:                              # this is the case after start_up(), and when a new cycle is requested
-            print('\n\n\n\n\n\n')                    # prints some empty lines, on IDE terminal
-            clear_terminal()                         # cleares the terminal
+        if cycle > 0:                             # case the variable cycle is bigger than zero
+            print(f'###########################    END  CYCLE  {cycle}   ##############################')
+        
+        while True:                               # infinite loop, untill 'solve' process is chosen
+            if once:                              # casee the variable once is set true
+                print('\n\n\n\nWaiting for user to start a cycle')  # feedback is printed to the terminal
+                once = False                      # variable once is set false, to print a feedback only once
+            
+            action = press_to_start()             # request user to touch the button to start a scrambling or solving cycle
+            
+            if action == 'scramble':              # case the selected action is cube scrambling
+                once = True                       # variable once is set true, to print a feedback only once
+                print('\nSelected to scramble the cube')   # print on terminal a cube scrambling action has been chosen
+                scrambling_cube()                 # call to the function for random cube generation
+                if robot_stop:                    # case the robot has been stopped 
+                    stop_or_quit()                # check if the intention is to stop the cycle or quit (shut Rpi off)
+            
+            elif action == 'solve':               # case the selected action is cube scrambling
+                cycle += 1                        # counter, for the number of cycles perfomed within a session, is incremented
+                break                             # infinite loop is interrupted once cube solving action is chosen
+            
+        if side == 0:                             # this is the case after start_up(), and when a new cycle is requested
+            print('\n\n\n\n\n\n')                 # prints some empty lines, on IDE terminal
+            clear_terminal()                      # cleares the terminal
             print('#############################################################################')
             print(f'#############################    CYCLE  {cycle}    ################################')
             print('#############################################################################') 
             
-            cubeAF()                                 # cube reading/solving function is called
+            cubeAF()                              # cube reading/solving function is called
             
             # handling the situation(s) after a robot cycle has been done
-            first_cycle = False                      # first_cycle variable is set false
-            
-            # after the end of a cube solving cycle the touch button is checked, if still pressed as intention to shut the Rpi off
-            ref_time=time.time()                     # reference time used to measure how long the button has been kept pressed
-#             warn_time = 1.5         #(AF 1.5)        # delay used as threshold to print a warning on display
-#             quit_time = 4.5         #(AF 4.5)        # delay used as threshold to quit the script
-            warning = False                          # warning is set false, to warn user to keep or release the button
-            if GPIO.input(touch_btn):                # case touch_btn is still 'pressed' once the cube_AF function returns           
-                while GPIO.input(touch_btn):                      # while touch_btn is 'pressed'
-                    if not warning:                               # case warning is false
-                        if time.time() - ref_time >= warn_time:   # case time elapsed is >= warn time reference
-                            warning = True                        # warning is set true
+            if robot_stop:                        # case the robot has been stopped 
+                stop_or_quit()                    # check if the intention is to stop the cycle or quit (shut Rpi off)
 
-                    while warning:                                # case warning is true
-                        disp.set_backlight(1)                     # display backlight is turned on, in case it wasn't
-                        disp.show_on_display('SURE TO', 'QUIT ?')      # feedback is printed to display
-                        if not GPIO.input(touch_btn):             # case the touch_btn is 'released'
-                            disp.clean_display()                       # cleans the display
-                            disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
-                            break                                 # while loop is interrupted
-                        
-                        if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
-                            print('quitting request')             # feedback is printed to display
-                            for i in range(5):                    
-                                disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
-                            servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
-                            servo.init_servo(print_out=debug)     # servos are moved to their starting positions
-                            quit_func(quit_script=True)           # qutting function is called, with script clossure
-
-            
-            if robot_stop or warning:          # case the robot has been stopped or the putton is pressend long
-                time.sleep(5)                  # time to mask the touch button pressing time (interrupt), eventually used to quit the script 
-                disp.set_backlight(1)          # display backlight is turned on, in case it wasn't
-                disp.show_on_display('ROBOT', 'RESTARTING', fs1=30, fs2=18) # feedback is printed to display
-                time.sleep(1)
-
-            elif not (robot_stop or timeout):  # case the robot has not been stopped, or it has reach the timeout
-                disp.set_backlight(1)          # display backlight is turned on, in case it wasn't
-                cpu_temp(side, delay=3)        # cpu temperature is verified, printed at terminal and show at display for delay time
+            elif not (robot_stop or timeout):     # case the robot has not been stopped, or it has reach the timeout
+                disp.set_backlight(1)             # display backlight is turned on, in case it wasn't
+                cpu_temp(side, delay=3)           # cpu temperature is verified, printed at terminal and show at display for delay time
                 
-            
             # preparing for a new cycle
-            side=6                             # side is set to 6, also when the cycle has been interrupted (relevant to be !=0 )            
-            if robot_stop:                             # case the robot has been stopped
-                servo.stop_release(print_out=debug)    # stop_release at servo script, to enable the servos movements
-#                 servo.init_servo(print_out=debug)      # servos are moved to their starting positions 
-                robot_stop = False                     # flag used to stop or allow robot movements
-                timeout = False                        # flag to limit the cube facelet detection time
-                warning = False                        # warning is set False
+            side=6                                # side is set to 6, also when the cycle has been interrupted (relevant to be !=0 )            
+
+                
 
 
