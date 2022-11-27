@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 01 June 2022
+# Andrea Favero 27 Nov 2022
 # 
 # From Kociemba solver to robot moves
 # This applies to "CUBOTino" autonomous, a simpler Rubik's cube solver robot than my first one:
@@ -28,21 +28,17 @@
 #############################################################################################################
 """
 
-# Global variables
 
-# Below dict has all the possible robot movements, related to the cube solver string
-moves_dict = {'U1':'F2R1S3', 'U2':'F2R1S3R1S3', 'U3':'F2S1R3',
-              'D1':'R1S3',   'D2':'R1S3R1S3',   'D3':'S1R3',
-              'F1':'F1R1S3', 'F2':'F1R1S3R1S3', 'F3':'F1S1R3',
-              'B1':'F3R1S3', 'B2':'F3R1S3R1S3', 'B3':'F3S1R3',
-              'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
-              'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
+"""
+Cube orientation at the start, later updated after every cube movement on the robot
+Dict key is the the "stationary" side, while the dict value is the cube side
 
+From 23/11/2022 the cube is NOT moved to initial position after scanning the cube status: Out of
+ca 1300 cube solving cycles (3 robots, random scrambled, removed dublicated status, etc),
+62% of the times the first move is one of the URF sides, where U leads with 23% of the total.
+After scanning the 6th cube face, the U face is perfectly on the bottom, so better to start from there.
 
-# Cube orientation at the start, later updated after every cube movement on the robot
-h_faces={'L':'L','F':'F','R':'R'}   # dict with faces around the bottom/upper positioned faces
-v_faces={'D':'D','F':'F','U':'U'}   # dict with faces around the left/right positioned faces
-"""     
+     
 v_faces{}   _______       
            |       |
            | ['U'] |
@@ -58,6 +54,17 @@ by knowing 5 faces, the 6th (B face) is also known ;-)
 """ 
 
 
+# Global variable
+# Below dict has all the possible robot movements, related to the cube solver string
+moves_dict = {'U1':'F2R1S3', 'U2':'F2R1S3R1S3', 'U3':'F2S1R3',
+              'D1':'R1S3',   'D2':'R1S3R1S3',   'D3':'S1R3',
+              'F1':'F1R1S3', 'F2':'F1R1S3R1S3', 'F3':'F1S1R3',
+              'B1':'F3R1S3', 'B2':'F3R1S3R1S3', 'B3':'F3S1R3',
+              'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
+              'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
+
+
+
 
 
 
@@ -67,9 +74,8 @@ def starting_cube_orientation():
     global h_faces,v_faces 
     
     # Cube orientation at the start, later updated after every cube movement on the robot
-    h_faces={'L':'L','F':'F','R':'R'}   # dict with faces around the bottom/upper positioned faces
-    v_faces={'D':'D','F':'F','U':'U'}   # dict with faces around the left/right positioned faces
-
+    h_faces={'L':'F','F':'U','R':'B'}   # dict with faces around the bottom/upper positioned faces
+    v_faces={'D':'R','F':'U','U':'L'}   # dict with faces around the left/right positioned faces
 
 
 
