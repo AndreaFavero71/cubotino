@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 13 November 2022
+# Andrea Favero 27 November 2022
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -516,13 +516,15 @@ def spin_out(direction):
                 b_servo_CCW_pos=False                # boolean of bottom servo at full CCW position
                 
                 if direction=='CCW':                 # case the set direction is CCW
-                    b_servo.value = b_servo_CCW_rel  # bottom servo moves to the most CCW position
+#                     b_servo.value = b_servo_CCW      # bottom servo moves to the most CCW position (until 21/08/22)
+                    b_servo.value = b_servo_CCW_rel  # bottom servo moves to almost the max CCW position (from 21/08/22)
                     time.sleep(b_spin_time)          # time for the bottom servo to reach the most CCW position
                     b_servo_CCW_pos=True             # boolean of bottom servo at full CCW position
                 
                 elif direction=='CW':                # case the set direction is CW
-                    b_servo.value = b_servo_CW_rel   # bottom servo moves to the most CCW position
-                    time.sleep(b_spin_time)          # time for the bottom servo to reach the most CCW position
+#                     b_servo.value = b_servo_CW       # bottom servo moves to the most CW position (until 21/08/22)
+                    b_servo.value = b_servo_CW_rel   # bottom servo moves to almost the max CW position (from 21/08/22)
+                    time.sleep(b_spin_time)          # time for the bottom servo to reach the most CW position
                     b_servo_CW_pos=True              # boolean of bottom servo at full CW position
                 
                 b_servo_stopped=True                 # boolean of bottom servo at location the lifter can be operated
