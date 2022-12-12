@@ -1,12 +1,12 @@
 # Personalizations
 
-If you have personalized your Cubotino, and youd like to share your cad files, or SW snippets/file, or ....:
+If you have personalized your Cubotino, and you'd like to share your cad files, SW snippets/file, or ....:
 
-1) This is the right folder .
+- This is the right folder.
 
-2) Add a suffix with your name in front of all the files.
+- Add a suffix with your name in front of all the files.
 
-3) Add a text file, with your name in front :-) , to shortly explain what it all about.
+- Add a text file, with your name in front :-) , to shortly explain what is about; If needed please add some guidance for others.
 
 
 Thank you
