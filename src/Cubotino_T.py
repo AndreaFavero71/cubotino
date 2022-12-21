@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 26 November 2022
+#  Andrea Favero, 21 December 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -35,17 +35,37 @@
 
 
 
-###################### pre-setting a number of scrambling and solving cycles   ##################
+################  setting argparser for robot remote usage, and other settings  #################
 import argparse
-parser = argparse.ArgumentParser(description='Scrambling and solving cycles')   # argument parser object creation
 
+# argument parser object creation
+parser = argparse.ArgumentParser(description='Scrambling and solving cycles')
+
+# --cycles argument is added to the parser
 parser.add_argument("--cycles", type=int, 
-                    help="Input the number of automated scrambling and solving cycles") # argument is added to the parser
+                    help="Input the number of automated scrambling and solving cycles")
 
+# --pause argument is added to the parser
 parser.add_argument("--pause", type=int, 
-                    help="Input the pause time, in secs, between automated cycles") # argument is added to the parser
+                    help="Input the pause time, in secs, between automated cycles")
 
-args = parser.parse_args()              # argument parsed assignement
+# --shutoff argument is added to the parser
+parser.add_argument("--shutoff", action='store_true',
+                    help="Shuts the RPI off, after the automated scrambling and solving cycles")
+
+# --debug argument is added to the parser
+parser.add_argument("--debug", action='store_true',
+                    help="Activates printout of settings, variables and info for debug purpose")
+
+# --cv_wow argument is added to the parser
+parser.add_argument("--cv_wow", action='store_true',
+                    help="Activates the cv_wow (image analysis steps) on screen")
+
+# --F_deg argument is added to the parser
+parser.add_argument("--F_deg", action='store_true',
+                    help="CPU tempo in Fahrenheit degrees")
+
+args = parser.parse_args()   # argument parsed assignement
 # ###############################################################################################
 
 
@@ -57,7 +77,7 @@ def import_parameters():
     """ Function to import parameters from a json file, to make easier to list/document/change the variables
         that are expected to vary on each robot."""
        
-    global frameless_cube, camera_width_res, camera_hight_res
+    global frameless_cube, camera_width_res, camera_hight_res, s_mode
     global kl, x_l, x_r, y_u, y_b, warp_fraction, warp_slicing, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright
     global detect_timeout, show_time, warn_time, quit_time, cover_self_close
@@ -118,6 +138,10 @@ def import_parameters():
             
             camera_width_res = int(settings['camera_width_res'])      # Picamera resolution on width 
             camera_hight_res = int(settings['camera_hight_res'])      # Picamera resolution on heigh
+            if 's_mode' in settings:                                  # case the s_mode key is available at settings file (back compatibility...)
+                s_mode = int(settings['s_mode'])                      # camera setting mode (pixels binning)
+            else:                                                     # case the s_mode key is not available at settings file
+                s_mode = 7                                            # s_mode is set to 7 for PiCamera V1.3 (Set to 4 for PiCamera V2)
             kl = float(settings['kl'])                                # coff. for PiCamera stabili acceptance
             x_l = int(settings['x_l'])                                # image crop on left (before warping)
             x_r = int(settings['x_r'])                                # image crop on right (before warping)
@@ -162,6 +186,10 @@ def import_parameters():
     else:                                                       # case the settings file does not exists, or name differs
         print('could not find Cubotino_T_servo_settings.txt')   # feedback is printed to the terminal                                  
         return False, ''                                        # return robot_init_status variable, that is False
+
+
+
+
 
 
 def import_libraries():
@@ -294,7 +322,7 @@ def press_to_start():
 def solve_or_scramble():
     """ Sense for a single or double touches at the touch sensor, within a time limit.
         Returns 'solve' when single touch and 'scramble' when multiple touches.
-        If the button is kept pressed longer, the robot can be restaterted or shutted OFF."""
+        If the button is kept pressed longer, the robot can be restarted or shutted OFF."""
     
     global robot_idle, side
     
@@ -324,7 +352,6 @@ def solve_or_scramble():
                     else:                     # case elapsed time is more than extra_time
                         servo.cam_led_Off()   # led OFF at Top_cover
                         break                 # while loop is interrupted
-                
                 elif pulse_count > 1:         # case the button has been pressed multiple times
                     servo.cam_led_Off()       # led OFF at Top_cover
                     break                     # while loop is interrupted
@@ -332,18 +359,13 @@ def solve_or_scramble():
             elif not GPIO.input(touch_btn):   # touch button is NOT pressed
                 if pulse_count == 1:          # case pulses equal one, and button not 'pressed'
                     choice = 'solve'          # 'solve' is assigned to choice variable
-
                 elif pulse_count >= 2:        # case pulses are two or more,  and button not 'pressed'
                     servo.cam_led_Off()       # led OFF at Top_cover when scrambling is chosen
                     choice = 'scramble'       # 'scramble' is assigned to choice variable
-
                 else:                         # other cases (button kept pressed long without a release within maxtime)
                     pulse_count = 0           # pulse counter is reset to zero
                     choice = ''               # empty string is assigned to choice variable
-
                 return choice                 # choice is returned
-    
-    
     
     servo.cam_led_Off()    # led OFF at Top_cover when scrambling is chosen
     robot_idle = False     # robot_idle is set false
@@ -568,13 +590,7 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     exp_list=[]                                         # list to store the Picamera exposure time, for the first 4 faces
     exp_list.append(camera.exposure_speed)              # read picamera exposure time (microsec) on first face
     for i in range(3):                                  # iterate over the 4 faces reachable via a single cube flip
-        if not robot_stop and screen:                   # case screen variable is set true on __main__
-            frame, w, h = read_camera()                 # camera start reading the cube, and adjusts the awb/exposure
-            if fixWindPos:                              # case the fixWindPos variable is chosen
-                cv2.namedWindow('cube')                 # create the cube window
-                cv2.moveWindow('cube', 0,0)             # move the window to (0,0)
-            cv2.imshow('cube', frame)                   # shows the frame 
-            cv2.waitKey(1)                              # refresh time is minimized to 1ms 
+        
         
         robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
         time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposure time at PiCamera
@@ -1448,19 +1464,25 @@ def cube_colors_interpr(BGR_detected):
     
     # Step3: dictionary with the color distances from the (initial) references
     color_distance={}                                             # empty dict to store all the color distances for all the facelets
-    cube_ref_colors_lab={}                                        # empty dictionary to store color refences in Lab color space
-    for color, BGR in cube_ref_colors.items():                    # iteration over the 6 centers
-        B,G,R = BGR                                               # BGR values are unpact from the dict
-        cube_ref_colors_lab[color]=tuple(rgb2lab([R,G,B]))        # BGR conversion to lab color space and dict feeding
+#     cube_ref_colors_lab={}                                        # empty dictionary to store color refences in Lab color space
+#     for color, BGR in cube_ref_colors.items():                    # iteration over the 6 centers
+#         B,G,R = BGR                                               # BGR values are unpact from the dict
+#         cube_ref_colors_lab[color]=tuple(rgb2lab([R,G,B]))        # BGR conversion to lab color space and dict feeding
+#     print(cube_ref_colors_lab)
             
     for facelet, color_measured in BGR_detected_dict.items():     # iteration over the 54 facelets
-        B,G,R = color_measured                                    # individual BGR components
-        lab_meas = rgb2lab([R,G,B])                               # conversion to lab color space (due CIEDE2000 function)
+#         B,G,R = color_measured                                    # individual BGR components  
+#         lab_meas = rgb2lab([R,G,B])                               # conversion to lab color space (due CIEDE2000 function)
         distance=[]                                               # list with the distance from the 6 references, for each facelet
-        for color, lab_ref in cube_ref_colors_lab.items():        # iteration over the 6 reference colors
-            distance.append(CIEDE2000(tuple(lab_meas), lab_ref))  # Euclidean distance toward the 6 reference colors
+#         for color, lab_ref in cube_ref_colors_lab.items():        # iteration over the 6 reference colors
+        for color, bgr_ref in cube_ref_colors.items():            # iteration over the 6 reference colors
+#             Br,Gr,Rr = bgr_ref
+#             distance.append(CIEDE2000(tuple(lab_meas), lab_ref))  # Euclidean distance toward the 6 reference colors
+#             distance.append(math.sqrt((B-Br)**2+(G-Gr)**2+(R-Rr)**2))  # Euclidean distance toward the 6 reference colors
+            distance.append(bgr_dist(color_measured, bgr_ref))
+            
         color_distance[facelet]=distance   # dict (facelet num as key) is populated with the measured distance from the 6 centes
-    
+
     
     # Step4: Ordering the color distance (the min value per each facelet) by increasing values
     color_distance_copy=color_distance.copy()                     # a dict copy is made, to drop items while the analysis progresses
@@ -1486,12 +1508,30 @@ def cube_colors_interpr(BGR_detected):
     cube_status_by_color_distance={}          # dict to store the cube status reppresentation wih the interpreted colors
     distance={}                               # dict to store the color distance during each facelet check
 #     distance_value=[]                       # list to store the color distance for the selectec color/facelet association
-                                         
+    
+    
+    
+###### new    
+    new_cube_ref_colors={}
+    for color, BGR in cube_ref_colors.items():
+        new_cube_ref_colors[color] = []
+    B_avg_list={}
+    G_avg_list={}
+    R_avg_list={}
+#     print("\n new_cube_ref_colors", new_cube_ref_colors)
+#     print()
+#     print()
+#     print()
+###### new
+
     for i, value in enumerate(BGR_ordered.values()):        # iteration on the facelet's BGR values ordered by increasing color distance from ref
         B,G,R = value
-        lab_meas = rgb2lab([R,G,B])                                         # conversion to lab color space (due CIEDE2000 function)
-        for color, lab_ref in cube_ref_colors_lab.items():                  # iteration over the 6 reference colors
-            distance[color]=CIEDE2000(tuple(lab_meas), lab_ref)             # Euclidean distance toward the 6 reference colors
+#         lab_meas = rgb2lab([R,G,B])                                         # conversion to lab color space (due CIEDE2000 function)
+#         for color, lab_ref in cube_ref_colors_lab.items():                  # iteration over the 6 reference colors
+        for color, bgr_ref in cube_ref_colors.items():                      # iteration over the 6 reference colors 
+#             distance[color]=CIEDE2000(tuple(lab_meas), lab_ref)             # Euclidean distance toward the 6 reference colors
+            distance[color]=bgr_dist(value, bgr_ref)                        # Euclidean distance toward the 6 reference colors
+            
         color = min(distance, key=distance.get)                             # chosem color is the one with min distance from reference
   
         cube_status_by_color_distance[i]=color                              # dict of cube status wih the interpreted colors  
@@ -1502,8 +1542,32 @@ def cube_colors_interpr(BGR_detected):
         G_avg = math.sqrt((G**2+ (cube_ref_colors[color][1])**2)/2)     # average Green color is made from the chosen color and previous reference
         R_avg = math.sqrt((R**2+ (cube_ref_colors[color][2])**2)/2)     # average Blue color is made from the chosen color and previous reference
 
+###### new
+###### new
+        new_cube_ref_colors[color].append(value)
+#         print("\n new_cube_ref_colors", new_cube_ref_colors)
+#         print()
+        new_B_avg=[]
+        new_G_avg=[]
+        new_R_avg=[]
+#         print("color is:", color)
+        for BGR in new_cube_ref_colors[color]:
+            new_B_avg.append(BGR[0])
+            new_G_avg.append(BGR[1])
+            new_R_avg.append(BGR[2])
+        B_avg = int(median(new_B_avg))
+        G_avg = int(median(new_G_avg))
+        R_avg = int(median(new_R_avg))
+#         print("B_avg:", B_avg, "G_avg:", G_avg, "R_avg:", R_avg)      
+#         print()
+#         print()
+#         print()
+###### new
+###### new
+
         cube_ref_colors[color]=(B_avg, G_avg, R_avg)                    # Color reference dict is updated with the new BGR averaged color
-        cube_ref_colors_lab[color]=tuple(rgb2lab([R_avg,G_avg,B_avg]))  # Lab color space reference dict is updated with the new color reference 
+#         cube_ref_colors_lab[color]=tuple(rgb2lab([R_avg,G_avg,B_avg]))  # Lab color space reference dict is updated with the new color reference
+        
     
     
     # Step8: Cube detection status is generated (a dict having the facelet number as key and the color as value)
@@ -1537,6 +1601,13 @@ def cube_colors_interpr(BGR_detected):
 
 
 
+def bgr_dist(bgr,bgr_ref):
+    B, G, R = bgr
+    Br, Gr,Rr = bgr_ref
+    return math.sqrt((B-Br)**2+(G-Gr)**2+(R-Rr)**2)
+
+
+
 def retrieve_cube_color_order(VS_value,Hue):
     """ Determines the cube colors order, meaning the cube's orientation as it has been dropped on the robot.
     The function returns a list with the color order, as per URFDLB sequence.
@@ -1548,7 +1619,7 @@ def retrieve_cube_color_order(VS_value,Hue):
     cube_color_sequence=[4, 13, 22, 31, 40, 49]            # list of center facelets, to later store the cube's side COLORS
     
     if debug:                                              # case debug variable is set true on __main__
-        print(f'\nHue centers: {Hue[centers[0]]}, {Hue[centers[1]]},'\
+        print(f'\nHue centers: {Hue[centers[0]]}, {Hue[centers[1]]}, '\
               f'{Hue[centers[2]]}, {Hue[centers[3]]}, {Hue[centers[4]]}, {Hue[centers[5]]}') # feedback is printed to the terminal
     
     VS_centers=[VS_value[facelet] for facelet in centers]  # V-S value measured on the cube side center under analysis
@@ -1560,7 +1631,7 @@ def retrieve_cube_color_order(VS_value,Hue):
     if white_center<27:                       # case the facelet id is < 27  
         yellow_center=white_center+27         # yellow center facelet (yellow is at opposite side of white, in this case requires adding 27)
     else:                                     # case the facelet id is > 27  
-        yellow_center=white_center-27         # yellow is at opposite side of white, in this case by subtrcting 27
+        yellow_center=white_center-27         # yellow is at opposite side of white, in this case by subtracting 27
     
     try:
         centers.remove(white_center)          # white facelet is removed from the list of center's facelets
@@ -1586,10 +1657,15 @@ def retrieve_cube_color_order(VS_value,Hue):
         Hc=Hue[facelet]                       # Hue value measured on the cube side center under analysis
         H_opp=Hue[opp_facelet]                # Hue value measured on the cube opposite side center
 
-        if (Hc>150 and H_opp<30) or (Hc<30 and H_opp<30 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
+#         if (Hc>150 and H_opp<30) or (Hc<30 and H_opp<30 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
+#             red_center=facelet                # red center facelet
+#         elif (Hc<30 and H_opp>150) or (Hc<30 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
+#             orange_center=facelet             # orange center facelet
+        
+        if (Hc>150 and H_opp<35) or (Hc<35 and H_opp<35 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
             red_center=facelet                # red center facelet
-        elif (Hc<30 and H_opp>150) or (Hc<30 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
-            orange_center=facelet             # orange center facelet
+        elif (Hc<35 and H_opp>150) or (Hc<35 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
+            orange_center=facelet 
     
     try:
         centers.remove(red_center)            # red facelet is removed from the list of center's facelets
@@ -1656,7 +1732,6 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
     The function also returns the cube color sequence, to correctly plot the cube status on the cube faces collage.""" 
     
     print('cube_colors_interpr_HSV function has been called')   # feedback is printed to the terminal
-    
     VS_value={}                             # dict to store the V-S (Value-Saturation) value of all facelets
     Hue={}                                  # dict to store the Hue value of all facelets
     
@@ -1672,7 +1747,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
     # function to get the color (sides) order, and list of the colored center's facelets plus the white center facelet  
     cube_color_sequence, HSV_analysis = retrieve_cube_color_order(VS_value,Hue)    
     
-    while HSV_analysis == True:                   # flag on positive analysis is placed on true, and later eventually changed
+    while HSV_analysis == True:                   # while loop until HSV_analysis is true
         
         # getting the white center's facelet and the colored facelets
         centers=[4, 13, 22, 31, 40, 49]                              # center facelet numbers
@@ -1681,6 +1756,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         colored_centers=centers                                      # colored centers (without the white)
         
         if debug:                                                    # case debug variable is set true on __main__
+            
             print(f'\nWhite facelet number: {white_center}')         # feedback is printed to the terminal
             print(f'\nCube_color_sequence: {cube_color_sequence}')   # feedback is printed to the terminal
         
@@ -1694,7 +1770,8 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         VSdelta={}                                                       # dict to store the V-S (value-Saturation) value of all facelets
         i=0                                                              # iterator index
         for H,S,V in HSV_detected.values():                              # Hue, Saturation and Value are retrieved from the HSV dict
-            VSdelta[i]=int((V)-int(S))                                   # difference between value (brightness) and saturation, for all the facelets
+#             VSdelta[i]=int((V)-int(S))                                   # difference between value (brightness) and saturation, for all the facelets
+            VSdelta[i]=int(V)+int(V)-int(S)-abs(7*(int(H)-int(Hw)))      # V+(V-S)+abs(3*deltaH) value for all the facelets
             i+=1                                                         # iterator index is increased
         
         # ordering the VSdelta by increasing values (9 highest values are the 9 white facelets)
@@ -1933,6 +2010,14 @@ def CIEDE2000(Lab_1, Lab_2):
     dE_00 = math.sqrt(f_L**2 + f_C**2 + f_H**2 + R_T * f_C * f_H)
     
     return dE_00
+
+
+
+
+
+
+
+
 
 
 
@@ -2843,17 +2928,23 @@ def cpu_temp(side, delay=10):
     This gives an idea about the temperature into the robot case."""
     
     try:
-        tFile = open('/sys/class/thermal/thermal_zone0/temp')   # file with the cpu temp, in mDegCelsius (text format)
-        cpu_temp = round(float(tFile.read()) /1000, 1)          # tempertaure is converted to (float) degCelsius
+        tFile = open('/sys/class/thermal/thermal_zone0/temp')      # file with the cpu temp, in mDegCelsius (text format)
+        cpu_temp = round(float(tFile.read()) /1000, 1)             # tempertaure is converted to (float) degCelsius
 
-    except:           # case of errors
-        tFile.close() # file is closed
+    except:            # case of errors
+        tFile.close()  # file is closed
     
-    if side!=0:                                                                     # case the cube side is not zero 
-        print(f'\nCPU temperature: {cpu_temp} degrees C')                           # feedback is printed to the terminal
-        disp.show_on_display('CPU TEMP.', str(str(cpu_temp)+' degC'), fs1=20, fs2=20)    # feedback is printed to the display
-        import time
-        time.sleep(delay) # sleep time in arg is applied
+    if side!=0:                                                    # case the cube side is not zero
+        if not fahrenheit:                                         # case farenheiy is set False in __main__
+            print(f'\nCPU temperature: {cpu_temp} degrees C')      # feedback is printed to the terminal
+            disp.show_on_display('CPU TEMP.', str(str(cpu_temp)+' degC'), fs1=20, fs2=20)    # feedback is printed to the display
+        else:                                                      # case farenheiy is set True in __main_
+            cpu_temp = round((cpu_temp * 9 / 5) + 32 , 1)          # temperature conversion to fahrenheit
+            print(f'\nCPU temperature: {cpu_temp} fahrenheit deg') # feedback is printed to the terminal
+            disp.show_on_display('CPU TEMP.', str(str(cpu_temp)+' degF'), fs1=20, fs2=20)    # feedback is printed to the display
+                
+    import time
+    time.sleep(delay)  # sleep time in arg is applied
 
 
 
@@ -2925,7 +3016,6 @@ def clear_terminal():
     """ Clears the terminal and positions the cursors on top left; Still possible to scroll up in case of need"""
 
     print("\x1b[H\x1b[2J")  # escape sequence
-
 
 
 
@@ -3014,12 +3104,16 @@ def start_automated_cycle(cycle, total, cycle_pause):
     disp.show_on_display('SOLVING', f'{cycle} / {total}', fs1=22, fs2=26)  #feedbak is print to to the display
     time.sleep(5)               # time delay to let possible readig the screen
     start_solving(cycle)        # start_solving function is called
-    
+            
+        
     if cycle < total:                     # case there is at least another cycle        
+        show_cube(date=True, cycle=cycle, total=total) # show_cube function is called
         robot_idle = False                # robot idle set off to allows cycle stopping while pause
         disp.set_backlight(1)             # display backlight is turned on, in case it wasn't
         start = time.time()               # time reference
-        screen1=True                      
+        screen1=True                      # boolean used to alternate two prints at the screen
+        
+        print()
         while time.time()-start < cycle_pause: # case the elapsed time is smaller than cycle_pause time
             time_left = int(cycle_pause-(time.time()-start))  # time_left is calculated and converted to integer
             
@@ -3029,6 +3123,10 @@ def start_automated_cycle(cycle, total, cycle_pause):
             
             else:                         # case no request to stop the robot
                 if time_left % 2 == 0:    # case the time_left is even
+                    t_prog = (time.time()-start)/cycle_pause
+                    print("\rNext cycle: [{0:50s}] {1:.1f}%   {2:}s    ".format('.' * int(t_prog * 50),
+                                                                                t_prog*100,
+                                                                                time_left),end="", flush=True)
                     if screen1:           # case boolean screen1 is true
                         screen1 = False   # boolean screen1 is set false
                     else:                 # case boolean screen1 is false
@@ -3039,9 +3137,60 @@ def start_automated_cycle(cycle, total, cycle_pause):
                     disp.show_on_display('WAIT TIME', f'{time_left} s', fs1=21, fs2=24)  #feedbak is print to to the display
                 
                 if time_left <= 1:        # case the time to wait is almost over
+                    print()               # print an empty line
+                    try:                  # tentative
+                        cv2.destroyAllWindows()   # closes al the graphical windows
+                    except:               # case an exception is raised
+                        pass              # no action
                     break                 # the while loop is interrupted     
+                
                 else:                     # case there still is time to wait
                     time.sleep(1.9)       # system can sleep for almost 2 seconds
+
+
+
+
+
+def show_cube(date=None, cycle=None, total=None):
+    """function that activates the Top_cover led and the camera to retrieve one frame.
+        The frame is plot on a window, by adding ."""
+    
+    global camera, rawCapture, width, height
+     
+    if screen:                                # case screen variable is set true on __main__
+        if camera == None:                    # case the camera object does not exist
+            camera, rawCapture, width, height = webcam()  # camera object is created
+        
+        servo.cam_led_On(cam_led_bright)      # led on top_cover is switched on
+        time.sleep(1)                         # little delay to let the led and camera to stabilize
+        frame, w, h = read_camera()           # camera start reading the cube, and adjusts the awb/exposure
+        servo.cam_led_Off()                   # sets off the led at top_cover
+        
+        if date!=None:                        # case variable date is not None
+            h, w = frame.shape[:2]            # frame height and width
+            bg = np.zeros([40, w, 3],dtype=np.uint8)    # empty array having same width of frame images
+            bg.fill(230)                      # array is filled with light gray
+            datetime = dt.datetime.now().strftime('%Y/%m/%d  %H:%M:%S')  # date_time variable is assigned
+            cv2.putText(bg, datetime, (20, 28), font, .7, (0,0,0), lineType)  # add text to background
+            frame=np.vstack([bg, frame])      # bg array (background with text) is vertically stack to frame 
+        
+        if cycle!=None and total!=None:       # case variables cycles and total are not None
+            h, w = frame.shape[:2]            # frame height and width
+            bg = np.zeros([40, w, 3],dtype=np.uint8)   # empty array having same dimensions of cube's faces images
+            bg.fill(230)                      # array is filled with light gray
+            text = f'Cycle {cycle} / {total}' # text to be printed
+            cv2.putText(bg, text, (20, 28), font, 0.7, (0,0,0), lineType)     # add text to background
+            frame=np.vstack([bg, frame])      # bg array (background with text) is vertically stack to frame 
+        
+        if fixWindPos:                        # case the fixWindPos variable is chosen
+            cv2.namedWindow('cube')           # create the cube window
+            cv2.moveWindow('cube', 0,0)       # move the window to (0,0)
+        cv2.imshow('cube', frame)             # shows the frame 
+        cv2.waitKey(2000)                     # refresh time
+
+    
+
+
 
 
 
@@ -3234,13 +3383,15 @@ def start_up(first_cycle=False):
     URFDLB_facelets_BGR_mean=[]      # empty list to be filled with with 54 facelets colors, ordered according URFDLB order
     faces={}                         # dictionary that store the image of each face
     side=0                           # set the initial cube side (cube sides are 1 to 6, while zero is used as starting for other setting)
-    cpu_temp(side)                   # cpu temp is checked at start-up and cube solving end
+    cpu_temp(side)                   # cpu temp is checked at cube solving-end
     robot_stop = False               # flag to stop the robot movements
     timeout = False                  # timeout flag is initialli set on False
     
     # series actions, or variables setting, to be done only at the first cycle
     if first_cycle:
+        cpu_temp(side=10, delay=3)   # cpu temp is checked at start-up
         time_system_synchr()  # checks the time system status (if internet connected, it waits till synchronization)
+        
 #         cam_led_bright = 0.1           #(AF 0.1)           # set the brighteness on the led at top_cover (admitted 0 to 0.3)
 #         detect_timeout = 40             #(AF 40)            # timeout for the cube status detection (in secs)
 #         show_time = 7                      #(AF 7)             # showing time of the unfolded cube images (cube initial status)
@@ -3469,15 +3620,29 @@ if __name__ == "__main__":
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
+    if args.debug != None:  # case 'debug' argument exists
+        if args.debug:      # case the Cubotino_T.py has been launched with 'debug' argument
+            debug = True    # flag to enable/disable the debug related prints is set True
+    
     screen = True           # flag to enable/disable commands requiring a screen connection, for graphical print out
     fixWindPos = True       # flag to fix the CV2 windows position, starting from coordinate 0,0 (top left)
+    
     cv_wow = False          # flag to enable/disable the visualization of the image analysis used to find the facelets
+    if args.cv_wow != None: # case 'cv_wow' argument exists
+        if args.cv_wow:     # case the Cubotino_T.py has been launched with 'cv_wow' argument
+            cv_wow = True   # flag to enable/disable the visualization of the image analysis used to find the facelets is set True
     if cv_wow:              # case the cv image analysis plot is set true
         screen = True       # screen related functions are activated
         fixWindPos = False  # fix position for final image is set false
-    fps = False             # flag to check and plot the fps on the frame (more for fun than need)
     
-    clear_terminal()                        # cleares the terminal
+    fahrenheit = False      # flag to use fahrenheit degrees instead of celsius
+    if args.F_deg != None:  # case 'F_deg' argument exists
+        if args.F_deg:      # case the Cubotino_T.py has been launched with 'F_deg' argument
+            fahrenheit = True  # flag to use fahrenheit degrees (instead of celsius) is set true
+    
+    fps = False             # flag to check and plot the fps on the frame (more for fun than need)
+    clear_terminal()        # cleares the terminal
+    
     print('\nGeneral settings:')            # feedback is printed to the terminal
     if debug:                               # case the debug print-out are requested
         print(f'Debug prints activated\n')  # feedback is printed to the terminal
@@ -3488,9 +3653,9 @@ if __name__ == "__main__":
     if not param_imported:                  # case the function import_parameters returns False
         quit_func(quit_script=True)         # qutting function is called, with script clossure
     # ###############################################################################################
-    
-    
-    
+ 
+
+
     ################    Display setting       ######################################################
     from Cubotino_T_display import display as disp # sets the display object (the one on the robot)             
     disp.clean_display()                    # cleans the display
@@ -3585,8 +3750,8 @@ if __name__ == "__main__":
     # ###############################################################################################
     
     
-    
-    ###################### pre-setting a number of scrambling and solving cycles   ##################
+
+    ###########################  parsing arguments for robot remote usage  ##########################
     if args.cycles != None:                 # case the Cubotino_T.py has been launched with 'cycles' argument
         cycles_num = abs(int(args.cycles))  # the positive integer arg passed is assigned to the cycle_num variable
         if cycles_num > 0:                  # case the automated cycles request is more than zero
@@ -3602,7 +3767,7 @@ if __name__ == "__main__":
         cycle_pause = abs(int(args.pause))  # the positive integer arg passed is assigned to the cycle_pause variable
         print(f'Asked the robot to pause {cycle_pause} seconds in between the automated cycles\n') 
     else:                                   # case the Cubotino_T.py has not been launched without 'pause' argument
-        cycle_pause = 0                     # zero is assigned to the cycles_num variable
+        cycle_pause = 0                     # zero is assigned to the cycles_num variable    
     # ###############################################################################################
         
     
@@ -3633,7 +3798,7 @@ if __name__ == "__main__":
                 reset_camera = start_solving(solv_cycle)  # start_solving function is called
                 break      # (inner) infinite loop is interrupted once cube solving cycle is done or stopped
       
-        if automated:                           # case automated variable is true
+        if automated:                           # case automated variable is true  
             for i in range(cycles_num):         # iteration over the number passed to the --cycles argument 
                 start_automated_cycle(i+1, cycles_num, cycle_pause)  # start_automated_cycle finction is called
                 
@@ -3655,18 +3820,11 @@ if __name__ == "__main__":
                     solv_cycle = cycles_num     # cycle_num is assigned to variable counting the solving cycles manually requested
                     scramb_cycle = cycles_num   # cycle_num is assigned to variable counting the scrambling cycles manually requested
                     reset_camera = True         # camera reset for the next (non-automated) cycle
-
-
-
-                    # below boolean sets what the robot does after the automated cycles are done                  
-                    switch_off_after_automated_cycles = False  
                     
-                    if switch_off_after_automated_cycles:  # case switch_off_after_automated_cycles is set True
-                        quit_func(quit_script=True)        # script is quitted and Rpi is shut off
-                    else:                                  # case switch_off_after_automated_cycles is set False
-                        automated = False                  # automated variable is set false
-                        # the robot will idle while waiting for command at the touch button
+                    if args.shutoff:                  # case the --shutoff argument has been provided
+                        quit_func(quit_script = True) # the script is terminated and, depending on Cubotino_T_bash.sh, it might shut the RPI off
+                    else:                             # case the --shutoff argument has not been provided
+                        automated = False             # automated variable is set false, robot waits for touch button commands
                     
-                   
-
-                
+              
+             
