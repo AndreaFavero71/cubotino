@@ -404,7 +404,10 @@ def webcam():
     
     # PiCamera is set as camera object, with binning. Framerate range limited to 10 allows longer exposure time (when needed)
     # higher framerate does not really speed up the cube reading process.
-    s_mode = 7                             # sensor mode 7 means 4x4 binning
+
+#     s_mode = 7    #(AF 7)   # PiCamera V1.3: sensor mode 7 means 4x4 binning, 4:3, Full Field of View
+                              # PiCamera V2:   sensor mode 4 means 2x2 binning, 4:3, Full Field of View
+
     camera = PiCamera(sensor_mode=s_mode, framerate_range = (1, 10))  
     
     rawCapture = PiRGBArray(camera)        # returns (uncoded) RGB array from the camera
@@ -3826,5 +3829,4 @@ if __name__ == "__main__":
                     else:                             # case the --shutoff argument has not been provided
                         automated = False             # automated variable is set false, robot waits for touch button commands
                     
-              
-             
+                
