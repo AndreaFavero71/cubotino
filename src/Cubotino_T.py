@@ -429,7 +429,7 @@ def webcam():
         elif binning == 4 or binning == 5:         # case the binning is 4 or 5 it means binning 2x2
             binning='2x2'                          # binning variable is set to 2x2
         elif binning > 5:                          # case binning is bigger than 5 it means binning 4x4
-            binning='4x4'                          # binning variable is set to 4x4
+            binning='4x4 if PiCamera V1.3, 2x2 if V2'  # binning 4x4 when PiCamera V1.3, 2x2 when PiCamera V2
         print('PiCamera mode (binning):', binning) # feedback is printed to the terminal
         
     if side == 0 and not robot_stop:               # case cube side is zero and no request to stop the robot
