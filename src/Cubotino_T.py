@@ -593,7 +593,13 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     exp_list=[]                                         # list to store the Picamera exposure time, for the first 4 faces
     exp_list.append(camera.exposure_speed)              # read picamera exposure time (microsec) on first face
     for i in range(3):                                  # iterate over the 4 faces reachable via a single cube flip
-        
+        if not robot_stop and screen:                   # case screen variable is set true on __main__
+            frame, w, h = read_camera()                 # camera start reading the cube, and adjusts the awb/exposure
+            if fixWindPos:                              # case the fixWindPos variable is chosen
+                cv2.namedWindow('cube')                 # create the cube window
+                cv2.moveWindow('cube', 0,0)             # move the window to (0,0)
+            cv2.imshow('cube', frame)                   # shows the frame 
+            cv2.waitKey(1)                              # refresh time is minimized to 1ms 
         
         robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
         time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposure time at PiCamera
@@ -1467,25 +1473,19 @@ def cube_colors_interpr(BGR_detected):
     
     # Step3: dictionary with the color distances from the (initial) references
     color_distance={}                                             # empty dict to store all the color distances for all the facelets
-#     cube_ref_colors_lab={}                                        # empty dictionary to store color refences in Lab color space
-#     for color, BGR in cube_ref_colors.items():                    # iteration over the 6 centers
-#         B,G,R = BGR                                               # BGR values are unpact from the dict
-#         cube_ref_colors_lab[color]=tuple(rgb2lab([R,G,B]))        # BGR conversion to lab color space and dict feeding
-#     print(cube_ref_colors_lab)
+    cube_ref_colors_lab={}                                        # empty dictionary to store color refences in Lab color space
+    for color, BGR in cube_ref_colors.items():                    # iteration over the 6 centers
+        B,G,R = BGR                                               # BGR values are unpact from the dict
+        cube_ref_colors_lab[color]=tuple(rgb2lab([R,G,B]))        # BGR conversion to lab color space and dict feeding
             
     for facelet, color_measured in BGR_detected_dict.items():     # iteration over the 54 facelets
-#         B,G,R = color_measured                                    # individual BGR components  
-#         lab_meas = rgb2lab([R,G,B])                               # conversion to lab color space (due CIEDE2000 function)
+        B,G,R = color_measured                                    # individual BGR components
+        lab_meas = rgb2lab([R,G,B])                               # conversion to lab color space (due CIEDE2000 function)
         distance=[]                                               # list with the distance from the 6 references, for each facelet
-#         for color, lab_ref in cube_ref_colors_lab.items():        # iteration over the 6 reference colors
-        for color, bgr_ref in cube_ref_colors.items():            # iteration over the 6 reference colors
-#             Br,Gr,Rr = bgr_ref
-#             distance.append(CIEDE2000(tuple(lab_meas), lab_ref))  # Euclidean distance toward the 6 reference colors
-#             distance.append(math.sqrt((B-Br)**2+(G-Gr)**2+(R-Rr)**2))  # Euclidean distance toward the 6 reference colors
-            distance.append(bgr_dist(color_measured, bgr_ref))
-            
+        for color, lab_ref in cube_ref_colors_lab.items():        # iteration over the 6 reference colors
+            distance.append(CIEDE2000(tuple(lab_meas), lab_ref))  # Euclidean distance toward the 6 reference colors
         color_distance[facelet]=distance   # dict (facelet num as key) is populated with the measured distance from the 6 centes
-
+    
     
     # Step4: Ordering the color distance (the min value per each facelet) by increasing values
     color_distance_copy=color_distance.copy()                     # a dict copy is made, to drop items while the analysis progresses
@@ -1511,30 +1511,12 @@ def cube_colors_interpr(BGR_detected):
     cube_status_by_color_distance={}          # dict to store the cube status reppresentation wih the interpreted colors
     distance={}                               # dict to store the color distance during each facelet check
 #     distance_value=[]                       # list to store the color distance for the selectec color/facelet association
-    
-    
-    
-###### new    
-    new_cube_ref_colors={}
-    for color, BGR in cube_ref_colors.items():
-        new_cube_ref_colors[color] = []
-    B_avg_list={}
-    G_avg_list={}
-    R_avg_list={}
-#     print("\n new_cube_ref_colors", new_cube_ref_colors)
-#     print()
-#     print()
-#     print()
-###### new
-
+                                         
     for i, value in enumerate(BGR_ordered.values()):        # iteration on the facelet's BGR values ordered by increasing color distance from ref
         B,G,R = value
-#         lab_meas = rgb2lab([R,G,B])                                         # conversion to lab color space (due CIEDE2000 function)
-#         for color, lab_ref in cube_ref_colors_lab.items():                  # iteration over the 6 reference colors
-        for color, bgr_ref in cube_ref_colors.items():                      # iteration over the 6 reference colors 
-#             distance[color]=CIEDE2000(tuple(lab_meas), lab_ref)             # Euclidean distance toward the 6 reference colors
-            distance[color]=bgr_dist(value, bgr_ref)                        # Euclidean distance toward the 6 reference colors
-            
+        lab_meas = rgb2lab([R,G,B])                                         # conversion to lab color space (due CIEDE2000 function)
+        for color, lab_ref in cube_ref_colors_lab.items():                  # iteration over the 6 reference colors
+            distance[color]=CIEDE2000(tuple(lab_meas), lab_ref)             # Euclidean distance toward the 6 reference colors
         color = min(distance, key=distance.get)                             # chosem color is the one with min distance from reference
   
         cube_status_by_color_distance[i]=color                              # dict of cube status wih the interpreted colors  
@@ -1545,32 +1527,8 @@ def cube_colors_interpr(BGR_detected):
         G_avg = math.sqrt((G**2+ (cube_ref_colors[color][1])**2)/2)     # average Green color is made from the chosen color and previous reference
         R_avg = math.sqrt((R**2+ (cube_ref_colors[color][2])**2)/2)     # average Blue color is made from the chosen color and previous reference
 
-###### new
-###### new
-        new_cube_ref_colors[color].append(value)
-#         print("\n new_cube_ref_colors", new_cube_ref_colors)
-#         print()
-        new_B_avg=[]
-        new_G_avg=[]
-        new_R_avg=[]
-#         print("color is:", color)
-        for BGR in new_cube_ref_colors[color]:
-            new_B_avg.append(BGR[0])
-            new_G_avg.append(BGR[1])
-            new_R_avg.append(BGR[2])
-        B_avg = int(median(new_B_avg))
-        G_avg = int(median(new_G_avg))
-        R_avg = int(median(new_R_avg))
-#         print("B_avg:", B_avg, "G_avg:", G_avg, "R_avg:", R_avg)      
-#         print()
-#         print()
-#         print()
-###### new
-###### new
-
         cube_ref_colors[color]=(B_avg, G_avg, R_avg)                    # Color reference dict is updated with the new BGR averaged color
-#         cube_ref_colors_lab[color]=tuple(rgb2lab([R_avg,G_avg,B_avg]))  # Lab color space reference dict is updated with the new color reference
-        
+        cube_ref_colors_lab[color]=tuple(rgb2lab([R_avg,G_avg,B_avg]))  # Lab color space reference dict is updated with the new color reference 
     
     
     # Step8: Cube detection status is generated (a dict having the facelet number as key and the color as value)
@@ -1597,7 +1555,6 @@ def cube_colors_interpr(BGR_detected):
         print(f'\nCube_color_sequence: {cube_color_sequence}')  # feedback is printed to the terminal
     
     return cube_status, HSV_detected, cube_color_sequence, HSV_analysis
-
 
 
 
