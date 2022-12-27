@@ -1967,15 +1967,6 @@ def CIEDE2000(Lab_1, Lab_2):
 
 
 
-
-
-
-
-
-
-
-
-
 def URFDLB_facelets_order(BGR_mean):
     """ Orders the facelet's colors (BGR values) according to the URFDLB order.
     When the robot is used, faces are detected according to a convenient (robot) order.
@@ -3764,7 +3755,7 @@ if __name__ == "__main__":
         cycle_pause = abs(int(args.pause))  # the positive integer arg passed is assigned to the cycle_pause variable
         print(f'Asked the robot to pause {cycle_pause} seconds in between the automated cycles\n') 
     else:                                   # case the Cubotino_T.py has not been launched without 'pause' argument
-        cycle_pause = 0                     # zero is assigned to the cycles_num variable    
+        cycle_pause = 0                     # zero is assigned to the cycles_num variable
     # ###############################################################################################
         
     
@@ -3795,7 +3786,7 @@ if __name__ == "__main__":
                 reset_camera = start_solving(solv_cycle)  # start_solving function is called
                 break      # (inner) infinite loop is interrupted once cube solving cycle is done or stopped
       
-        if automated:                           # case automated variable is true  
+        if automated:                           # case automated variable is true
             for i in range(cycles_num):         # iteration over the number passed to the --cycles argument 
                 start_automated_cycle(i+1, cycles_num, cycle_pause)  # start_automated_cycle finction is called
                 
