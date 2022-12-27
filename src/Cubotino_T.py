@@ -1066,7 +1066,7 @@ def get_facelets(facelets, frame, contour, hierarchy):
          
     area = cv2.contourArea(contour)                                       # area of each passed contour is retrieved
     
-    if min_area < area < max_area:                                        # filter out too small and too large contours (areas)                                              # that contour isn't  
+    if min_area < area < max_area:                                        # filter out too small and too large contours (areas)
         contour_squeeze = np.squeeze(contour)                             # flattens out the list of list used by contours
         edges_delta, axes_ratio = square_check(contour_squeeze)           # sanity check on square and ronbhus shapes
         if edges_delta < square_ratio and axes_ratio > rhombus_ratio:     # check if the contour looks like a square
@@ -3351,7 +3351,7 @@ def start_up(first_cycle=False):
     # global variables
     global camera, width, height, w, h, rawCapture, camera_set_gains       # camera and frame related variables
     global fps_i, fps_dict, show_time, cam_led_bright                      # camera and frame related variables
-    global sides, side, faces, prev_side, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables                                 # facelet square side (in pixels) to draw the cube sketch
+    global sides, side, faces, prev_side, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables
     global timeout, detect_timeout, robot_stop                             # robot related variables
     global font, fontScale, fontColor, lineType                            # cv2 text related variables
 
@@ -3715,9 +3715,9 @@ if __name__ == "__main__":
         
         if frameless_cube == 'false':                               # case the frameless string variale equals to false
             print('\nCube status detection set for cube with black frame around the facelets')  # feedback is printed to the terminal 
-        elif frameless_cube == 'true':                              # case the frameless string variale equals to true:                                                                      # case the frameless flag is set true
+        elif frameless_cube == 'true':                              # case the frameless string variale equals to 'true'
             print('\nCube status detection set for frameless cube') # feedback is printed to the terminal
-        elif frameless_cube == 'auto':                              # case the frameless string variale equals to true:                                                                      # case the frameless flag is set true
+        elif frameless_cube == 'auto':                              # case the frameless string variale equals to 'auto'
             print('\nCube status detection set for both cubes with and without black frame')   # feedback is printed to the terminal 
             print('This setting takes slightly longer time for the cube status detection\n')   # feedback is printed to the terminal 
     # ###############################################################################################
