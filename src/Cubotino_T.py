@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 21 December 2022
+#  Andrea Favero, 27 December 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -63,7 +63,11 @@ parser.add_argument("--cv_wow", action='store_true',
 
 # --F_deg argument is added to the parser
 parser.add_argument("--F_deg", action='store_true',
-                    help="CPU tempo in Fahrenheit degrees")
+                    help="CPU temperature in Fahrenheit degrees")
+
+# --timer argument is added to the parser
+parser.add_argument("--timer", action='store_true',
+                    help="Timer is visualized after the scrambling function (max 1h)")
 
 args = parser.parse_args()   # argument parsed assignement
 # ###############################################################################################
@@ -1561,13 +1565,6 @@ def cube_colors_interpr(BGR_detected):
 
 
 
-def bgr_dist(bgr,bgr_ref):
-    B, G, R = bgr
-    Br, Gr,Rr = bgr_ref
-    return math.sqrt((B-Br)**2+(G-Gr)**2+(R-Rr)**2)
-
-
-
 def retrieve_cube_color_order(VS_value,Hue):
     """ Determines the cube colors order, meaning the cube's orientation as it has been dropped on the robot.
     The function returns a list with the color order, as per URFDLB sequence.
@@ -1617,16 +1614,11 @@ def retrieve_cube_color_order(VS_value,Hue):
         Hc=Hue[facelet]                       # Hue value measured on the cube side center under analysis
         H_opp=Hue[opp_facelet]                # Hue value measured on the cube opposite side center
 
-#         if (Hc>150 and H_opp<30) or (Hc<30 and H_opp<30 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
-#             red_center=facelet                # red center facelet
-#         elif (Hc<30 and H_opp>150) or (Hc<30 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
-#             orange_center=facelet             # orange center facelet
-        
-        if (Hc>150 and H_opp<35) or (Hc<35 and H_opp<35 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
+        if (Hc>150 and H_opp<30) or (Hc<30 and H_opp<30 and Hc<H_opp) or (Hc>160 and H_opp>170 and Hc<H_opp): # Hue filter for red vs orange
             red_center=facelet                # red center facelet
-        elif (Hc<35 and H_opp>150) or (Hc<35 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
-            orange_center=facelet 
-    
+        elif (Hc<30 and H_opp>150) or (Hc<30 and Hc>H_opp) or (Hc>170 and Hc>H_opp):   # Hue filter for orange vs red
+            orange_center=facelet             # orange center facelet
+   
     try:
         centers.remove(red_center)            # red facelet is removed from the list of center's facelets
     except:                                   # exception is raised if there are more red centers, in case of a bad color detection
@@ -1730,8 +1722,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         VSdelta={}                                                       # dict to store the V-S (value-Saturation) value of all facelets
         i=0                                                              # iterator index
         for H,S,V in HSV_detected.values():                              # Hue, Saturation and Value are retrieved from the HSV dict
-#             VSdelta[i]=int((V)-int(S))                                   # difference between value (brightness) and saturation, for all the facelets
-            VSdelta[i]=int(V)+int(V)-int(S)-abs(7*(int(H)-int(Hw)))      # V+(V-S)+abs(3*deltaH) value for all the facelets
+            VSdelta[i]=int((V)-int(S))                                   # difference between value (brightness) and saturation, for all the facelets
             i+=1                                                         # iterator index is increased
         
         # ordering the VSdelta by increasing values (9 highest values are the 9 white facelets)
@@ -2047,7 +2038,8 @@ def cube_string(cube_status):
 def scrambling_cube():
     """function to scramble the cube via the robot.
         The function first generate a random cube status, via a function available form the Kociemba solver package.
-        After, the robot generates the moves to solve that specific cube status."""
+        After, the robot generates the moves to solve that specific cube status.
+        In case of --timer argument, a timer is visualized after the scrambling function."""
     
     global robot_idle  
     
@@ -2071,7 +2063,42 @@ def scrambling_cube():
     if not robot_stop:              # case there are not request to stop the robot
         servo.read()                # top cover positioned to have the PiCamera in read position
         servo.cam_led_test()        # the led on top_cover is shortly activated once the scrambilng is done
+    
+    
+    # eventual timer visualization on display, after the scrambling function
+    if args.timer != None:              # case the --timer argument exists
+        if args.timer:                  # case the --timer argument has been provided
+            
+            if robot_stop:              # case robot is stopped, while scrambling and --timer argument
+                disp.clean_display()    # cleans the display
+                disp.__init__()         # display is re-initilized (not elegant, yet it removes random issues at robot stop)
+                disp.set_backlight(1)   # display backlight is turned on, in case it wasn't
+                servo.servo_start_pos() # servos are placed back to their start position
 
+            timer_timeout = False       # boolean to track whether the timer timeout has been reached
+            d_time_str ='0:00:00'       # d_time_string initialized to prevent potential missed variable error
+            t_ref = dt.datetime.now()   # current datetime is assigned to t_ref as reference
+            secs = 0                    # variable secs is set to zero
+            while not GPIO.input(touch_btn):   # while the button is not pressed
+                d_time = (dt.datetime.now() - t_ref).seconds  # elapsed time in seconds (integer) assigned to d_time
+                if d_time >= secs:             # case elapsed time is bigger than secs variable
+                    secs += 1                  # secs is increased by one
+                    d_time_str = str(dt.timedelta(seconds=d_time))  # deltatime in secs converted to time string
+                    disp.show_on_display(d_time_str, 'PRESS TO STOP', fs1=29, fs2=14)   # feedback is printed to the display
+                    time.sleep(0.2)            # small delay to limit CPU usage
+                    if d_time >= 3600:         # case the elapsed time is one hour
+                        timer_timeout = True   # timer_timeout variable is set true
+                        break                  # while loop is interrupted
+            if not timer_timeout:              # case timer_timeout variable is false
+                if screen:                     # case there is a screen connected
+                    print('timer stopped at', d_time_str)     # feedback is printed to the terminal
+                disp.show_on_display(d_time_str, '', fs1=29)  # feedback is printed to the display
+                time.sleep(3)                  # delay to show on screen the elapsed time at button stop
+            else:                              # case timer_timeout variable is true
+                if screen:                     # case there is a screen connected
+                    print('timer timeout has been reached')   # feedback is printed to the terminal
+                disp.show_on_display('TIMEOUT', '', fs1=24)   # feedback is printed to the display
+                time.sleep(5)                  # delay to show on screen the TIMEOUT feedback
 
 
 
@@ -2903,8 +2930,10 @@ def cpu_temp(side, delay=10):
             print(f'\nCPU temperature: {cpu_temp} fahrenheit deg') # feedback is printed to the terminal
             disp.show_on_display('CPU TEMP.', str(str(cpu_temp)+' degF'), fs1=20, fs2=20)    # feedback is printed to the display
                 
-    import time
-    time.sleep(delay)  # sleep time in arg is applied
+    import time        # time module is imported
+    if screen:         # case screen variable is set True
+        delay = 2      # delay variable is set to 2
+    time.sleep(delay)  # sleep time is applied
 
 
 
@@ -2947,11 +2976,7 @@ def time_system_synchr():
                 ps.wait()                                        # waits until the ps child completes
                 
                 if b'yes' in output:                             # case the timedatectl status returns true
-                    date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S')   # updated date and time assigned to date_time variable
-                    print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
-                    disp.show_on_display('TIME SYSTEM','UPDATED', fs1=16)   # feedback is printed to the display
-                    time.sleep(1.5)
-                    disp.show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
+                    
                     break                                        # while loop is interrupted
                 else:                                            # case the timedatectl status returns false
                     if once:                                     # case the variable once is true
@@ -3600,6 +3625,11 @@ if __name__ == "__main__":
         if args.F_deg:      # case the Cubotino_T.py has been launched with 'F_deg' argument
             fahrenheit = True  # flag to use fahrenheit degrees (instead of celsius) is set true
     
+    timer = False           # flag to visualize a timer on screen after scrambling
+    if args.timer != None:  # case the --timer argument has been prexists
+        if args.timer:      # case the --timer argument has been provided
+            timer = True    # lag to visualize a timer on screen after scrambling is set true
+            
     fps = False             # flag to check and plot the fps on the frame (more for fun than need)
     clear_terminal()        # cleares the terminal
     
@@ -3670,17 +3700,20 @@ if __name__ == "__main__":
         disp.set_backlight(1)                             # display backlight is turned on, in case it wasn't
         disp.show_on_display('EXT. SCREEN', 'PRESENCE', fs1=16, fs2=19 )  #feedbak is print to to the display
         time.sleep(2)
-        print(f'Screen related function are activated')   # feedback is printed to the terminal 
+        print('Screen related function are activated')    # feedback is printed to the terminal 
         if fixWindPos:                                    # case the graphical windows is forced to the top left monitor corner
-            print(f'CV2 windows forced to top-left screen corner')    # feedback is printed to the terminal     
+            print('CV2 windows forced to top-left screen corner')    # feedback is printed to the terminal     
         
         if cv_wow:                                        # case the cv image analysis plot is set true
-            print(f'cv image analysis is plot on screen') # feedback is printed to the terminal 
+            print('cv image analysis is plot on screen')  # feedback is printed to the terminal 
+        
+        if timer:                                         # case the timer visualization is set true
+            print('Timer is visualized after scrambling function')   # feedback is printed to the terminal 
         
         if fps:                                           # case the fps flas is set true
-            print(f'FPS calculation and plot on frame are activated')      # feedback is printed to the terminal 
+            print('FPS calculation and plot on frame are activated')      # feedback is printed to the terminal 
         else:                                             # case the fps flas is set true
-            print(f'FPS calculation and plot on frame are not activated')  # feedback is printed to the terminal
+            print('FPS calculation and plot on frame are not activated')  # feedback is printed to the terminal
         
         if frameless_cube == 'false':                               # case the frameless string variale equals to false
             print('\nCube status detection set for cube with black frame around the facelets')  # feedback is printed to the terminal 
