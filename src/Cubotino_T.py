@@ -2976,7 +2976,11 @@ def time_system_synchr():
                 ps.wait()                                        # waits until the ps child completes
                 
                 if b'yes' in output:                             # case the timedatectl status returns true
-                    
+                    date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S')   # updated date and time assigned to date_time variable
+                    print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
+                    disp.show_on_display('TIME SYSTEM','UPDATED', fs1=16)   # feedback is printed to the display
+                    time.sleep(1.5)
+                    disp.show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
                     break                                        # while loop is interrupted
                 else:                                            # case the timedatectl status returns false
                     if once:                                     # case the variable once is true
