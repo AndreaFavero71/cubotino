@@ -2060,6 +2060,9 @@ def scrambling_cube():
     if args.timer != None:              # case the --timer argument exists
         if args.timer:                  # case the --timer argument has been provided
             
+            if args.cycles != None:     # case the --cycles argument exists
+                return                  # this function is terminated
+            
             if robot_stop:              # case robot is stopped, while scrambling and --timer argument
                 disp.clean_display()    # cleans the display
                 disp.__init__()         # display is re-initilized (not elegant, yet it removes random issues at robot stop)
