@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 27 December 2022
+#  Andrea Favero, 28 December 2022
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -2068,19 +2068,46 @@ def scrambling_cube():
                 disp.__init__()         # display is re-initilized (not elegant, yet it removes random issues at robot stop)
                 disp.set_backlight(1)   # display backlight is turned on, in case it wasn't
                 servo.servo_start_pos() # servos are placed back to their start position
+            
 
-            timer_timeout = False       # boolean to track whether the timer timeout has been reached
-            d_time_str ='0:00:00'       # d_time_string initialized to prevent potential missed variable error
+            # cube status inspection time, with countdown time visualization
+            inspec_time = 15            # time to let user studying the cube status
+            left_time_str ='00:00.0'    # left_time_str initialized to prevent potential missed variable error
             t_ref = dt.datetime.now()   # current datetime is assigned to t_ref as reference
-            secs = 0                    # variable secs is set to zero
-            while not GPIO.input(touch_btn):   # while the button is not pressed
-                d_time = (dt.datetime.now() - t_ref).seconds  # elapsed time in seconds (integer) assigned to d_time
-                if d_time >= secs:             # case elapsed time is bigger than secs variable
-                    secs += 1                  # secs is increased by one
-                    d_time_str = str(dt.timedelta(seconds=d_time))  # deltatime in secs converted to time string
+            while not GPIO.input(touch_btn):     # while the button is not pressed
+                left_time =  (dt.datetime.now() - t_ref).seconds  # elapsed time in seconds (integer) assigned to d_time
+                if left_time  <= inspec_time:  # case left time is smaller than inspect_time
+                    left_time_str = str(dt.timedelta(seconds = inspec_time - left_time))[2:]+'.0'  # left time in secs converted to time string
+                    disp.show_on_display(left_time_str, 'INSPECT. TIME', fs1=29, fs2=15)  # feedback is printed to the display
+                    time.sleep(0.2)     # small delay to limit CPU usage
+                else:                   # case left time is bigger than zero
+                    servo.open_cover()  # top servo is moved to open position
+                    servo.cam_led_test()  # makes a very short led test
+                    servo.read()        # top servo is moved to read position
+                    break               # while loop is interrupted
+            
+            
+            # cube solving part, with time increment visualization
+            d_time_str ='00:00.0'       # d_time_string initialized to prevent potential missed variable error
+            disp.show_on_display(d_time_str, 'PRESS TO STOP', fs1=29, fs2=14)   # feedback is printed to the display
+            
+            if GPIO.input(touch_btn):   # case the button is pressed
+                time.sleep(2)           # delay to prevent skipping the next part is button pushed while INSPECT. TIME
+            
+            timer_timeout = False       # boolean to track whether the timer timeout has been reached
+            t_ref = time.time()         # current time assigned to t_ref as reference for overall time
+            t_ref2 = time.time()        # current time assigned to t_ref2 as reference for fraction of second
+            secs = 0.0                  # variable secs is set to zero
+            while not GPIO.input(touch_btn):       # while the button is not pressed
+                d_time = int(time.time() - t_ref)  # elapsed time in seconds (float) assigned to d_time
+                if time.time() - t_ref2 >= 0.1:    # case other 0.1 secs have elapsed
+                    t_ref2 = time.time()           # time reference used for fraction of second is asigned
+                    secs = round(secs + 0.1, 1)    # secs is increased by one tent
+                    dec = str(round(secs%1 , 2))[1:3] # decimal part of secs is converted to string
+                    d_time_str = str(dt.timedelta(seconds=d_time))[2:] + dec   # deltatime in secs converted to time string
                     disp.show_on_display(d_time_str, 'PRESS TO STOP', fs1=29, fs2=14)   # feedback is printed to the display
-                    time.sleep(0.2)            # small delay to limit CPU usage
-                    if d_time >= 3600:         # case the elapsed time is one hour
+                    time.sleep(0.03)           # small delay to limit CPU usage
+                    if d_time >= 3599:         # case the elapsed time is substantially one hour
                         timer_timeout = True   # timer_timeout variable is set true
                         break                  # while loop is interrupted
             if not timer_timeout:              # case timer_timeout variable is false
@@ -3818,3 +3845,4 @@ if __name__ == "__main__":
                         automated = False             # automated variable is set false, robot waits for touch button commands
                     
                 
+
