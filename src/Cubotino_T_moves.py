@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 21 Dec 2022
+# Andrea Favero 28 Dec 2022
 # 
 # From Kociemba solver to robot moves
 # This applies to "CUBOTino" autonomous, a simpler Rubik's cube solver robot than my first one:
@@ -260,7 +260,7 @@ def optim_moves2(moves):
     str_length = len(moves)              # length of the robot move string
     F_list = []                          # empty lit collecting all the Flips
     F_count = 0                          # variable F_count (counter) is set to zero                         
-    for i in range(str_length-2,0,-2):   # iteration over the moves string, from the end, in steps of 2
+    for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end, in steps of 2
         if moves[i] == 'F':              # case there is a F (flip) into the moves string
             to_add = 'F' + moves[i+1]    # type of flip (cases are 'F1', 'F2'and 'F3')
             F_list.append(to_add)        # F_list is populates with the related flip (cases are 'F1', 'F2'and 'F3')
@@ -271,7 +271,7 @@ def optim_moves2(moves):
     if F_list[-1] == 'F3' and F_list[-2] == 'F2':  # case the second-last flip is 'F3' and last flip is 'F2'
         # the first condition to remove 2 flips is met
         
-        for i in range(str_length-2,0,-2):  # iteration over the moves string, from the end,  in steps of 2
+        for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end,  in steps of 2
             if moves[i:i+2] == 'F2':     # case the moves string has 'F2' (by iterating from the string end...)
                 F2_idx = i               # moves string index for F (of F2) character
             elif moves[i:i+2] == 'F3':   # case the moves string has 'F3' (by iterating from the string end...)
