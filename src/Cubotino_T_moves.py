@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 29 Dec 2022
+# Andrea Favero 29 Dec 2022 (2nd file rev)
 # 
 # From Kociemba solver to robot moves
 # This applies to "CUBOTino" autonomous, a simpler Rubik's cube solver robot than my first one:
@@ -268,36 +268,42 @@ def optim_moves2(moves):
             if F_count == 2:             # case F_count (counter) equals 2
                 break                    # for loop is interrupted
 
-    if F_count == 2 and F_list[-1] == 'F3' and F_list[-2] == 'F2':  # case the second-last flip is 'F3' and last flip is 'F2'
-        # the first condition to remove 2 flips is met
-        
-        for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end,  in steps of 2
-            if moves[i:i+2] == 'F2':     # case the moves string has 'F2' (by iterating from the string end...)
-                F2_idx = i               # moves string index for F (of F2) character
-            elif moves[i:i+2] == 'F3':   # case the moves string has 'F3' (by iterating from the string end...)
-                F3_idx = i               # moves string index for F (of F3) character
-                break                    # for loop is interrupted
-        
-        chrs = F2_idx-F3_idx             # moves characters quantity in betwween F3 andF2
-        if moves[F3_idx+2: F3_idx+chrs] == moves[F2_idx+2: F2_idx+chrs]: # case the moves in between F3 and F2 are also applied after F2
-            # the second condition to remove 2 flips is also met
-        
-            new_moves=''                 # new_moves empty string to be populated with the new moves
-            for i in range(str_length):  # iteration over the moves string
-                if i == F3_idx+1:        # moves index where to apply the change, from 3 (F3) to 1 (F1)
-                    new_moves += '1'     # character 1 is added to the new_moves string
-                else:                    # moves index to keep the original moves
-                    new_moves += moves[i]  # original moves charactes are appended to new_moves string
-            print("Robot moves string: applied optimization type 2")
-#             print("new_moves at opt2: ", new_moves)
-#             print("len new_moves at opt2:", len(new_moves))
-            return new_moves             # the new string of robot moves is returned 
+    if F_count < 2:                      # case there are less than two Flip cases in moves
+        return moves                     # moves in argument are returned
     
-    else:                                # case the second-last flip is not 'F3' followed by last flip 'F2'
-#         print("Robot moves string: not optimization type 2 needed")
-#         print("moves at opt2: ", moves)
-#         print("len moves at opt2:", len(moves))
-        return moves                     # the new string of robot moves is returned
+    else:                                # case there are two Flip cases in moves
+        if not (F_list[-1] == 'F3' and F_list[-2] == 'F2'):  # case second-last flip is not 'F3' and last flip is not 'F2'
+            # the first condition to remove 2 flips is not met
+            return moves                 # moves in argument are returned
+        
+        else:                                # case the second-last flip is 'F3' and last flip is 'F2'
+            # the first condition to remove 2 flips is met
+            for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end,  in steps of 2
+                if moves[i:i+2] == 'F2':     # case the moves string has 'F2' (by iterating from the string end...)
+                    F2_idx = i               # moves string index for F (of F2) character
+                elif moves[i:i+2] == 'F3':   # case the moves string has 'F3' (by iterating from the string end...)
+                    F3_idx = i               # moves string index for F (of F3) character
+                    break                    # for loop is interrupted
+        
+            chrs = F2_idx-F3_idx             # moves characters quantity in betwween F3 andF2
+            if moves[F3_idx+2: F3_idx+chrs] != moves[F2_idx+2: F2_idx+chrs]: # case moves in between F3 and F2 differ from those after F2
+                # the second condition to remove 2 flips is not met
+#                 print("Robot moves string: not optimization type 2 needed")
+                return moves                 # moves in argument are returned
+            
+            else:                            # case the moves in between F3 and F2 equal those after F2
+                # the second condition to remove 2 flips is also met
+                new_moves=''                 # new_moves empty string to be populated with the new moves
+                for i in range(str_length):  # iteration over the moves string
+                    if i == F3_idx+1:        # moves index where to apply the change, from 3 (F3) to 1 (F1)
+                        new_moves += '1'     # character 1 is added to the new_moves string
+                    else:                    # moves index to keep the original moves
+                        new_moves += moves[i]  # original moves charactes are appended to new_moves string
+                print("Robot moves string: applied optimization type 2")
+#                 print("new_moves at opt2: ", new_moves)
+#                 print("len new_moves at opt2:", len(new_moves))
+                return new_moves             # the new string of robot moves is returned
+
 
 
 
@@ -372,8 +378,9 @@ if __name__ == "__main__":
     
     
 #     solution = 'U2 L1 R1 D2 B2 R1 D2 B2 D2 L3 B3 R3 F2 D3 L1 U2 F2 D3 B3 D1' # this cube solution allows type 1 optimization (at least 2 Spins removal)
-    solution = 'U2 D2 R2 L2 F2 B2'  # this cube solution allows type 2 optimization (2 flips removal)
-#     solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2'
+#     solution = 'U2 D2 R2 L2 F2 B2'  # this cube solution allows type 2 optimization (2 flips removal)
+#     solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2' # this cube solution allows type 1 optimization (at least 2 Spins removal)
+    solution = 'L1 D2 L1 D2 R2 F2 D2 R1 F3 R1 U1 R2 B3 L3 D1 R1 D2 B2 F3' # this cube solution has only 1st criteria for type2 optimization
 
     print()
     print("Example of robot movements for solver solution: ", solution)
@@ -398,3 +405,4 @@ if __name__ == "__main__":
     
     print(f'\nstring command to the robot servos driver: {moves}\n')
     
+
