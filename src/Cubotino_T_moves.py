@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 28 Dec 2022
+# Andrea Favero 29 Dec 2022
 # 
 # From Kociemba solver to robot moves
 # This applies to "CUBOTino" autonomous, a simpler Rubik's cube solver robot than my first one:
@@ -268,7 +268,7 @@ def optim_moves2(moves):
             if F_count == 2:             # case F_count (counter) equals 2
                 break                    # for loop is interrupted
 
-    if F_list[-1] == 'F3' and F_list[-2] == 'F2':  # case the second-last flip is 'F3' and last flip is 'F2'
+    if F_count == 2 and F_list[-1] == 'F3' and F_list[-2] == 'F2':  # case the second-last flip is 'F3' and last flip is 'F2'
         # the first condition to remove 2 flips is met
         
         for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end,  in steps of 2
