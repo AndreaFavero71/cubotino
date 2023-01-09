@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 28 December 2022
+#  Andrea Favero, 9 January 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -15,7 +15,7 @@
 #  Many functions of this code have been developed on 2021, for my previous robot (https://youtu.be/oYRXe4NyJqs).
 #
 #  The cube status is detected via a camera system (piCamera) and OpenCV .
-#  Kociemba solver is used for the cube solution (from: https://github.com/hkociemba/RubiksCube-TwophaseSolver)
+#  Kociemba solver is used foer the cube solution (from: https://github.com/hkociemba/RubiksCube-TwophaseSolver)
 #  Credits to Mr. Kociemba for his great job !
 #  Search for CUBOTino autonomous on www.intructable.com, to find more info about this robot.
 #
@@ -42,19 +42,19 @@ import argparse
 parser = argparse.ArgumentParser(description='Scrambling and solving cycles')
 
 # --cycles argument is added to the parser
-parser.add_argument("--cycles", type=int, 
+parser.add_argument("-c", "--cycles", type=int, 
                     help="Input the number of automated scrambling and solving cycles")
 
 # --pause argument is added to the parser
-parser.add_argument("--pause", type=int, 
+parser.add_argument("-p", "--pause", type=int, 
                     help="Input the pause time, in secs, between automated cycles")
 
 # --shutoff argument is added to the parser
-parser.add_argument("--shutoff", action='store_true',
+parser.add_argument("-s", "--shutoff", action='store_true',
                     help="Shuts the RPI off, after the automated scrambling and solving cycles")
 
 # --debug argument is added to the parser
-parser.add_argument("--debug", action='store_true',
+parser.add_argument("-d", "--debug", action='store_true',
                     help="Activates printout of settings, variables and info for debug purpose")
 
 # --cv_wow argument is added to the parser
@@ -62,11 +62,11 @@ parser.add_argument("--cv_wow", action='store_true',
                     help="Activates the cv_wow (image analysis steps) on screen")
 
 # --F_deg argument is added to the parser
-parser.add_argument("--F_deg", action='store_true',
+parser.add_argument("-F", "--F_deg", action='store_true',
                     help="CPU temperature in Fahrenheit degrees")
 
 # --timer argument is added to the parser
-parser.add_argument("--timer", action='store_true',
+parser.add_argument("-t", "--timer", action='store_true',
                     help="Timer is visualized after the scrambling function (max 1h)")
 
 args = parser.parse_args()   # argument parsed assignement
@@ -267,7 +267,7 @@ def import_libraries():
     if not solver_found and not twophase_solver_found:    # case no one solver has been imported
         print('\nnot found Kociemba solver')              # feedback is printed to the terminal
         disp.show_on_display('NO SOLVER', 'FOUND', fs1=19, fs2=28) # feedback is printed to the display
-        time.sleep(5)
+        time.sleep(5)                                     # delay to let user the time to read the display
         quit_func(quit_script=True)                       # script is quitted
 
 
@@ -308,12 +308,12 @@ def press_to_start():
             return choice                      # choice is returned, breaking inner and outer while loop
             
 
-##### addition for faire setup ##########
+##### addition for Maker Faire setup ##########
 # it uses two inputs in logic AND to start the robot. These buttons don't do enything else (no scrambling, no time filtering)
         if GPIO.input(touch_btn1_faire) and GPIO.input(touch_btn2_faire):
             # case both the touch buttons on the faire setup are 'pressed'
-            return 'solve'                     # 'solve' is returned
-#########################################
+            return 'solve'  # 'solve' is returned
+###############################################
     
 
 
@@ -435,8 +435,9 @@ def webcam():
         elif binning > 5:                          # case binning is bigger than 5 it means binning 4x4
             binning='4x4 if PiCamera V1.3, 2x2 if V2'  # binning 4x4 when PiCamera V1.3, 2x2 when PiCamera V2
         print('PiCamera mode (binning):', binning) # feedback is printed to the terminal
-        
-    if side == 0 and not robot_stop:               # case cube side is zero and no request to stop the robot
+    
+    # case cube side is zero, no request to stop the robot and not automated cycles
+    if side == 0 and not robot_stop and cycles_num == 0:
         print(f'PiCamera resolution (width x height): {camera.resolution}')  # feedback is printed to the terminal
     
     return camera, rawCapture, width, height
@@ -602,14 +603,21 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
             if fixWindPos:                              # case the fixWindPos variable is chosen
                 cv2.namedWindow('cube')                 # create the cube window
                 cv2.moveWindow('cube', 0,0)             # move the window to (0,0)
-            cv2.imshow('cube', frame)                   # shows the frame 
-            cv2.waitKey(1)                              # refresh time is minimized to 1ms 
+                for i in range(2):                      # iteration for two times
+                    cv2.imshow('cube', frame)           # shows the frame 
+                    cv2.waitKey(1)                      # refresh time is minimized to 1ms 
         
         robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
         time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposure time at PiCamera
         exp_list.append(camera.exposure_speed)          # read picamera exposure time (microsec) on the face i
         
     robot_to_cube_side(1,cam_led_bright)                # flipping the cube, to reach the next side
+    if fixWindPos:                                      # case the fixWindPos variable is chosen
+        cv2.namedWindow('cube')                         # create the cube window
+        cv2.moveWindow('cube', 0,0)                     # move the window to (0,0)
+        for i in range(2):                              # iteration for two times
+            cv2.imshow('cube', frame)                   # shows the frame 
+            cv2.waitKey(1)                              # refresh time is minimized to 1ms 
     shutter_time = int(sum(exp_list)/len(exp_list))     # set the shutter time to the average exposure time
     camera.shutter_speed = shutter_time                 # sets the shutter time to the PiCamera, for consinstent images
     time.sleep(0.15)
@@ -736,10 +744,15 @@ def frame_resize(frame_w, ww, hh, scale=0.8):
     """ Re-sizes the image after the cropping and warping steps, by a scaling factor.
     This is useful to lower the amount of handled data for the facelects and color detection."""
     
-    ww = int(ww * scale)      # new frame width
-    hh = int(hh * scale)      # new frame height
-    frame_s = cv2.resize(frame_w, (ww, hh), interpolation = cv2.INTER_AREA)  # resized frame
+    ww = int(ww * scale)                  # new frame width
+    hh = int(hh * scale)                  # new frame height
+    
+    if light_program:                     # case light_program is True (armv6 processor)
+        interp_method = cv2.INTER_LINEAR  # bilinear interpolation method (prevents crashing with armv6 processor))
+    else:                                 # case light_program is False (not an armv6 processor)
+        interp_method = cv2.INTER_AREA    # interpolation method resamples using pizel area relation
 
+    frame_s = cv2.resize(frame_w, (ww, hh), interpolation = interp_method)  # resized frame
     return frame_s, ww, hh
 
 
@@ -872,7 +885,10 @@ def show_cv_wow(cube, time=2000):
     cv2.imshow("Eroded", eroded)                     # eroded is shown, on a window called Eroded
     cv2.imshow("Cube", cube)                         # cube is shown, on a window called Cube
     
-    cv2.waitKey(time)    # windows show time (ms), for longer time increase timeout variable at start_up()
+    if side == 1:                   # case the first cube side is under analysis 
+        cv2.waitKey(time + 4000)    # all the openCV windows are showed, with an extra time on first cube side
+    else:                           # case the cube side under analysis is not the first side
+        cv2.waitKey(time)           # all the openCV windows are showed
     
     save_images = False                                         # boolean to enable/disable saving cv_wow images
     folder = pathlib.Path().resolve()                           # active folder (should be home/pi/cube)  
@@ -1859,7 +1875,7 @@ def rgb2lab(inputColor):
     XYZ[1] = round(Y, 4)
     XYZ[2] = round(Z, 4)
 
-    # Observer= 2°, Illuminant= D65
+    # Observer= 2nd, Illuminant= D65
     XYZ[0] = float(XYZ[0]) / 95.047         # ref_X =  95.047
     XYZ[1] = float(XYZ[1]) / 100.0          # ref_Y = 100.000
     XYZ[2] = float(XYZ[2]) / 108.883        # ref_Z = 108.883
@@ -2248,9 +2264,12 @@ def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequenc
     collage_ratio = collage.shape[1] / collage.shape[0]            # collage ratio (width/height) is calculated for resizing
 #     collage_w=1024                                    #(AF 1024)   # colleage width is fixed for consistent pictures archiving at Rpi
     collage_h=int(collage_w/collage_ratio)                         # colleage heigth is calculated to maintain proportions
-    
-    if not light_program:                                          # case the light_program (processor type dependant) is set false
-        collage = cv2.resize(collage, (collage_w, collage_h), interpolation = cv2.INTER_AREA) # resized collage
+
+    if light_program:                                              # case light_program is True (armv6 processor)
+        interp_method = cv2.INTER_LINEAR                           # interpolation method is bilinear (prevents openCV from crashing)
+    else:                                                          # case light_program is False (not an armv6 processor)
+        interp_method = cv2.INTER_AREA                             # interpolation method resamples using pizel area relation
+    collage = cv2.resize(collage, (collage_w, collage_h), interpolation = interp_method) # resized collage
     
     # adds a sketch with interpreted colors (bright) on the collage
     plot_interpreted_colors(cube_status, color_detection_winner, cube_color_sequence, \
@@ -3000,8 +3019,8 @@ def time_system_synchr():
                     date_time = dt.datetime.now().strftime('%d/%m/%Y %H:%M:%S')   # updated date and time assigned to date_time variable
                     print('time system is synchronized: ', str(date_time))        # feedback is printed to the terminal
                     disp.show_on_display('TIME SYSTEM','UPDATED', fs1=16)   # feedback is printed to the display
-                    time.sleep(1.5)
-                    disp.show_on_display(str(date_time[11:]), '', fs1=26)              # feedback is printed to the display
+                    time.sleep(1.5)                              # sleep time to let the user reading the display
+                    disp.show_on_display(str(date_time[11:]), '', fs1=26)    # feedback is printed to the display
                     break                                        # while loop is interrupted
                 else:                                            # case the timedatectl status returns false
                     if once:                                     # case the variable once is true
@@ -3015,7 +3034,7 @@ def time_system_synchr():
     else:                                                        # case the is not an internet connection
         print('time system not synchronized yet')                # feedback is printed to the terminal
         disp.show_on_display('TIME SYSTEM','NOT UPDATED', fs1=16, fs2=15)   # feedback is printed to the display
-        time.sleep(1.5)
+        time.sleep(1.5)                                          # sleep time to let the user reading the display
 
 
 
@@ -3124,6 +3143,7 @@ def start_automated_cycle(cycle, total, cycle_pause):
         screen1=True                      # boolean used to alternate two prints at the screen
         
         print()
+        elapsed_t = 0                     # zero is assigned to the variable counting the elapsed time with even integers
         while time.time()-start < cycle_pause: # case the elapsed time is smaller than cycle_pause time
             time_left = int(cycle_pause-(time.time()-start))  # time_left is calculated and converted to integer
             
@@ -3133,21 +3153,21 @@ def start_automated_cycle(cycle, total, cycle_pause):
             
             else:                         # case no request to stop the robot
                 if time_left % 2 == 0:    # case the time_left is even
-                    t_prog = (time.time()-start)/cycle_pause
-                    print("\rNext cycle: [{0:50s}] {1:.1f}%   {2:}s    ".format('.' * int(t_prog * 50),
-                                                                                t_prog*100,
-                                                                                time_left),end="", flush=True)
+                    elapsed_t+=2          # elapsed time is increased by two
+                    progress = round(elapsed_t/(cycle_pause),3)   # progress 
+                    print("\rNext cycle:   elapsed time {0:}s   [{1:50s}] {2:}%   still left {3:}s          ".format(
+                        elapsed_t, '.' *int(progress*50), round(progress*100,1), time_left), flush=True, end="")
+                    
                     if screen1:           # case boolean screen1 is true
+                        disp.show_on_display('FOR CYCLE', f'{cycle+1} / {total}', fs1=21, fs2=24)  #feedbak is print to to the display
                         screen1 = False   # boolean screen1 is set false
                     else:                 # case boolean screen1 is false
+                        disp.show_on_display('WAIT TIME', f'{time_left} s', fs1=21, fs2=24)  #feedbak is print to to the display
                         screen1 = True    # boolean screen1 is set true
-                if screen1:               # case booleaa screen1 is true
-                    disp.show_on_display('FOR CYCLE', f'{cycle+1} / {total}', fs1=21, fs2=24)  #feedbak is print to to the display
-                else:                     # case booleaa screen1 is flase
-                    disp.show_on_display('WAIT TIME', f'{time_left} s', fs1=21, fs2=24)  #feedbak is print to to the display
-                
-                if time_left <= 1:        # case the time to wait is almost over
-                    print()               # print an empty line
+                    
+                if elapsed_t >= cycle_pause:   # case the time to wait is over
+                    time.sleep(2)         # little time to let visible on screen/terminal that the timer is over
+                    print("\r{}\n".format(' '*130))   # prints 100 mpty characters to overwrite the progress bar at the terminal
                     try:                  # tentative
                         cv2.destroyAllWindows()   # closes al the graphical windows
                     except:               # case an exception is raised
@@ -3155,7 +3175,7 @@ def start_automated_cycle(cycle, total, cycle_pause):
                     break                 # the while loop is interrupted     
                 
                 else:                     # case there still is time to wait
-                    time.sleep(1.9)       # system can sleep for almost 2 seconds
+                    time.sleep(1)         # system can sleep for 1 s
 
 
 
@@ -3238,6 +3258,7 @@ def stop_or_quit():
 #     warn_time = 1.5         #(AF 1.5)        # delay used as threshold to print a warning on display
 #     quit_time = 4.5         #(AF 4.5)        # delay used as threshold to quit the script
     warning = False                          # warning is set false, to warn user to keep or release the button
+    quitting = False                         # quitting variable is set false
     if GPIO.input(touch_btn):                # case touch_btn is still 'pressed' once the cube_AF function returns           
         while GPIO.input(touch_btn):                      # while touch_btn is 'pressed'
             if not warning:                               # case warning is false
@@ -3251,10 +3272,15 @@ def stop_or_quit():
                     disp.clean_display()                  # cleans the display
                     disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
                     break                                 # while loop is interrupted
-                
-                if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
+                if light_program:                         # case light_program is True (armv6 processor)
+                    if time.time() - ref_time >= quit_time - 0.5:   # case time elapsed is >= quit time reference
+                        quitting = True                   # quitting variable is set true
+                else:                                     # case light_program is False (not an armv6 processor)
+                    if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
+                        quitting = True                   # quitting variable is set true
+                if quitting:                              # case the quitting variable is true
                     print('quitting request')             # feedback is printed to display
-                    for i in range(5):                    
+                    for i in range(5):                    # iteration for  5 times
                         disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
                     servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
                     servo.init_servo(print_out=debug)     # servos are moved to their starting positions
@@ -3523,7 +3549,7 @@ def cubeAF():
                     faces = face_image(frame, facelets, side, faces)               # image of the cube side is taken for later reference
                     if not robot_stop and screen:                # case screen variable is set true on __main__
                         if cv_wow:                               # case the cv image analysis plot is set true                              
-                            show_cv_wow(frame, time=2000)        # call the function that shows the cv_wow image
+                            show_cv_wow(frame, time = 4000 if light_program else 2000)  # call the function that shows the cv_wow image
                         else:                                    # case the cv image analysis plot is set false
                             if fixWindPos:                       # case the fixWindPos variable is chosen
                                 cv2.namedWindow('cube')          # create the cube window
@@ -3539,8 +3565,10 @@ def cubeAF():
                             if fixWindPos:                       # case the fixWindPos variable is chosen
                                 cv2.namedWindow('cube')          # create the cube window
                                 cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
-                            cv2.imshow('cube', frame)            # frame is showed to viewer
-                            cv2.waitKey(1)                       # delay for viewer to realize the face is aquired
+                            for i in range(2):                   # iteration for two times
+                                cv2.imshow('cube', frame)        # frame is showed to viewer
+                                cv2.waitKey(1)                   # delay for viewer to realize the face is aquired
+                            time.sleep(0.2)                      # little delay to let shortly visible on screen the contours on cube face
                         side +=1                                 # cube side index is incremented
                         break                                    # with this break the process re-start from contour detection at the next cube face
 
@@ -3549,10 +3577,14 @@ def cubeAF():
                         servo.cam_led_Off()                      # led at top_cover is set off         
                         cube_detect_time = time.time()           # time stored after detecteing all the cube facelets
                         if screen:                               # case screen variable is set true on __main__
-                            try:
+                            for i in range(2):                   # iteration for two times
+                                cv2.imshow('cube', frame)        # shows the frame 
+                                cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
+                            time.sleep(0.2)                      # little delay to let shortly visible on screen the contours on the 6th cube face
+                            try:                                 # tentative
                                 cv2.destroyAllWindows()          # cube window and eventual other open windows are close
-                            except:
-                                pass
+                            except:                              # in case of exceptions
+                                pass                             # do nothing
                         
                         # cube string status with colors detected 
                         cube_status, HSV_detected, cube_color_seq, HSV_analysis = cube_colors_interpr(URFDLB_facelets_BGR_mean)
@@ -3602,6 +3634,7 @@ def cubeAF():
                         cv2.moveWindow('cube', 0,0)  # move the window to (0,0) corrdinate
                     cv2.imshow('cube', frame)        # shows the frame 
                     cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
+              
         
         
         # AF_cube function closing part
@@ -3626,7 +3659,7 @@ if __name__ == "__main__":
         2) some general settings (if to printout debug prints, internet connection / time synchronization, if screen connected, etc)
         3) waits for user to press the button, and it starts the cube reading phase."""
     
-    global camera, rawCapture, width, height, robot_stop, robot_idle, timeout, light_program
+    global camera, rawCapture, width, height, robot_stop, robot_idle, timeout, light_program, cycles_num
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
@@ -3759,7 +3792,8 @@ if __name__ == "__main__":
     
     
     #################################    startup  variables     #####################################
-    print('\nother settings and environment status:')  # feedback is printed to the terminal                
+    print('\nother settings and environment status:')  # feedback is printed to the terminal
+    cycles_num = 0                          # zero is assigned to the (automated) cycles_num variable
     start_up(first_cycle = True)            # sets the initial variables, in this case it is the first cycle
     reset_camera = False                    # at the start the camera has default settings, no need to reset it
     solv_cycle = 0                          # variable to count the solving cycles per session is set to zero
@@ -3778,11 +3812,12 @@ if __name__ == "__main__":
         else:                               # case the automated cycles request equals zero
             automated = False               # automated variable is set false
     else:                                   # case the Cubotino_T.py has not been launched without 'cycles' argument
-        cycles_num = 0                      # zero is assigned to the cycles_num variable
         automated = False                   # automated variable is set false
     
     if cycles_num > 0 and args.pause != None:  # case the Cubotino_T.py has been launched also with 'pause' argument
-        cycle_pause = abs(int(args.pause))  # the positive integer arg passed is assigned to the cycle_pause variable
+        
+        # the positive integer arg passed, rounded to the closest upper multiple of 4, is assigned to the cycle_pause
+        cycle_pause = 4*int(math.ceil(abs(int(args.pause))/4))  
         print(f'Asked the robot to pause {cycle_pause} seconds in between the automated cycles\n') 
     else:                                   # case the Cubotino_T.py has not been launched without 'pause' argument
         cycle_pause = 0                     # zero is assigned to the cycles_num variable
