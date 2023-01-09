@@ -1,9 +1,9 @@
-#!/usr/bin/python
+#f!/usr/bin/python
 # coding: utf-8
 
 """
 #############################################################################################################
-# Andrea Favero 27 November 2022
+# Andrea Favero 09 January 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -1103,6 +1103,7 @@ if __name__ == "__main__":
     
 
     elif args.tune == True:                                # case the Cubotino_T_servo.py has been launched with 'tune' argument
+        import readline                                    # library for easier typing at the CLI                 
         test_servos_positions()                            # calls the function to test the individual servos positions
     
     # #############################################################################################
@@ -1137,5 +1138,6 @@ if __name__ == "__main__":
 
         s_disp.set_backlight(0)                # de-activates the display backlight
     # #############################################################################################
+
 
 
