@@ -11,8 +11,7 @@ cd /home/pi/cubotino/src
 python Cubotino_T.py
 
 
-# ‘halt -p’ command shuts down the raspberry pi
-# un-comment 'halt -p' command ONLY when the script works without errors
-# un-comment 'halt -p' command ONLY after making an image of the microSD
-#halt -p
-
+# 'halt -p' command shuts down the raspberry pi
+# uncomment 'halt -p' command ONLY when the script works without errors
+# uncomment 'halt -p' command ONLY after making an image of the microSD
+# halt -p
