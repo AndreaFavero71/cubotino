@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 9 January 2023
+#  Andrea Favero, 10 January 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -84,7 +84,7 @@ def import_parameters():
     global frameless_cube, camera_width_res, camera_hight_res, s_mode
     global kl, x_l, x_r, y_u, y_b, warp_fraction, warp_slicing, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright
-    global detect_timeout, show_time, warn_time, quit_time, cover_self_close
+    global detect_timeout, show_time, warn_time, quit_time, cover_self_close, vnc_delay
     global pathlib
     
     # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac address check
@@ -170,16 +170,21 @@ def import_parameters():
             
             if 'cover_self_close' in settings:      # case the cover_self_close key is available at settings file (back compatibility...)
                 if settings['cover_self_close'].lower().strip() == 'false':  # case cover_self_close parameter is a string == false
-                    cover_self_close = False                                 # cover_self_close parameter is set boolean False
+                    cover_self_close = False                          # cover_self_close parameter is set boolean False
                 elif settings['cover_self_close'].lower().strip() == 'true': # case cover_self_close parameter is a string == true
-                    cover_self_close = True                                  # cover_self_close parameter is set boolean True
-                else:                                                        # case the frameless parameter is not 'false', 'true' or 'auto'
+                    cover_self_close = True                           # cover_self_close parameter is set boolean True
+                else:                               # case the frameless parameter is not 'false', 'true' or 'auto'
                     print('\n\nAttention: Wrong cover_self_close parameter: It should be "true" or "false."\n')  # feedback is printed to the terminal
                     return False, ''   # parameter import process is interrupted,  return robot_init_status variable False and empty parameters
             else:                                   # case the cover_self_close key is not available at settings file (back compatibility...)
                 print("NOTE: Add 'cover_self_close' parameter in yout Cubotino_T_settings.txt file.\n") # feedback is printed to the terminal
                 cover_self_close = False            # cover_self_close parameter is set boolean False
-            
+                
+            if 'vnc_delay' in settings:             # case the vnc_delay key is available at settings file (back compatibility...)
+                vnc_delay = float(settings['vnc_delay'])   # delay for cube moving to next face at scan, for VNC viewer showing the current face
+            else:                                   # case the vnc_delay key is not available at settings file (back compatibility...)
+                vnc_delay = 0.2                     # delay for cube moving to next face at scan, for VNC viewer showing the current face
+              
             return True, settings
             
         
@@ -656,7 +661,7 @@ def read_camera():
     else:                                                         # case the frame is not empty
         frame, w, h = frame_cropping(frame, width, height)        # frame is cropped in order to limit the image area to analyze
         frame, w, h = warp_image(frame, w, h)                     # frame is warped to have a top like view toward the top cube face
-        frame, w, h = frame_resize(frame, w, h, scale=0.8)        # frame is resized (to smaller size), to gain some speed
+        frame, w, h = frame_resize(frame, w, h, scale=0.75)       # frame is resized (to smaller size), to gain some speed
         if fps:                                                   # case the fps is requested at main function
             frame = add_fps(frame, w, h)                          # prints the fps on the frame
         oneframe = True                                           # flag for a single frame analysis at the time
@@ -854,27 +859,27 @@ def show_cv_wow(cube, time=2000):
     """ shows how the image from the camera is altered to detect the facelets.
         Also possible to set a boolean to save those images."""
     
-    gap_w = 40       # horizontal gap (width)
-    gap_h = 100      # vertical gap (height)
+    gap_w = 80       # horizontal gap (width) for all windows from 'Pre_warp' window
+    gap_h = 100      # vertical gap (height), above first row of images and between the two rows of windows
     
     # note: for precise window position, after windows name at cv2.namedWindow, the parameter cv2.WINDOW_NORMAL  
     # should be used instead of the cv2.WINDOW_RESIZE (default), but image quality on screen changes too much....
     cv2.namedWindow('Pre_warp')                      # create the Pre_warp window
     cv2.moveWindow('Pre_warp', w, gap_h)             # move the Pre_warp window to coordinate
     cv2.namedWindow('After_warp')                    # create the Frame window
-    cv2.moveWindow('After_warp', 2*w, gap_h)         # move the Frame window to coordinate
+    cv2.moveWindow('After_warp', 2*w+gap_w, gap_h)   # move the Frame window to coordinate
     cv2.namedWindow('Gray')                          # create the Gray window
-    cv2.moveWindow('Gray', 3*w, gap_h)               # move the Gray window to coordinate
+    cv2.moveWindow('Gray', 3*w+gap_w, gap_h)         # move the Gray window to coordinate
     cv2.namedWindow('blurred')                       # create the Blurred window
-    cv2.moveWindow('blurred', 4*w, gap_h)            # move the Blurred window to coordinate
+    cv2.moveWindow('blurred', 4*w+gap_w, gap_h)      # move the Blurred window to coordinate
     cv2.namedWindow('Canny')                         # create the Canny window
-    cv2.moveWindow('Canny', w, h+2*gap_h)            # move the Canny window to coordinate
+    cv2.moveWindow('Canny', w+gap_w, h+2*gap_h)      # move the Canny window to coordinate
     cv2.namedWindow('Dilated')                       # create the Dilated window
-    cv2.moveWindow('Dilated', 2*w, h+2*gap_h)        # move the Dilated window to coordinate
+    cv2.moveWindow('Dilated', 2*w+gap_w, h+2*gap_h)  # move the Dilated window to coordinate
     cv2.namedWindow('Eroded')                        # create the Eroded window
-    cv2.moveWindow('Eroded', 3*w, h+2*gap_h)         # move the Eroded window to coordinate
+    cv2.moveWindow('Eroded', 3*w+gap_w, h+2*gap_h)   # move the Eroded window to coordinate
     cv2.namedWindow('Cube')                          # create the Cube window
-    cv2.moveWindow('Cube', 4*w, h+2*gap_h)           # move the Cube window to coordinate
+    cv2.moveWindow('Cube', 4*w+gap_w, h+2*gap_h)     # move the Cube window to coordinate
     
     cv2.imshow("Pre_warp", pre_warp)                 # pre-warp is shown, on a window called Pre_warp
     cv2.imshow("After_warp", after_warp)             # after_warp is shown, on a window called After_warp
@@ -1088,12 +1093,12 @@ def get_facelets(facelets, frame, contour, hierarchy):
         if edges_delta < square_ratio and axes_ratio > rhombus_ratio:     # check if the contour looks like a square
             cont, in_cont, out_cont = order_4points(contour_squeeze, w, h)  # vertex of each contour are ordered CW from top left
             contour_tmp = [cont]                                          # list is made with the ordered detected contour
-            cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the contour (1 px thickness)
+            frame = cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the contour (1 px thickness)
             if debug:                                                     # case debug variable is set true on __main__
                 # a white circle is drawn on the 1st vertex (top left), as visual check of proper vertices ordering
-                cv2.circle(frame, (contour_tmp[0][0][0],contour_tmp[0][0][1]), 5, (255, 255, 255), -1)
+                frame = cv2.circle(frame, (contour_tmp[0][0][0],contour_tmp[0][0][1]), 5, (255, 255, 255), -1)
             contour_tmp = [out_cont]                                      # list is made with the ordered outer contour
-            cv2.drawContours(frame, contour_tmp, -1, (0, 0, 0), 1)        # a black polyline is drawn on the outer contour (1 px thickness)
+            frame = cv2.drawContours(frame, contour_tmp, -1, (0, 0, 0), 1)  # a black polyline is drawn on the outer contour (1 px thickness)
             
             M = cv2.moments(contour)                    # the shape moment (center) of the contour is retrieved
             if M['m00']:                                # compute the center of the contour   
@@ -1111,9 +1116,9 @@ def get_facelets(facelets, frame, contour, hierarchy):
                         facelets.pop(i)                 # contour deviating too much on area are removed from list of potential facelets
                 else:                                   # case there are not facelets to be excluded, due to large area deviation
                     if frameless_cube != 'false':       # case the cube status reading is for frameless cubes or auto (with and without frames)
-                        facelets = estimate_facelets(facelets,frame, w, h)  # calls the function to estimate the remaining facelets                                 
+                        facelets, frame = estimate_facelets(facelets,frame, w, h)  # calls the function to estimate the remaining facelets                                 
     
-    return facelets   # list of potential facelet's contour is returned
+    return facelets, frame   # list of potential facelet's contour is returned
 
 
 
@@ -1221,7 +1226,7 @@ def estimate_facelets(facelets, frame, w, h):
             y_3.append(cont_y[i])                                      # contour y coordinate is appended to the of third row list (large y)
     
     if len(x_1)==0 or len(x_2)==0 or len(x_3)==0 or len(y_1)==0 or len(y_2)==0 or len(y_3)==0: # case one or more of the six lists are empty
-        return facelets                                                # function returns the already detected facelets
+        return facelets, frame                                                # function returns the already detected facelets
     
     else:                                      # case no one of the six lists is empty
         x1_avg = int(sum(x_1)/len(x_1))        # average x coordinate for the contours on first column (small x)
@@ -1293,10 +1298,10 @@ def estimate_facelets(facelets, frame, w, h):
         bl[1]=min(bl[1]+gap,h)                 # bottom left y coordinate, shifted toward the contour outer side
         outer_pts=np.array([tl, tr, br, bl], dtype="int32")     # estimated contour coordinates, sligtly shifted toward the contour outer side
         
-        contour_tmp = [pts]                                           # list is made with the ordered outer contour
-        cv2.drawContours(frame, contour_tmp, -1, (0, 0, 0), 1)        # a black polyline is drawn on the contour (1 px thickness)
-        contour_tmp = [outer_pts]                                     # list is made with the ordered outer contour
-        cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the outer contour (1 px thickness)
+        contour_tmp = [pts]                    # list is made with the ordered outer contour
+        frame = cv2.drawContours(frame, contour_tmp, -1, (0, 0, 0), 1)        # a black polyline is drawn on the contour (1 px thickness)
+        contour_tmp = [outer_pts]              # list is made with the ordered outer contour
+        frame = cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the outer contour (1 px thickness)
 
         tmp = {'area': med_a, 'cx': est[i][0], 'cy': est[i][1], 'contour': pts, 'cont_ordered':pts} # dict with relevant contour info
         facelets.append(tmp)                   # estimated facelets relevant info are appended to the detected facelets list
@@ -1307,7 +1312,7 @@ def estimate_facelets(facelets, frame, w, h):
         cv2.line(frame, (0,y_low+dist), (w,y_low+dist), (255, 255, 255), 2)    # horizontal line is drawn between first and second column of facelets
         cv2.line(frame, (0,y_high-dist), (w,y_high-dist), (255, 255, 255), 2)  # horizontal line is drawn between second and third column of facelets
         
-    return facelets     # detected facelets combined with estimated facelets
+    return facelets, frame     # detected facelets combined with estimated facelets
 
 
 
@@ -2464,8 +2469,8 @@ def read_color(frame, facelets, candidates, BGR_mean, H_mean, wait=20, index=0):
     for facelet in facelets:                                  # iteration over the 9 facelets just detected
         contour = facelet.get('contour')                      # contour of the facelet under analysis
         candidates.append(contour)                            # new contour is added to the candidates list
-        mask = np.zeros(frame.shape[:2], dtype='uint8')       # mask of zeros is made for the frame shape dimension
-        cv2.drawContours(mask, [contour], -1, 255, -1)        # mask is applied to vsualize one facelet at the time
+#         mask = np.zeros(frame.shape[:2], dtype='uint8')       # mask of zeros is made for the frame shape dimension
+#         cv2.drawContours(mask, [contour], -1, 255, -1)        # mask is applied to vsualize one facelet at the time
         cm_point=facelet['cx'],facelet['cy']                  # contour center coordinate
         bgr_mean_sq = average_color(frame, facelet['cx'], facelet['cy'], edge)  # color is averaged with sqr sum of squares
         BGR_mean.append(bgr_mean_sq)                          # Initially used a simpler mean to average the facelet color
@@ -3502,6 +3507,10 @@ def cubeAF():
         
         frame, w, h = read_camera()                          # video stream and frame dimensions
         
+        cv2.namedWindow('cube')                              # create the cube window
+        if fixWindPos:                                       # case the fixWindPos variable is chosen  
+            cv2.moveWindow('cube', 0,0)                      # move the window to (0,0)
+        
         if not robot_stop:                                   # case there are no requests to stop the robot
             (contours, hierarchy)=read_facelets(frame, w, h) # reads cube's facelets and returns the contours
             candidates = []                                  # empties the list of potential contours
@@ -3525,14 +3534,11 @@ def cubeAF():
                     break                                              # for loop is interrupted
                 
                 if not robot_stop and screen:                          # case screen variable is set true on __main__
-                    if fixWindPos:                                     # case the fixWindPos variable is chosen
-                        cv2.namedWindow('cube')                        # create the cube window
-                        cv2.moveWindow('cube', 0,0)                    # move the cube window to (0,0)
                     cv2.imshow('cube', frame)                          # shows the frame 
                     cv2.waitKey(1)      # refresh time is minimized to 1ms, refresh time mostly depending to all other functions
                 
                 if corners==4:                                         # contours with 4 corners are of interest
-                    facelets = get_facelets(facelets,frame, contour, hierarchy) # returns a dict with cube compatible contours
+                    facelets, frame = get_facelets(facelets, frame, contour, hierarchy) # returns a dict with cube compatible contours
 
                 if len(facelets)==9:                                   # case there are 9 contours having facelets compatible characteristics
                     facelets = order_9points(facelets, new_center=[])  # contours are ordered from top left
@@ -3544,45 +3550,34 @@ def cubeAF():
                 
                 if len(facelets)==9:                                               # case having 9 contours compatible to a cube face
                     robot_facelets_rotation(facelets)                              # order facelets as per viewer POW (due to cube/camera rotations on robot)
-                    read_color(frame, facelets, candidates, BGR_mean, H_mean)      # each facelet is read for color, decoration for the viewer is made
+                    read_color(frame, facelets, candidates, BGR_mean, H_mean)      # each facelet is read for color
                     URFDLB_facelets_BGR_mean = URFDLB_facelets_order(BGR_mean)     # facelets are ordered as per URFDLB order             
                     faces = face_image(frame, facelets, side, faces)               # image of the cube side is taken for later reference
+                    
                     if not robot_stop and screen:                # case screen variable is set true on __main__
                         if cv_wow:                               # case the cv image analysis plot is set true                              
+                            cv2.destroyWindow('cube')            # cube window is closed
                             show_cv_wow(frame, time = 4000 if light_program else 2000)  # call the function that shows the cv_wow image
                         else:                                    # case the cv image analysis plot is set false
-                            if fixWindPos:                       # case the fixWindPos variable is chosen
-                                cv2.namedWindow('cube')          # create the cube window
-                                cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
-                            cv2.imshow('cube', frame)            # shows the frame 
-                            cv2.waitKey(1)                       # refresh time is minimized (1ms), yet real time is much higher
+                            for i in range(9):
+                                cv2.imshow('cube', frame)            # shows the frame 
+                                cv2.waitKey(1)                       # refresh time is minimized (1ms), yet real time is much higher
+                            time.sleep(vnc_delay)                # delay for cube face change, to compensate VNC viewer delay
                     
                     disp.clean_display()                         # cleans the display
                     robot_to_cube_side(side, cam_led_bright)     # cube is rotated/flipped to the next face
 
                     if side < 6:                                 # actions when a face has been completely detected, and there still are other to come
-                        if not robot_stop and screen:            # case screen variable is set true on __main__
-                            if fixWindPos:                       # case the fixWindPos variable is chosen
-                                cv2.namedWindow('cube')          # create the cube window
-                                cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
-                            for i in range(2):                   # iteration for two times
-                                cv2.imshow('cube', frame)        # frame is showed to viewer
-                                cv2.waitKey(1)                   # delay for viewer to realize the face is aquired
-                            time.sleep(0.2)                      # little delay to let shortly visible on screen the contours on cube face
                         side +=1                                 # cube side index is incremented
-                        break                                    # with this break the process re-start from contour detection at the next cube face
+                        break                                    # with this break the process re-starts from contour detection at the next cube face
 
-                    if side == 6:                                # last cube's face is acquired
+                    if side == 6:                                # case last cube's face is acquired
                         disp.clean_display()                     # cleans the display
                         servo.cam_led_Off()                      # led at top_cover is set off         
                         cube_detect_time = time.time()           # time stored after detecteing all the cube facelets
                         if screen:                               # case screen variable is set true on __main__
-                            for i in range(2):                   # iteration for two times
-                                cv2.imshow('cube', frame)        # shows the frame 
-                                cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
-                            time.sleep(0.2)                      # little delay to let shortly visible on screen the contours on the 6th cube face
                             try:                                 # tentative
-                                cv2.destroyAllWindows()          # cube window and eventual other open windows are close
+                                cv2.destroyAllWindows()          # cube window and eventual other open windows are closed
                             except:                              # in case of exceptions
                                 pass                             # do nothing
                         
@@ -3629,9 +3624,6 @@ def cubeAF():
                 
                 
                 if not robot_stop and screen:        # case screen variable is set true on __main__
-                    if fixWindPos:                   # case the fixWindPos variable is chosen
-                        cv2.namedWindow('cube')      # create the cube window
-                        cv2.moveWindow('cube', 0,0)  # move the window to (0,0) corrdinate
                     cv2.imshow('cube', frame)        # shows the frame 
                     cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
               
@@ -3676,7 +3668,7 @@ if __name__ == "__main__":
             cv_wow = True   # flag to enable/disable the visualization of the image analysis used to find the facelets is set True
     if cv_wow:              # case the cv image analysis plot is set true
         screen = True       # screen related functions are activated
-        fixWindPos = False  # fix position for final image is set false
+#         fixWindPos = False  # fix position for final image is set false
     
     fahrenheit = False      # flag to use fahrenheit degrees instead of celsius
     if args.F_deg != None:  # case 'F_deg' argument exists
@@ -3880,4 +3872,3 @@ if __name__ == "__main__":
                         automated = False             # automated variable is set false, robot waits for touch button commands
                     
                 
-
