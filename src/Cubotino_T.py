@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 10 January 2023
+#  Andrea Favero, 11 January 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -183,7 +183,7 @@ def import_parameters():
             if 'vnc_delay' in settings:             # case the vnc_delay key is available at settings file (back compatibility...)
                 vnc_delay = float(settings['vnc_delay'])   # delay for cube moving to next face at scan, for VNC viewer showing the current face
             else:                                   # case the vnc_delay key is not available at settings file (back compatibility...)
-                vnc_delay = 0.2                     # delay for cube moving to next face at scan, for VNC viewer showing the current face
+                vnc_delay = 0.5                     # delay for cube moving to next face at scan, for VNC viewer showing the current face
               
             return True, settings
             
@@ -234,7 +234,7 @@ def import_libraries():
     
     # importing Kociemba solver
     # this import takes some time to be uploaded
-    # there are thre import attempts, that considers different solver installation methods
+    # there are three import attempts, that considers different solver installation methods
     try:                                                  # attempt
         import solver as sv                               # import Kociemba solver copied in /home/pi/cube
         import cubie as cubie                             # import cubie Kociemba solver library part
@@ -537,7 +537,7 @@ def robot_camera_warmup(camera, start_time):
                     PiCamera_param=(a_gain, d_gain, awb_gains, exposure)  # latest parameters returned by the PiCamera are assigned to a tuple
                     break                                                 # camera warmup while loop cab be break
 
-            if not robot_stop and screen:            # case screen variable is set true on __main__
+            if screen and not robot_stop:            # case screen variable is set true on __main__
                 if fixWindPos:                       # case the fixWindPos variable is chosen
                     cv2.namedWindow('cube')          # create the cube window
                     cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
@@ -602,30 +602,24 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     # PiCamera exposure is inquired to PiCaera on 4 cube sides reachable via a simple cube flip, to later fix an average exposure time
     exp_list=[]                                         # list to store the Picamera exposure time, for the first 4 faces
     exp_list.append(camera.exposure_speed)              # read picamera exposure time (microsec) on first face
-    for i in range(3):                                  # iterate over the 4 faces reachable via a single cube flip
-        if not robot_stop and screen:                   # case screen variable is set true on __main__
+    
+    for i in range(3):                                  # iterate over the next 3 faces reachable via a single cube flip    
+        robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
+        if screen and not robot_stop:                   # case screen variable is set true on __main__
             frame, w, h = read_camera()                 # camera start reading the cube, and adjusts the awb/exposure
             if fixWindPos:                              # case the fixWindPos variable is chosen
                 cv2.namedWindow('cube')                 # create the cube window
                 cv2.moveWindow('cube', 0,0)             # move the window to (0,0)
-                for i in range(2):                      # iteration for two times
-                    cv2.imshow('cube', frame)           # shows the frame 
-                    cv2.waitKey(1)                      # refresh time is minimized to 1ms 
-        
-        robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
-        time.sleep(0.3)                                 # small (arbitrary) delay before reading the exposure time at PiCamera
-        exp_list.append(camera.exposure_speed)          # read picamera exposure time (microsec) on the face i
-        
-    robot_to_cube_side(1,cam_led_bright)                # flipping the cube, to reach the next side
-    if fixWindPos:                                      # case the fixWindPos variable is chosen
-        cv2.namedWindow('cube')                         # create the cube window
-        cv2.moveWindow('cube', 0,0)                     # move the window to (0,0)
-        for i in range(2):                              # iteration for two times
             cv2.imshow('cube', frame)                   # shows the frame 
-            cv2.waitKey(1)                              # refresh time is minimized to 1ms 
-    shutter_time = int(sum(exp_list)/len(exp_list))     # set the shutter time to the average exposure time
+            cv2.waitKey(300)                            # refresh time of 0.3s, used for camera exposure reading
+        elif not screen and not robot_stop:             # case there are no screen connected     
+            time.sleep(0.3)                             # small (arbitrary) delay before reading the exposure time at PiCamera
+        exp_list.append(camera.exposure_speed)          # read picamera exposure time (microsec) on the face i+1
+    
+    robot_to_cube_side(1,cam_led_bright)                # flipping the cube, to reach the 1st face to be scanned
+    shutter_time = int(sum(exp_list)/len(exp_list))     # set the shutter time to the average exposure time of UBDF faces
     camera.shutter_speed = shutter_time                 # sets the shutter time to the PiCamera, for consinstent images
-    time.sleep(0.15)
+    time.sleep(0.15)                                    # small (arbitrary) delay after setting a new parameter to PiCamera 
  
     print(f'Exposure time measured on 4 cube sides, in: {round(time.time()-start_time,1)} secs')# feedback is printed to the terminal
     
@@ -661,7 +655,8 @@ def read_camera():
     else:                                                         # case the frame is not empty
         frame, w, h = frame_cropping(frame, width, height)        # frame is cropped in order to limit the image area to analyze
         frame, w, h = warp_image(frame, w, h)                     # frame is warped to have a top like view toward the top cube face
-        frame, w, h = frame_resize(frame, w, h, scale=0.75)       # frame is resized (to smaller size), to gain some speed
+        scale = 0.75 if cv_wow else 0.8                           # scaling factor according to the cv_wow (many windows on screen)
+        frame, w, h = frame_resize(frame, w, h, scale=scale)      # frame is resized (to smaller size), to gain some speed
         if fps:                                                   # case the fps is requested at main function
             frame = add_fps(frame, w, h)                          # prints the fps on the frame
         oneframe = True                                           # flag for a single frame analysis at the time
@@ -709,7 +704,7 @@ def warp_image(frame, w, h):
     This allows to analyse the facelets contours (square like, area, etc) in a more precise way.
     This also allows a much nicer cube faces collage."""
     
-#     NOTE: uncomment below raw to remove the image warping, useful for initial setting the camera frame cropping (frame_cropping)
+#     NOTE: uncomment below row to remove the image warping, useful for initial setting the camera frame cropping (frame_cropping)
 #     return frame, w, h
     
     if cv_wow:                        # case the cv image analysis plot is set true
@@ -752,9 +747,9 @@ def frame_resize(frame_w, ww, hh, scale=0.8):
     ww = int(ww * scale)                  # new frame width
     hh = int(hh * scale)                  # new frame height
     
-    if light_program:                     # case light_program is True (armv6 processor)
+    if Rpi_ZeroW:                         # case Rpi_ZeroW is True (armv6 processor)
         interp_method = cv2.INTER_LINEAR  # bilinear interpolation method (prevents crashing with armv6 processor))
-    else:                                 # case light_program is False (not an armv6 processor)
+    else:                                 # case Rpi_ZeroW is False (not an armv6 processor)
         interp_method = cv2.INTER_AREA    # interpolation method resamples using pizel area relation
 
     frame_s = cv2.resize(frame_w, (ww, hh), interpolation = interp_method)  # resized frame
@@ -2215,7 +2210,7 @@ def decoration(deco_info):
         print('unfolded cube status image is saved : ', fname) # feedback is printed to the terminal
     status=cv2.imwrite(fname, collage)                   # cube sketch with detected and interpred colors is saved as image
     
-    if not robot_stop and screen:                        # case screen variable is set true on __main__
+    if screen and not robot_stop:                        # case screen variable is set true on __main__
         cv2.namedWindow('cube_collage')                  # create the collage window
         cv2.moveWindow('cube_collage', 0,0)              # move the collage window to (0,0)
         cv2.imshow('cube_collage', collage)              # while the robot solves the cube the starting status is shown
@@ -2270,9 +2265,9 @@ def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequenc
 #     collage_w=1024                                    #(AF 1024)   # colleage width is fixed for consistent pictures archiving at Rpi
     collage_h=int(collage_w/collage_ratio)                         # colleage heigth is calculated to maintain proportions
 
-    if light_program:                                              # case light_program is True (armv6 processor)
+    if Rpi_ZeroW:                                                  # case Rpi_ZeroW is True (armv6 processor)
         interp_method = cv2.INTER_LINEAR                           # interpolation method is bilinear (prevents openCV from crashing)
-    else:                                                          # case light_program is False (not an armv6 processor)
+    else:                                                          # case Rpi_ZeroW is False (not an armv6 processor)
         interp_method = cv2.INTER_AREA                             # interpolation method resamples using pizel area relation
     collage = cv2.resize(collage, (collage_w, collage_h), interpolation = interp_method) # resized collage
     
@@ -2815,13 +2810,14 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
         i = 'CubeStatus(BGR or HSV or BGR,HSV)'         # 9th column header
         k = 'CubeStatus'                                # 10th column header
         l = 'CubeSolution'                              # 11th column header
-        s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\n'  # tab separated string of the the headers
+        m = 'screen'                                    # 12th column header
+        s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\n'  # tab separated string of the the headers
         
         os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
         # 'a'means: file will be generated if it does not exist, and data will be appended at the end
         with open(os.open(fname, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:    # text file is temporary opened
             f.write(s)               # data is appended
-
+    
 
     # info to log
     a=str(timestamp)                                                   # date and time
@@ -2835,7 +2831,12 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
     i=str(facelets_data)                                               # according to which methos delivered the solution (BGR, HSV, both)
     k=str(cube_status_string)                                          # string with the detected cbe status
     l=str(solution)                                                    # solution returned by Kociemba solver
-    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\n'      # tab separated string with info to log
+    if screen:                                                         # case screen variable is set true on __main__
+        m = 'screen'                                                   # string indicating the screen presence
+    else:                                                              # case screen variable is not set true on __main__
+        m = 'no screen'                                                # string indicating the screen absence
+        
+    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\n'      # tab separated string with info to log
     
     # 'a'means: file will be generated if it does not exist, and data will be appended at the end
     with open(fname,'a') as f:   # text file is temporary opened
@@ -3277,10 +3278,10 @@ def stop_or_quit():
                     disp.clean_display()                  # cleans the display
                     disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display    
                     break                                 # while loop is interrupted
-                if light_program:                         # case light_program is True (armv6 processor)
+                if Rpi_ZeroW:                             # case Rpi_ZeroW is True (armv6 processor)
                     if time.time() - ref_time >= quit_time - 0.5:   # case time elapsed is >= quit time reference
                         quitting = True                   # quitting variable is set true
-                else:                                     # case light_program is False (not an armv6 processor)
+                else:                                     # case Rpi_ZeroW is False (not an armv6 processor)
                     if time.time() - ref_time >= quit_time:   # case time elapsed is >= quit time reference
                         quitting = True                   # quitting variable is set true
                 if quitting:                              # case the quitting variable is true
@@ -3505,11 +3506,12 @@ def cubeAF():
         # feedback is printed to the display
         disp.show_on_display('READING FACE', str(sides[side]), x1=15, y1=15, x2=50, y2=35, fs1=16, fs2=80)
         
-        frame, w, h = read_camera()                          # video stream and frame dimensions
+        frame, w, h = read_camera()                 # video stream and frame dimensions
         
-        cv2.namedWindow('cube')                              # create the cube window
-        if fixWindPos:                                       # case the fixWindPos variable is chosen  
-            cv2.moveWindow('cube', 0,0)                      # move the window to (0,0)
+        if screen:                                  # case screen variable is set true on __main__
+            cv2.namedWindow('cube')                 # create the cube window
+            if fixWindPos:                          # case the fixWindPos variable is chosen  
+                cv2.moveWindow('cube', 0,0)         # move the window to (0,0)
         
         if not robot_stop:                                   # case there are no requests to stop the robot
             (contours, hierarchy)=read_facelets(frame, w, h) # reads cube's facelets and returns the contours
@@ -3533,7 +3535,7 @@ def cubeAF():
                 if robot_stop:                                         # case the robot has been stopped
                     break                                              # for loop is interrupted
                 
-                if not robot_stop and screen:                          # case screen variable is set true on __main__
+                if screen and not robot_stop:                          # case screen variable is set true on __main__
                     cv2.imshow('cube', frame)                          # shows the frame 
                     cv2.waitKey(1)      # refresh time is minimized to 1ms, refresh time mostly depending to all other functions
                 
@@ -3554,10 +3556,10 @@ def cubeAF():
                     URFDLB_facelets_BGR_mean = URFDLB_facelets_order(BGR_mean)     # facelets are ordered as per URFDLB order             
                     faces = face_image(frame, facelets, side, faces)               # image of the cube side is taken for later reference
                     
-                    if not robot_stop and screen:                # case screen variable is set true on __main__
+                    if screen and not robot_stop:                # case screen variable is set true on __main__
                         if cv_wow:                               # case the cv image analysis plot is set true                              
                             cv2.destroyWindow('cube')            # cube window is closed
-                            show_cv_wow(frame, time = 4000 if light_program else 2000)  # call the function that shows the cv_wow image
+                            show_cv_wow(frame, time = 4000 if Rpi_ZeroW else 2000)  # call the function that shows the cv_wow image
                         else:                                    # case the cv image analysis plot is set false
                             for i in range(9):
                                 cv2.imshow('cube', frame)            # shows the frame 
@@ -3623,7 +3625,7 @@ def cubeAF():
                         return              # closes the cube reading/solver function in case it reaches the end
                 
                 
-                if not robot_stop and screen:        # case screen variable is set true on __main__
+                if screen and not robot_stop:        # case screen variable is set true on __main__
                     cv2.imshow('cube', frame)        # shows the frame 
                     cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
               
@@ -3651,7 +3653,7 @@ if __name__ == "__main__":
         2) some general settings (if to printout debug prints, internet connection / time synchronization, if screen connected, etc)
         3) waits for user to press the button, and it starts the cube reading phase."""
     
-    global camera, rawCapture, width, height, robot_stop, robot_idle, timeout, light_program, cycles_num
+    global camera, rawCapture, width, height, robot_stop, robot_idle, timeout, Rpi_ZeroW, cycles_num
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
@@ -3668,7 +3670,6 @@ if __name__ == "__main__":
             cv_wow = True   # flag to enable/disable the visualization of the image analysis used to find the facelets is set True
     if cv_wow:              # case the cv image analysis plot is set true
         screen = True       # screen related functions are activated
-#         fixWindPos = False  # fix position for final image is set false
     
     fahrenheit = False      # flag to use fahrenheit degrees instead of celsius
     if args.F_deg != None:  # case 'F_deg' argument exists
@@ -3714,18 +3715,18 @@ if __name__ == "__main__":
     
         
     ################    processor version info    ###################################################
-    # when armv6 it skips one openCV comand that crash the script when Raspberry Pi Zero (not 2)
+    # when Rpi_ZeroW it uses slightly different openCV comands to prevent crashing (not Zero2W)
     import os                               # os is imported to check the machine
-    light_program = False                   # flag of a lighter program (OK on Rpi 3, 4 and Zero2)
+    Rpi_ZeroW = False                       # flag of a lighter program (OK on Rpi 3, 4 and Zero2)
     processor = ''                          # processor string variable is set empty
     try:                                    # tentative approach
         processor = os.uname().machine      # processor is inquired
         print(f'Processor architecture: {processor}')  # print to terminal the processor architecture
         if 'armv6' in processor:            # case the string armv6 is contained in processor string
-            light_program = True            # flag for a lighter program is set true (OK for Rpi Zero)
+            Rpi_ZeroW = True                # flag for program running on Rpi ZeroW
+            print('program adapted for armv6')  # feedback is printed to the terminal
     except:                                 # case an exception is raised
         pass                                # no actions
-    print('light_program: ', light_program) # feedback is printed to the terminal
     # ###############################################################################################
 
  
@@ -3872,3 +3873,4 @@ if __name__ == "__main__":
                         automated = False             # automated variable is set false, robot waits for touch button commands
                     
                 
+

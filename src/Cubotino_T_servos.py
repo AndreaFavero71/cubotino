@@ -1,9 +1,9 @@
-#f!/usr/bin/python
+#!/usr/bin/python
 # coding: utf-8
 
 """
 #############################################################################################################
-# Andrea Favero 09 January 2023
+# Andrea Favero 11 January 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -135,7 +135,6 @@ def init_servo(print_out=s_debug, home_pos=True):
                 b_spin_time = float(servo_settings['b_spin_time'])                    # time for Cube_holder to spin 90 deg (cune not contrained)
                 b_rotate_time = float(servo_settings['b_rotate_time'])                # time for Cube_holder to rotate 90 deg (cube constrained)
                 b_rel_time = float(servo_settings['b_rel_time'])                      # time for Cube_holder to release tension at home, CCW and CW positions
-            
                 
             except:   # exception will be raised if json keys differs, or parameters cannot be converted to float
                 print('error on converting to float the imported parameters')   # feedback is printed to the terminal                                  
@@ -932,7 +931,22 @@ def str2bool(v):
     else:
         print('the provided argument is not interpreted as boolean')
         raise argparse.ArgumentTypeError('Boolean value expected (yes, y, true, t, 1).')
-        
+
+
+
+
+
+
+
+def update_parameters():
+    """update the dict with servos parameters when tested/set via --tune argument."""
+    
+    parameters = {'t_servo_close_':t_servo_close, 't_servo_rel_delta_':t_servo_rel,'t_servo_open_':t_servo_open,
+             't_servo_read_':t_servo_read, 't_servo_flip_':t_servo_flip,
+             'b_home_':b_home, 'b_extra_home_':b_extra_home, 'b_servo_ccw_':b_servo_CCW,
+             'b_servo_cw_':b_servo_CW, 'b_extra_sides_':b_extra_sides}                    # dict of (--tune) parameters
+    
+    return parameters
 
 
 
@@ -954,22 +968,19 @@ def test_servos_positions():
     print(' Bottom servo positions: b_home, b_servo_CCW, b_servo_CW')
     print(' When t_servo_close, b_home, b_servo_CW and b_servo_CCW the release rotation is also applied') 
     print('\n Min variation leading to servo movement is (+/-)0.02 or 0.03, depending on the servos.')
-    print(' Smaller values for servo CCW rotation, by considering the servo point of view !!!')
+    print(' Smaller values lead to servo CCW rotation, by considering the servo point of view !!!')
     print('\n ATTENTION: Check the cube holder is free to rotate BEFORE moving the bottom servo from home.')
     print('\n Example 1: t_servo = t_servo_close --> to recall the top cover close position')
     print(' Example 2: t_servo = 0.04 --> to test value 0.04, different from the default 0')
     print(' Example 3: b_servo = b_servo_CW --> to recall the cube holder CW position')
-    print("\n Enter  'init'  to reload the settings from the last saved Cubotino_T_servo_settings.txt")
-    print(" Enter  'q'  to quit")
+    print("\n Enter  'init'   to reload the settings from the last saved Cubotino_T_servo_settings.txt")
+    print(" Enter  'print'  to reload and printout the last saved settings")
+    print(" Enter  'q'      to quit")
+    print(" Use arrows to recall previously entered commands, and easy editing")
     
     init_servo(print_out=s_debug) # servos are initialized
     t_servo.value = t_servo_open  # top servo is rotated to open position (as defined at the json file)
 
-    options={'t_servo_close_':t_servo_close, 't_servo_rel_delta':t_servo_rel,'t_servo_open_':t_servo_open,
-             't_servo_read_':t_servo_read, 't_servo_flip_':t_servo_flip,
-             'b_home_':b_home, 'b_extra_home_':b_extra_home, 'b_servo_ccw_':b_servo_CCW,
-             'b_servo_cw_':b_servo_CW, ' b_extra_sides_':b_extra_sides}                       # dict of options
-    
     while True:                                         # infinite loop
         ui = input('\n\nEnter command: ')               # user imput string is assigned to a variable
         ui = ui.strip()                                 # whitespaces removal
@@ -977,13 +988,26 @@ def test_servos_positions():
             print('Quitting Cubotino_T_servos.py\n\n')  # feedback is printed to terminal
             break                                       # infinite loop is interrupted
         
+        elif ui == "print":                             # case the imput is print
+            del t_servo                                 # object is deleted, to prevent issue on re-generating it
+            del b_servo                                 # object is deleted, to prevent issue on re-generating it
+            robot_init_status=False                     # boolean to track the servos inititialization status
+            init_servo(print_out=s_debug)               # servos are initialized, with parameters from the json files
+            t_servo.value = t_servo_open                # top servo is rotated to open position (as defined at the json file)
+            parameters = update_parameters()            # parameters for --tune are updated
+            print('\nRe-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
+            print("Last saved values are:\n")           # feedback is printed to terminal
+            for parameter, value in parameters.items():    # iteration over the testable parameters via --tune
+                print("  {:<20} {:<10}".format(parameter[:-1], value)) # parameters and values are printed
+    
         elif ui == "init":                              # case the imput is 'init'
             del t_servo                                 # object is deleted, to prevent issue on re-generating it
             del b_servo                                 # object is deleted, to prevent issue on re-generating it
             robot_init_status=False                     # boolean to track the servos inititialization status
             init_servo(print_out=s_debug)               # servos are initialized, with parameters from the json files
             t_servo.value = t_servo_open                # top servo is rotated to open position (as defined at the json file)
-            print('re-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
+            parameters = update_parameters()            # parameters for --tune are updated
+            print('Re-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
         
         else:                                           # case the imput is not for quitting nor for 'init'
             valid_command = True                        # command is assumed to be valid
@@ -1006,8 +1030,9 @@ def test_servos_positions():
                         t_servo.value = t_servo_close                # servo is set to the close position as set on the json file
                         time.sleep(1)                                # wait time to ensure the servo reaches the position, and to allow user reaction
                         t_servo.value = t_servo_rel                  # servo is rotated back by the release parameter
+                        
                     else:                                            # case the argument is not 't_servo_close'
-                        t_servo.value = options[argument+'_']        # servo is set to the position recalled from the json file
+                        t_servo.value =  parameters[argument+'_']    # servo is set to the position recalled from the json file
                     print('done')                                    # feedback is printed to terminal
                 
                 elif argument == 'b_home':                           # case the argument is 'b_home'
@@ -1103,7 +1128,7 @@ if __name__ == "__main__":
     
 
     elif args.tune == True:                                # case the Cubotino_T_servo.py has been launched with 'tune' argument
-        import readline                                    # library for easier typing at the CLI                 
+        import readline                                    # library for easier typing at the CLI
         test_servos_positions()                            # calls the function to test the individual servos positions
     
     # #############################################################################################
