@@ -5,6 +5,7 @@
 "disp_offsetT": "0",
 "camera_width_res": "640",
 "camera_hight_res": "480",
+"s_mode": "7",
 "kl": "0.95",
 "x_l": "0",
 "x_r": "0",
