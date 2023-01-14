@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 11 January 2023
+#  Andrea Favero, 14 January 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -2810,33 +2810,66 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
         i = 'CubeStatus(BGR or HSV or BGR,HSV)'         # 9th column header
         k = 'CubeStatus'                                # 10th column header
         l = 'CubeSolution'                              # 11th column header
-        m = 'screen'                                    # 12th column header
+        m = 'Screen'                                    # 12th column header
         s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\n'  # tab separated string of the the headers
         
         os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
+        
         # 'a'means: file will be generated if it does not exist, and data will be appended at the end
         with open(os.open(fname, os.O_CREAT | os.O_WRONLY, 0o777), 'a') as f:    # text file is temporary opened
             f.write(s)               # data is appended
     
+    else:                                               # case the file does exist
+        with open(fname, 'r') as f:                     # file is opened, to adjust the headers in case
+            headers = f.readline().strip('\n').split('\t')  # file headers are listed
+            last_header = 'CubeSolution'                # last header used until 14/01/2023
+            latest_header = 'Screen'                    # latest_header since 14/01/2023
+            
+            if headers[-1] == latest_header:            # case headers[-1] in existing log file equals latest_header
+                pass                                    # do nothing
+        
+            elif headers[-1] == last_header:            # case headers[-1] in existing log file equals last_header
+                print(f"\nOne time action: {latest_header} column header is added to Cubotino_solver_log.txt \n")
+                new_headers = ''                        # empty string is assigned to the new_headers variable
+                for header in headers:                  # iteration over the current listed headers
+                    new_headers += header + '\t'        # new_headers string with tab separated headers
+                new_headers += latest_header + '\n'     # latest_header is added to the new_headers string
+                
+                with open(fname, 'r') as orig:          # Cubotino_solver_log.txt file is temporary opened as orig
+                    temp_fname = folder + '/temp.txt'   # name for a temporary file
+                    with open(temp_fname, "w") as temp: # temporary file is opened in write mode
+                        for i, data_line in enumerate(orig):  # iteration over the lines of data in orig file Cubotino_solver_log.txt
+                            if i == 0:                  # case the iteration is on the first row
+                                temp.write(new_headers) # the new_headers is written to the temporary file
+                            else:                       # case the iteration is not on the first row
+                                temp.write(data_line)   # data_line from orig file is written to temp file
+
+                os.remove(fname)                        # fname file (Cubotino_solver_log.txt) is removed
+                os.rename(temp_fname, fname)            # temp file is renamed as Cubotino_solver_log.txt (now with latest headers)
+            
+            else:    # case headers[-1] in existing log file differs from last_header and latest_header
+                print("\nThere is a problem with the headers names in Cubotino_solver_log.txt")
+            
 
     # info to log
-    a=str(timestamp)                                                   # date and time
-    b=frameless_cube                                                   # frameless cube setting
-    c=str(color_detection_winner)                                      # wich method delivered the coherent cube status
-    d=str(round(tot_robot_time,1))                                     # total time from camera warmup to cube solved
-    e=str(round(camera_ready_time-start_time,1))                       # time to get the camera gains stable
-    f=str(round(cube_detect_time-camera_ready_time,1))                 # time to read the 6 cube faces
-    g=str(round(cube_solution_time-cube_detect_time,1))                # time to get the cube solution from the solver
-    h=str(round(robot_solving_time,1))                                 # time to manoeuvre the cube to solve it
-    i=str(facelets_data)                                               # according to which methos delivered the solution (BGR, HSV, both)
-    k=str(cube_status_string)                                          # string with the detected cbe status
-    l=str(solution)                                                    # solution returned by Kociemba solver
-    if screen:                                                         # case screen variable is set true on __main__
-        m = 'screen'                                                   # string indicating the screen presence
-    else:                                                              # case screen variable is not set true on __main__
-        m = 'no screen'                                                # string indicating the screen absence
-        
-    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\n'      # tab separated string with info to log
+    a=str(timestamp)                                    # date and time
+    b=frameless_cube                                    # frameless cube setting
+    c=str(color_detection_winner)                       # wich method delivered the coherent cube status
+    d=str(round(tot_robot_time,1))                      # total time from camera warmup to cube solved
+    e=str(round(camera_ready_time-start_time,1))        # time to get the camera gains stable
+    f=str(round(cube_detect_time-camera_ready_time,1))  # time to read the 6 cube faces
+    g=str(round(cube_solution_time-cube_detect_time,1)) # time to get the cube solution from the solver
+    h=str(round(robot_solving_time,1))                  # time to manoeuvre the cube to solve it
+    i=str(facelets_data)                                # according to which methos delivered the solution (BGR, HSV, both)
+    k=str(cube_status_string)                           # string with the detected cbe status
+    l=str(solution)                                     # solution returned by Kociemba solver
+    if screen:                                          # case screen variable is set true on __main__
+        m = 'screen'                                    # string indicating the screen presence
+    else:                                               # case screen variable is not set true on __main__
+        m = 'no screen'                                 # string indicating the screen absence
+    
+    # tab separated string with info to log
+    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\n'
     
     # 'a'means: file will be generated if it does not exist, and data will be appended at the end
     with open(fname,'a') as f:   # text file is temporary opened
