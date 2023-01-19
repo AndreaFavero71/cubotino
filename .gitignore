@@ -4,4 +4,7 @@ __pycache__/
 .virtualenvs/
 src/CubesDataLog/
 src/CubesStatusPictures/
+
+# ignore backup of s
 *_backup.txt
+*settings.txt
