@@ -40,7 +40,7 @@ version = '4.0'
 import argparse
 
 # argument parser object creation
-parser = argparse.ArgumentParser(description='Scrambling and solving cycles')
+parser = argparse.ArgumentParser(description='CLI arguments for Cubotino_T.py')
 
 # --version argument is added to the parser
 parser.add_argument('-v', '--version', help='Display script version.', action='version',
