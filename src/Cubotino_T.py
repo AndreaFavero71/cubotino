@@ -42,21 +42,9 @@ import argparse
 # argument parser object creation
 parser = argparse.ArgumentParser(description='Scrambling and solving cycles')
 
-# --cycles argument is added to the parser
-parser.add_argument("-c", "--cycles", type=int, 
-                    help="Input the number of automated scrambling and solving cycles")
-
 # --version argument is added to the parser
 parser.add_argument('-v', '--version', help='Display script version.', action='version',
                     version=f'%(prog)s ver:{version}')
-
-# --pause argument is added to the parser
-parser.add_argument("-p", "--pause", type=int, 
-                    help="Input the pause time, in secs, between automated cycles")
-
-# --shutoff argument is added to the parser
-parser.add_argument("-s", "--shutoff", action='store_true',
-                    help="Shuts the RPI off, after the automated scrambling and solving cycles")
 
 # --debug argument is added to the parser
 parser.add_argument("-d", "--debug", action='store_true',
@@ -69,6 +57,18 @@ parser.add_argument("--cv_wow", action='store_true',
 # --F_deg argument is added to the parser
 parser.add_argument("-F", "--F_deg", action='store_true',
                     help="CPU temperature in Fahrenheit degrees")
+
+# --cycles argument is added to the parser
+parser.add_argument("-c", "--cycles", type=int, 
+                    help="Input the number of automated scrambling and solving cycles")
+
+# --pause argument is added to the parser
+parser.add_argument("-p", "--pause", type=int, 
+                    help="Input the pause time, in secs, between automated cycles")
+
+# --shutoff argument is added to the parser
+parser.add_argument("-s", "--shutoff", action='store_true',
+                    help="Shuts the RPI off, after the automated scrambling and solving cycles")
 
 # --timer argument is added to the parser
 parser.add_argument("-t", "--timer", action='store_true',
