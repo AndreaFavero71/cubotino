@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 14 January 2023
+#  Andrea Favero, 20 January 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -30,7 +30,8 @@
 #############################################################################################################
 """
 
-
+# __version__ variable
+version = '4.0'
 
 
 
@@ -44,6 +45,10 @@ parser = argparse.ArgumentParser(description='Scrambling and solving cycles')
 # --cycles argument is added to the parser
 parser.add_argument("-c", "--cycles", type=int, 
                     help="Input the number of automated scrambling and solving cycles")
+
+# --version argument is added to the parser
+parser.add_argument('-v', '--version', help='Display script version.', action='version',
+                    version=f'%(prog)s ver:{version}')
 
 # --pause argument is added to the parser
 parser.add_argument("-p", "--pause", type=int, 
@@ -85,12 +90,13 @@ def import_parameters():
     global kl, x_l, x_r, y_u, y_b, warp_fraction, warp_slicing, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright
     global detect_timeout, show_time, warn_time, quit_time, cover_self_close, vnc_delay
-    global pathlib
+    global pathlib, json
     
     # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac address check
     import os.path, pathlib, json                                 # libraries needed for the json, and parameter import
     from getmac import get_mac_address                            # library to get the device MAC ddress
-        
+    import time
+       
     folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
     eth_mac = get_mac_address()                                   # mac address is retrieved
     if eth_mac == 'e4:5f:01:8d:59:97':                            # case the script is running on AF (Andrea Favero) robot
@@ -104,6 +110,9 @@ def import_parameters():
         with open(fname, "r") as f:                               # settings file is opened in reading mode
             settings = json.load(f)                               # json file is parsed to a local dict variable
             # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
+        
+        # update key-values parameters, needed in case of additional parameters added at remote repo
+        settings = update_parameters(fname, settings)
         
         if debug:                                                 # case debug variable is set true on __main_
             print('\nimporting settings from the text file:', fname)    # feedback is printed to the termina
@@ -201,6 +210,45 @@ def import_parameters():
 
 
 
+def update_parameters(fname, settings):
+    """Function to check if the existing fname (Cubotino_T_settings.txt) has all the parameters that were instroduced after firts release.
+        This will allow every Makers to 'git pull' the updates while pre-serving personal settings.
+        This works by adding  *_settings.txt to gitignore.
+        Cubotino_T.py will update Cubotino_T_settings.txt with eventually missed parameters and related default values.
+        """
+    
+    settings_keys = settings.keys()
+    any_change = False
+    
+    if 'frameless_cube' not in settings_keys:
+        settings['frameless_cube']='false'
+        any_change = True
+        
+    if 'cover_self_close' not in settings_keys:
+        settings['cover_self_close']='false'
+        any_change = True
+        
+    if 's_mode' not in settings_keys:
+        settings['s_mode']='7'
+        any_change = True
+        
+    if 'vnc_delay' not in settings_keys:
+        settings['vnc_delay']='0.5'
+        any_change = True
+    
+    if any_change:
+        print('\nOne time action: Adding new parameters to the Cubotino_T_settings.txt')
+        print('Action necessary for compatibility with the latest downloaded Cubotino_T.py \n')
+        with open(fname, 'w') as f:
+            f.write(json.dumps(settings, indent=0))   # content of the updated setting is saved 
+    
+    return settings
+
+
+
+
+
+
 def import_libraries():
     """ Import of the needed libraries.
         These librries are imported after those needed for the display management.
@@ -210,26 +258,26 @@ def import_libraries():
     
     # import custom libraries
     import Cubotino_T_set_picamera_gain as camera_set_gains  # script that allows to fix some parameters at picamera
-    import Cubotino_T_servos as servo                      # custom library controlling Cubotino servos and led module
-    import Cubotino_T_moves as rm                          # custom library, traslates the cuber solution string in robot movements string
+    import Cubotino_T_servos as servo                     # custom library controlling Cubotino servos and led module
+    import Cubotino_T_moves as rm                         # custom library, traslates the cuber solution string in robot movements string
 
     # import non-custom libraries
-    from picamera.array import PiRGBArray                  # Raspberry pi specific package for the camera, using numpy array
-    from picamera import PiCamera                          # Raspberry pi specific package for the camera
-    from statistics import median                          # median is used as sanity check while evaluating facelets contours
-    import RPi.GPIO as GPIO                                # import RPi GPIO library
-    import datetime as dt                                  # mainly used as timestamp, like on data logging
-    import numpy as np                                     # data array management
-    import math                                            # math package
-    import time                                            # time package
-    import cv2                                             # computer vision package
-    import os                                              # os is imported to ensure the file presence check/make
+    from picamera.array import PiRGBArray                 # Raspberry pi specific package for the camera, using numpy array
+    from picamera import PiCamera                         # Raspberry pi specific package for the camera
+    from statistics import median                         # median is used as sanity check while evaluating facelets contours
+    import RPi.GPIO as GPIO                               # import RPi GPIO library
+    import datetime as dt                                 # mainly used as timestamp, like on data logging
+    import numpy as np                                    # data array management
+    import math                                           # math package
+    import time                                           # time package
+    import cv2                                            # computer vision package
+    import os                                             # os is imported to ensure the file presence check/make
     
-    print(f'CV2 version: {cv2.__version__}')               # print to terminal the cv2 version
+    print(f'CV2 version: {cv2.__version__}')              # print to terminal the cv2 version
     
     # Up to here Cubotino logo is shown on display
     disp.show_on_display('LOADING', 'SOLVER', fs1=24, fs2=27)  # feedback is printed to the display
-    disp.set_backlight(1)                                      # display backlight is turned on, in case it wasn't
+    disp.set_backlight(1)                                 # display backlight is turned on, in case it wasn't
 
     
     # importing Kociemba solver
