@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 11 January 2023
+# Andrea Favero 16 February 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -979,6 +979,7 @@ def test_servos_positions():
     print(" Use arrows to recall previously entered commands, and easy editing")
     
     init_servo(print_out=s_debug) # servos are initialized
+    parameters = update_parameters()  # parameters for --tune are updated
     t_servo.value = t_servo_open  # top servo is rotated to open position (as defined at the json file)
 
     while True:                                         # infinite loop
