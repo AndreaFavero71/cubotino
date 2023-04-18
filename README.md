@@ -32,6 +32,20 @@ sudo ./install/setup.sh
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type 'y' and hit enter. You should get the proper environment after reboot at that point
 7. If there is any error during the script execution try to fix it and rerun the script again
 
+
+# Build the robot:
+Follow the instructions (saved at /doc folder)
+
+
+# Tuning the servos position via GUI (via VNC):
+```
+cd ~/cubotino/src
+source .virtualenvs/bin/activate
+python Cubotino_T_servos_GUI.py
+```
+![title image](/images/Servo_tuning_GUI_01.PNG)
+
+
 # Executing manually
 From a shell, you can run the main python script like this:
 ```
