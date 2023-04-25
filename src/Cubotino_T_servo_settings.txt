@@ -10,7 +10,7 @@
 "t_close_to_flip_time": "0.6",
 "t_flip_open_time": "0.5",
 "t_open_close_time": "0.3",
-"t_rel_time": "0.2"}
+"t_rel_time": "0.2",
 
 "b_min_pulse_width": "1",
 "b_max_pulse_width": "2",
