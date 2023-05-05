@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 18 April 2023
+# Andrea Favero 05 May 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -468,6 +468,22 @@ def stop_release(print_out=s_debug):
 
 
 
+def open_pos():
+    """ Function to position the top_cover to the open position, without waiting time !!!"""
+    global t_top_cover, b_servo_operable, b_servo_stopped
+    
+    if not stop_servos:                          # case there is not a stop request for servos
+        if b_servo_stopped==True:                # boolean of bottom servo at location the lifter can be operated
+            b_servo_operable=False               # variable to block/allow bottom servo operation
+            t_servo.value = t_servo_open         # servo is positioned to open
+            t_top_cover='open'                   # cover/lifter position variable set to open
+            b_servo_operable=True                # variable to block/allow bottom servo operation
+
+
+
+
+
+
 def read():
     """ Function to position the top_cover to the read."""
     global t_top_cover, b_servo_operable, b_servo_stopped, b_servo_home
@@ -485,7 +501,7 @@ def read():
                 t_servo.value = t_servo_read     # servo is positioned to flip the cube
                 time.sleep(t_flip_open_time)     # time for the servo to reach the flipping position 
             
-            t_top_cover='read'                   # cover/lifter position variable set to flip
+            t_top_cover='read'                   # cover/lifter position variable set to read
             return 'read'                        # position of the top_cover is returned
 
 
@@ -1496,4 +1512,3 @@ if __name__ == "__main__":
         test_set_of_movements()   # call to the function that holds the predefined set of movements
         
         
-

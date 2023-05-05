@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 18 April 2023
+#  Andrea Favero, 05 May 2023
 #
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
@@ -17,7 +17,7 @@
 #  The cube status is detected via a camera system (piCamera) and OpenCV .
 #  Kociemba solver is used foer the cube solution (from: https://github.com/hkociemba/RubiksCube-TwophaseSolver)
 #  Credits to Mr. Kociemba for his great job !
-#  Search for CUBOTino autonomous on www.intructable.com, to find more info about this robot.
+#  Search for CUBOTino autonomous on www.instructables.com, to find more info about this robot.
 #
 #  Developped on:
 #  - Raspberry Pi Zero2W and Raspberry Pi ZeroW
@@ -32,7 +32,7 @@
 
 
 # __version__ variable
-version = '5.0   , 18 April 2023'
+version = '5.1   , 05 May 2023'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -2641,7 +2641,9 @@ def robot_to_cube_side(side, cam_led_bright):
             servo.cam_led_On(cam_led_bright)     # led on top_cover is switched on
   
     elif side == 6 :                             # case side equal 6 (it is when the cube has been fully scanned)
+        servo.open_pos()                         # top_cover is positioned to open position
         servo.cam_led_Off()                      # led on top_cover is switched off
+                           
 
 
 
