@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 05 May 2023
+# Andrea Favero 10 May 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -1221,11 +1221,14 @@ def print_info():
     print('\n Example 1: t_servo = t_servo_close --> to recall the top cover close position')
     print(' Example 2: t_servo = 0.04 --> to test value 0.04, different from the default 0')
     print(' Example 3: b_servo = b_servo_CW --> to recall the cube holder CW position')
-    print("\n Enter  'init'   to reload the settings from the last saved Cubotino_T_servo_settings.txt")
-    print(" Enter  'info'   to get this info printed again to the terminal")
-    print(" Enter  'print'  to reload and printout the last saved settings")
-    print(" Enter  'test'   to verify the servos tuning with a predefined sequence of movements")
-    print(" Enter  'q'      to quit")
+    print("\n Enter  'init'     to reload the settings from the last saved Cubotino_T_servo_settings.txt")
+    print(" Enter  'info'     to get this info printed again to the terminal")
+    print(" Enter  'print'    to reload and printout the last saved settings")
+    print(" Enter  'b_sweep'  to force bottom servo complete rotation sweep (extended PW range)")
+    print(" Enter  't_sweep'  to force top servo complete rotation sweep (extended PW range)")
+    print(" Enter  'pw'       to quickly change the servos pulse width range")
+    print(" Enter  'test'     to verify the servos tuning with a predefined sequence of movements")
+    print(" Enter  'q'        to quit")
     print(" Use arrows to recall previously entered commands, and easy editing")
 
 
@@ -1238,6 +1241,7 @@ def test_servos_positions():
     """function to indivially check servo positions, by recalling the settings at json file of by entering the target value """
     
     global b_servo, t_servo, robot_init_status   # global variables being updated by this function
+    global t_min_pulse_width, t_max_pulse_width,  b_min_pulse_width, b_max_pulse_width
     
     
     print_info()                  # tuning info are printed to the terminal
@@ -1280,13 +1284,114 @@ def test_servos_positions():
             parameters = update_parameters()            # parameters for --tune are updated
             print('Re-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
         
-        elif ui == 'test':
+        elif ui == 'test':                              # case the input is 'test'
             del t_servo                                 # object is deleted, to prevent issue on re-generating it
             del b_servo                                 # object is deleted, to prevent issue on re-generating it
             robot_init_status=False                     # boolean to track the servos inititialization status
             init_servo(print_out=s_debug, start_pos='read') # servos are initialized, with parameters from the json files
             test_set_of_movements()                     # call to the function that holds the predefined set of movements
         
+        elif ui == 'b_sweep':                           # case the input is 'b_sweep'
+            b_servo = b_servo_create(0.3, 2.7)          # servo object with extended pulse width range
+            print('Bottom servo: Temporary set the pulse width to a very extended range (0.3 to 2.7 ms)')
+            print('Bottom servo: Sweeping the full rotation range')
+            for i in range (0,-100,-2):                 # iteration from 0 to -100 in steps of -2
+                b_servo.value = i/100                   # b_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (-100,100,2):                # iteration from -100 to 100 in steps of 2
+                b_servo.value = i/100                   # b_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (100,-100,-2):               # iteration from 100 to -100 in steps of -2
+                b_servo.value = i/100                   # b_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (-100,0,2):                  # iteration from -100 to 0 in steps of 2
+                b_servo.value = i/100                   # b_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            time.sleep(0.5)                             # wait time of 0.5s
+            b_servo = b_servo_create(b_min_pulse_width, b_max_pulse_width)  # servo object with previously used pulse width range
+            print('Bottom servo: Set the pulse width to the previous setting\n')
+            
+
+        elif ui == 't_sweep':                           # case the input is 't_sweep'
+            t_servo = t_servo_create(0.3, 2.7)          # servo object with extended pulse width range
+            print('Top servo: Set pulse width to a very extended range (0.3 to 2.7 ms)')
+            print('Top servo: Sweeping the full rotation range')
+            for i in range (0,-100,-2):                 # iteration from 0 to -100 in steps of -2
+                t_servo.value = i/100                   # t_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (-100,100,2):                # iteration from -100 to 100 in steps of 2
+                t_servo.value = i/100                   # t_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (100,-100,-2):               # iteration from 100 to -100 in steps of -2
+                t_servo.value = i/100                   # t_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            for i in range (-100,0,2):                  # iteration from -100 to 0 in steps of 2
+                t_servo.value = i/100                   # t_servo seto to 1/100 of the iterated value
+                time.sleep(0.02)                        # wait time of 20ms
+            time.sleep(0.5)                             # wait time of 0.5s
+            t_servo = t_servo_create(t_min_pulse_width, t_max_pulse_width)    # servo object with previously used pulse width range
+            print('Top servo: Set the pulse width to the previous setting\n')
+            
+        
+        elif ui == 'pw' or ui == 'PW':                  # case the input is 'pw'
+            done = False                                # boolean variable later used to exit the while loop
+            choice =''                                  # 
+            while done == False:
+                choice = input('  type: \n'
+                               '  0       for range 0.5 to 2.5ms \n'
+                               '  1       for range 1.0 to 2.0ms \n'
+                               '  cust    to set custom min and max pulse width values (in milliseconds) \n'
+                               '  your choice: ')
+                if choice == '0':
+                    print('  servos pulse width set on range 0.5 to 2.5ms')
+                    t_min_pulse_width = 0.5
+                    t_max_pulse_width = 2.5
+                    b_min_pulse_width = 0.5
+                    b_max_pulse_width = 2.5
+                    b_servo = b_servo_create(0.5, 2.5)
+                    t_servo = t_servo_create(0.5, 2.5)
+                    done = True
+                elif choice == '1':
+                    print('  servos pulse width set on range 1.0 to 2.0ms')
+                    t_min_pulse_width = 1.0
+                    t_max_pulse_width = 2.0
+                    b_min_pulse_width = 1.0
+                    b_max_pulse_width = 2.0
+                    b_servo = b_servo_create(1.0, 2.0)
+                    t_servo = t_servo_create(1.0, 2.0,)
+                    done = True
+                elif choice  == 'cust' or choice == 'CUST':
+                    min_pw_str = ''
+                    max_pw_str = ''
+                    min_pw_str = input('\n      enter the min pulse width value in milliseconds: ')
+                    max_pw_str = input('      enter the max pulse width value in milliseconds: ')
+                    min_pw_is_number = min_pw_str.replace(".", "").replace(",", "").isnumeric()
+                    max_pw_is_number = max_pw_str.replace(".", "").replace(",", "").isnumeric()
+                    if min_pw_is_number and max_pw_is_number:
+                        min_pw = float(min_pw_str)
+                        max_pw = float(max_pw_str) 
+                        if min_pw>0 and min_pw<=1.5:
+                            if max_pw>=1.5 and max_pw<3:
+                                t_min_pulse_width = min_pw
+                                t_max_pulse_width = max_pw
+                                b_min_pulse_width = min_pw
+                                b_max_pulse_width = max_pw
+                                b_servo = b_servo_create(min_pw, max_pw)
+                                t_servo = t_servo_create(min_pw, max_pw)
+                                print(f'      servos pulse width set on range {round(min_pw,3)} to {round(max_pw,3)}ms')
+                                done = True
+                            else:
+                                print('\n      max pulse width value should be between 1.5 and 3 ms')
+                        else:
+                            print('\n      max pulse width value should be between 1.5 and 3 ms') 
+                    else:
+                        print('\n      Note:')
+                        print('      min pulse width value should be between 0 and 1.5 ms')
+                        print('      max pulse width value should be between 1.5 and 3 ms\n\n')
+                    
+                else:
+                    print()
+            
         else:                                           # case the input is not for quitting nor for 'init'
             valid_command = True                        # command is assumed to be valid
             valid_argument = True                       # argument is assumed to be valid
