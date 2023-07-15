@@ -73,8 +73,3 @@ fi
 
 print_header "Reboot now? (y/n)"
 read x && [[ "$x" == "y" ]] && /sbin/reboot; 
-
-fi
-
-print_header "Reboot now? (y/n)"
-read x && [[ "$x" == "y" ]] && /sbin/reboot; 
