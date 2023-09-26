@@ -30,7 +30,7 @@ cd cubotino/src
 sudo ./install/setup.sh
 ```
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type 'y' and hit enter.
-7. If the question "Reboot (y/n)" does't appear, them the installation is facing issues; If there is any error during the script execution try to fix it and rerun the script again.
+7. If the question "Reboot (y/n)" does't appear, them the installation is facing issues; Try to fix the errors, and run the script again.
 8. If the question "Reboot (y/n) does appear, You should get the proper environment after the reboot.
 
 
