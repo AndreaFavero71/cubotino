@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 10 May 2023
+# Andrea Favero 12 October 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -29,6 +29,8 @@
 """
 
 
+from Cubotino_T_pigpiod import pigpiod as pigpiod # start the pigpiod server
+
 
 ##################    imports for the display part   ################################
 from Cubotino_T_display import display as s_disp    
@@ -41,27 +43,21 @@ s_disp.set_backlight(1)     # activates the display backlight
 
 
 
-##################    imports and servo_settings for Servos and LED   ####################
-import time                                       # import time library
-import RPi.GPIO as GPIO                           # import RPi GPIO library
-GPIO.setmode(GPIO.BCM)                            # setting GPIO pins as "Broadcom SOC channel" number, these are the numbers after "GPIO"
-GPIO.setwarnings(False)                           # setting GPIO to don't return allarms
-from gpiozero import Servo, PWMLED                # import modules for the PWM part
-from gpiozero.pins.pigpio import PiGPIOFactory    # pigpio library is used, to use hardare timers on PWM (to avoid servo jitter)
-factory = PiGPIOFactory()                         # pin factory setting to use hardware timers, to avoid servo jitter
-from get_macs_AF import get_macs_AF               # import the get_macs_AF function
+##################    imports standard libraries   #################################
+import time                            # import time library
+import RPi.GPIO as GPIO                # import RPi GPIO library
+GPIO.setmode(GPIO.BCM)                 # setting GPIO pins as "Broadcom SOC channel" number, these are the numbers after "GPIO"
+GPIO.setwarnings(False)                # setting GPIO to don't return allarms
+from gpiozero import Servo, PWMLED     # import modules for the PWM part
+from get_macs_AF import get_macs_AF    # import the get_macs_AF function
+# ##################################################################################
 
 
 
-# servo_settings for the led on top cover, to ensure sufficient light while the PiCamera is reading
-top_cover_led_pin = 18                            # GPIO pin used to control the LED on/off
-
-# NOTE: High frequency on the led PWM is needed to prevent the camera to see the led flickering
-top_cover_led = PWMLED(top_cover_led_pin, active_high=True, initial_value=0, frequency=5000000, pin_factory=factory)
-
-# overall servo_settings for the GPIO and the PWM
+##################    GPIO pins for Servos and LED   ###############################
 t_servo_pin = 12                # GPIO pin used for the top servo
 b_servo_pin = 13                # GPIO pin used for the bottom servo
+top_cover_led_pin = 18          # GPIO pin used to control the LED on/off
 # ##################################################################################
 
 
@@ -73,6 +69,7 @@ b_servo_operable=False          # variable to block/allow bottom servo operation
 fun_status=False                # boolean to track the robot fun status, it is True after solving the cube :-)
 s_debug=False                   # boolean to print out info when debugging
 flip_to_close_one_step = False  # f_to_close steps (steps from flip up to close) is set false (=2 steps)
+led_init_status = False
 # ##################################################################################
 
 
@@ -84,6 +81,21 @@ def get_fname_AF(fname, pos):
     return fname[:-4]+'_AF'+str(pos+1)+'.txt'
 
 
+
+def init_top_cover_led():
+    global factory
+    from gpiozero.pins.pigpio import PiGPIOFactory    # pigpio library is used, to use hardare timers on PWM (to avoid servo jitter)
+    factory = PiGPIOFactory()                         # pin factory setting to use hardware timers, to avoid servo jitter
+    
+    # NOTE: High freq. on the led PWM prevents camera from seeing flickering
+    top_cover_led = PWMLED(top_cover_led_pin,
+                           active_high=True,
+                           initial_value=0,
+                           frequency=5000000,
+                           pin_factory=factory)
+    
+    led_init_status = True
+    return led_init_status, top_cover_led
 
 
 
@@ -104,9 +116,13 @@ def init_servo(print_out=s_debug, start_pos=0, f_to_close_mode=False):
     global b_servo_home, b_servo_stopped, b_servo_CW_pos, b_servo_CCW_pos                   # bottom servo status 
     global b_spin_time, b_rotate_time, b_rel_time                                           # bottom servo timers 
     
-    global flip_to_close_one_step, robot_init_status, fun_status, led_init_status           # robot related
+    global flip_to_close_one_step, robot_init_status, fun_status           # robot related
+    global led_init_status, top_cover_led
     
     
+    if not led_init_status:
+        led_init_status, top_cover_led = init_top_cover_led()
+        
     if not robot_init_status:                        # case the inititialization status of the servos false
         if f_to_close_mode:                          # case the init got the f_to_close_mode as true
             flip_to_close_one_step = True            # flip_to_close_one_step is set true
@@ -133,8 +149,18 @@ def init_servo(print_out=s_debug, start_pos=0, f_to_close_mode=False):
             # update key-values parameters, for additional parameters added at remote repo after first release
             servo_settings = update_settings_file(fname, servo_settings, json)
             
+            if print_out:                            # case print_out variable is set true
+                print('\nImporting servos settings from the text file:', fname)    # feedback is printed to the terminal
+                print('\nImported parameters: ')     # feedback is printed to the terminal
+                for parameter, setting in servo_settings.items():    # iteration over the settings dict
+                    print(parameter,': ', setting)   # feedback is printed to the terminal
+                print()
+            
             backup_fname = os.path.join(folder,'Cubotino_T_servo_settings_backup.txt')     # folder and file name for the settings backup
-            with open(backup_fname, 'w') as f:                  # servo_settings_backup file is opened in writing mode
+            with open(backup_fname, 'w') as f:       # servo_settings_backup file is opened in writing mode
+                if print_out:                        # case print_out variable is set true
+                    print('Copy of servos settings parameter is saved as backup at: ', backup_fname)    # feedback is printed to the terminal
+                
                 f.write(json.dumps(servo_settings, indent=0))   # content of the setting file is saved in another file, as backup
                 # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
             
@@ -201,7 +227,7 @@ def init_servo(print_out=s_debug, start_pos=0, f_to_close_mode=False):
 
             robot_init_status = True          # boolean to track the inititialization status of the servos is set true
             if print_out:                     # case the print_out variable is set true
-                print("Servo init done")      # feedback is printed to the terminal
+                print("\nServo init done")    # feedback is printed to the terminal
         
             servo_start_pos(start_pos)        # servos are positioned to the start position    
             fun_status=False                  # boolean to track the robot fun status, it is True after solving the cube :-)
@@ -1584,10 +1610,12 @@ if __name__ == "__main__":
     parser.add_argument("--fast", action='store_true',
                         help="From Flip-Up to close in one step instead of two")    # argument is added to the parser
     args = parser.parse_args()                             # argument parsed assignement
-       
+    # #############################################################################################
     
+    
+    #####################  applying the arguments   ###############################################
     if args.fast == True:                # case the Cubotino_T_servo.py has been launched with 'speed' argument
-        flip_to_close_one_step = True   # f_to_close steps (steps from flip up to close) is set True (= 1 step)
+        flip_to_close_one_step = True    # f_to_close steps (steps from flip up to close) is set True (= 1 step)
         
     if args.set != None:                                   # case the Cubotino_T_servo.py has been launched with 'set' argument
         init_servo(print_out=s_debug, start_pos=0)         # servo objectes are created, and set initially to mid position (by default)
@@ -1601,19 +1629,11 @@ if __name__ == "__main__":
                 print('\nQuitting Cubotino_T_servos.py\n\n')  # feedback is printed to terminal
                 break                                      # while loop is interrupted
     
-
     elif args.tune == True:               # case the Cubotino_T_servo.py has been launched with 'tune' argument
         import readline                   # library for easier typing at the CLI
         test_servos_positions()           # calls the function to test the individual servos positions
-
-    # #############################################################################################
-         
-        
-           
-    
-    ###############  testing the servos as a predefined solving process ###########################
     
     else:     # case the Cubotino_T_servos.py has been launched without 'set' or 'tune' arguments
         test_set_of_movements()   # call to the function that holds the predefined set of movements
-        
+    # #############################################################################################
         

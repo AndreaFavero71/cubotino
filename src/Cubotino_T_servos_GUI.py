@@ -3,7 +3,7 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 18 April 2023
+# Andrea Favero 12 October 2023
 # 
 # GUI helping tuninig CUBOTino servos positions.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
@@ -18,6 +18,7 @@
 import tkinter as tk                 # GUI library
 from tkinter import ttk              # GUI library
 import datetime as dt                # date and time library used as timestamp on a few situations (i.e. data log)
+import numpy as np                   # array management library
 import time                          # import time library  
 import glob, os.path, pathlib        # os is imported to ensure the file presence, check/make
 import json                          # libraries needed for the json, and parameter import
@@ -25,6 +26,7 @@ from getmac import get_mac_address   # library to get the device MAC ddress
 
 
 # project specific libraries  
+from Cubotino_T_pigpiod import pigpiod as pigpiod        # start the pigpiod server
 import Cubotino_T_servos as servo    # custom library controlling Cubotino servos and led module
 from Cubotino_T_display import display as disp           # custom library controlling Cubotino disply module
 from Cubotino_T import tune_image_setup as camera_setup  # import the camera setting up function
@@ -32,6 +34,7 @@ from Cubotino_T import read_camera as read_camera        # import the camera rea
 from Cubotino_T import frame_cropping as crop            # import the image cropping function
 from Cubotino_T import warp_image as warp                # import the image warping function
 from Cubotino_T import close_camera as close_cam         # import the close_camera function
+from Cubotino_T import text_font as text_font            # import the font for cv2 function
 from get_macs_AF import get_macs_AF                      # import the get_macs_AF function
 ######################################################################################################################
 
@@ -40,6 +43,7 @@ from get_macs_AF import get_macs_AF                      # import the get_macs_A
 
 # #################### functions to manage the GUI closing ###########################################################
 def on_closing():
+    open_top_cover()                             # top_cover is set in its open position
     disp.show_cubotino()                         # cubotino logo is plot to the screen
     print("\nClosing the GUI application\n\n")   # feedback is printed to the terminal
     camWindow.destroy()                          # frame camWindow is destroyied
@@ -55,7 +59,7 @@ def on_closing():
 
 
 # #################### functions to take and show images  ############################################################
-def take_image(refresh=1, widgets_freeze=True):
+def take_image(refresh=5, widgets_freeze=True):
     """funtion showing a PiCamera image after cropping and warping, for tuning purpose."""
     global picamera_initialized, cv2, camera, width, height
     
@@ -67,13 +71,15 @@ def take_image(refresh=1, widgets_freeze=True):
 
     if not picamera_initialized:               # case the picamera_initialized variable is False
         # initial settings: upload cv2, make the camera object, etc
-        cv2, camera, width, height = camera_setup(display=disp, gui_debug=False)  
+        cv2, camera, width, height = camera_setup(display=disp, gui_debug=False)
+        time.sleep(0.5)
         picamera_initialized = True            # picamera_initialized variable is set True
     
     servo.cam_led_On(1)                        # top_cover led is activated
     frame, w, h = read_camera()                # video stream and frame dimensions
     servo.cam_led_Off()                        # top_cover led is de-activated
     
+    raised_error = False
     try:
         # frame is cropped in order to limit the image area to analyze
         frame2, w2, h2 = crop(frame, width, height, x_l, x_r, y_u, y_b)
@@ -81,8 +87,9 @@ def take_image(refresh=1, widgets_freeze=True):
         # frame is warped to have a top like view toward the top cube face
         frame2, w2, h2 = warp(frame2, w2, h2, warp_fraction, warp_slicing)
         
+        cv2.namedWindow('Cropped and warped image')      # create the cube window
+        
         for i in range(refresh):
-            cv2.namedWindow('Cropped and warped image')      # create the cube window
             cv2.moveWindow('Cropped and warped image', 0,40) # move the window to (0,0)
             cv2.imshow('Cropped and warped image', frame2)   # shows the frame
 #             cv2.namedWindow('Camera image')                  # create the cube window
@@ -91,7 +98,24 @@ def take_image(refresh=1, widgets_freeze=True):
             key = cv2.waitKey(100)                           # refresh time is set to 1 second
         
     except:
-        print("Error or cropping and/or warping, try less extreme values")
+        print("Error on cropping and/or warping, try less extreme values")
+        raised_error = True
+        
+    if raised_error:
+        font, fontScale, fontColor, lineType = text_font()
+        cv2.namedWindow('Cropped and warped image')      # create the cube window
+        error_frame = np.zeros([h, w, 3],dtype=np.uint8) # empty array
+        error_frame.fill(230)                            # array is filled with light gray
+        cv2.putText(error_frame, 'ERROR ON CROPPING', (20, 40), font, fontScale*1.2,(0,0,0),lineType)
+        cv2.putText(error_frame, 'AND / OR WARPING', (20, 80), font, fontScale*1.2,(0,0,0),lineType)
+        cv2.putText(error_frame, 'TRY LESS EXTREME VALUES', (20, 160), font, fontScale*1.2,(0,0,0),lineType)
+        for i in range(refresh):
+            cv2.moveWindow('Cropped and warped image', 0,40)  # move the window to (0,0)
+            cv2.imshow('Cropped and warped image', error_frame)   # shows the frame
+            key = cv2.waitKey(100)                            # refresh time is set to 1 second
+
+        
+        
     
     if widgets_freeze:
         for label in labels:

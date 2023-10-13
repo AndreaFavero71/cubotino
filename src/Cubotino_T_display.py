@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 18 April 2023
+#  Andrea Favero 12 October 2023
 #
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script manages the display, and it's imported by Cubotino_T.py and Cubotino_T_servos.py
@@ -17,54 +17,62 @@ import ST7735                                # library for the TFT display with 
 import os.path, pathlib, json                # library for the json parameter parsing for the display
 from getmac import get_mac_address           # library to get the device MAC ddress
 from get_macs_AF import get_macs_AF          # import the get_macs_AF function
-
+from Cubotino_T_pigpiod import pigpiod as pigpiod # start the pigpiod server
 
 
 class Display:
+    display_initialized = False
     def __init__(self):
         """ Imports and set the display (128 x 160 pixels) https://www.az-delivery.de/it/products/1-77-zoll-spi-tft-display.
             In my (AF) case was necessary to play with offset and display dimensions (pixels) to get an acceptable result.
             For a faster display init: Reduce the time.sleep to 0.1 (3 times, iso 0.5) at reset at __init__ of ST7735 module."""
-                
-        # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
-        macs_AF = get_macs_AF()                                       # mac addresses of AF bots are retrieved
-        folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
-        eth_mac = get_mac_address().lower()                           # mac address is retrieved
-        fname = 'Cubotino_T_settings.txt'                             # file name with settings for the display
-        if eth_mac in macs_AF:                                        # case the script is running on AF (Andrea Favero) robot
-            pos = macs_AF.index(eth_mac)                              # mac address row position in macs_AF.txt file
-            fname = self.get_fname_AF(fname, pos)                     # AF robot settings file name (do not use these at the start)
-        else:                                                         # case the script is not running on AF (Andrea Favero) robot
-            fname = os.path.join(folder,fname)                        # folder and file name for the settings, to be tuned
+            
         
-        if os.path.exists(fname):                                     # case the settings file exists
-            with open(fname, "r") as f:                               # settings file is opened in reading mode
-                settings = json.load(f)                               # json file is parsed to a local dict variable
-            try:
-                disp_width = int(settings['disp_width'])              # display width, in pixels
-                disp_height = int(settings['disp_height'])            # display height, in pixels
-                disp_offsetL = int(settings['disp_offsetL'])          # Display offset on width, in pixels, Left if negative
-                disp_offsetT = int(settings['disp_offsetT'])          # Display offset on height, in pixels, Top if negative
-            except:
-                print('Error on converting imported parameters to int') # feedback is printed to the terminal
-        else:                                                         # case the settings file does not exists, or name differs
-            print('Could not find the file: ', fname)                 # feedback is printed to the terminal 
-
+        if not self.display_initialized:
+            # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
+            macs_AF = get_macs_AF()                                   # mac addresses of AF bots are retrieved
+            folder = pathlib.Path().resolve()                         # active folder (should be home/pi/cube)  
+            eth_mac = get_mac_address().lower()                       # mac address is retrieved
+            fname = 'Cubotino_T_settings.txt'                         # file name with settings for the display
+            if eth_mac in macs_AF:                                    # case the script is running on AF (Andrea Favero) robot
+                pos = macs_AF.index(eth_mac)                          # mac address row position in macs_AF.txt file
+                fname = self.get_fname_AF(fname, pos)                 # AF robot settings file name (do not use these at the start)
+            else:                                                     # case the script is not running on AF (Andrea Favero) robot
+                fname = os.path.join(folder,fname)                    # folder and file name for the settings, to be tuned
+            self.display_settings = False
+            if os.path.exists(fname):                                 # case the settings file exists
+                with open(fname, "r") as f:                           # settings file is opened in reading mode
+                    settings = json.load(f)                           # json file is parsed to a local dict variable
+                try:
+                    self.disp_width = int(settings['disp_width'])     # display width, in pixels
+                    self.disp_height = int(settings['disp_height'])   # display height, in pixels
+                    self.disp_offsetL = int(settings['disp_offsetL']) # Display offset on width, in pixels, Left if negative
+                    self.disp_offsetT = int(settings['disp_offsetT']) # Display offset on height, in pixels, Top if negative
+                    self.display_settings = True                      # display_settings is set True
+                except:
+                    print('Error on converting imported parameters to int') # feedback is printed to the terminal
+            else:                                                     # case the settings file does not exists, or name differs
+                print('Could not find the file: ', fname)             # feedback is printed to the terminal 
         
-        self.disp = ST7735.ST7735(port=0, cs=0,                       # SPI and Chip Selection                  
-                            dc=27, rst=22, backlight=4,               # GPIO pins used for the SPI, reset and backlight control
-                            width=disp_width,            #(AF 132)    # see note above for width and height !!!
-                            height=disp_height,          #(AF 162)    # see note above for width and height !!!                         
-                            offset_left=disp_offsetL,                 # see note above for offset  !!!
-                            offset_top= disp_offsetT,                 # see note above for offset  !!!
-                            rotation=270,                             # image orientation
-                            invert=False, spi_speed_hz=10000000)      # image invertion, and SPI
+        if self.display_settings:
+            self.disp = ST7735.ST7735(port=0, cs=0,                   # SPI and Chip Selection                  
+                                dc=27, rst=22, backlight=4,           # GPIO pins used for the SPI, reset and backlight control
+                                width=self.disp_width,     #(AF 132)  # see note above for width and height !!!
+                                height=self.disp_height,   #(AF 162)  # see note above for width and height !!!                         
+                                offset_left=self.disp_offsetL,        # see note above for offset  !!!
+                                offset_top=self.disp_offsetT,         # see note above for offset  !!!
+                                rotation=270,                         # image orientation
+                                invert=False,                         # image invertion,
+                                spi_speed_hz=10000000)                # SPI frequence
         
-        self.disp.set_backlight(0)                                    # display backlight is set off
-        self.disp_w = self.disp.width                                 # display width, retrieved by display setting
-        self.disp_h = self.disp.height                                # display height, retrieved by display setting
-        disp_img = Image.new('RGB', (self.disp_w, self.disp_h),color=(0, 0, 0))   # display image generation, full black
-        self.disp.display(disp_img)                                   # image is displayed
+            self.disp.set_backlight(0)                                # display backlight is set off
+            self.disp_w = self.disp.width                             # display width, retrieved by display setting
+            self.disp_h = self.disp.height                            # display height, retrieved by display setting
+            disp_img = Image.new('RGB', (self.disp_w, self.disp_h),color=(0, 0, 0))   # display image generation, full black
+            self.disp.display(disp_img)                               # image is displayed
+            if not self.display_initialized:                               # case display_initialized is set False
+                print("\nDisplay initialized\n")                        # feedback is printed to the terminal
+                self.display_initialized = True                       # display_initialized is set True
 
 
 
@@ -193,13 +201,12 @@ class Display:
         
         self.disp.display(disp_img) # image is plotted to the display
 
-
-
-
+    
+    
     def test1_display(self):
         """ Test showing some text into some rectangles."""
         
-        print("\nDisplay test for 20 seconds")
+        print("Display test for 20 seconds")
         print("Display shows rectangles, text and Cubotino logo")
         
         import time
@@ -284,7 +291,7 @@ display = Display()
 
 if __name__ == "__main__":
     """the main function can be used to test the display. """
-
+    
     display.test1_display()
     display.test2_display()
     display.set_backlight(0)

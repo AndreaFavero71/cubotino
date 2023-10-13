@@ -3,8 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 05 May 2023
-#
+#  Andrea Favero, 12 October 2023
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -13,7 +12,7 @@
 #
 #  This is the core script, that interracts with few other files.
 #  Many functions of this code have been developed on 2021, for my previous robot (https://youtu.be/oYRXe4NyJqs).
-#
+#p
 #  The cube status is detected via a camera system (piCamera) and OpenCV .
 #  Kociemba solver is used foer the cube solution (from: https://github.com/hkociemba/RubiksCube-TwophaseSolver)
 #  Credits to Mr. Kociemba for his great job !
@@ -27,12 +26,15 @@
 #  - PiCamera v1.3
 #  - Numpy: 1.21.4
 #
+#  Updated for:
+#  - Raspberry Pi OS (Legacy) A port of Debian Bulleys with security updates and desktop environment
+#
 #############################################################################################################
 """
 
 
 # __version__ variable
-version = '5.1   , 05 May 2023'
+version = '6.0 (12 Oct 2023)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -85,6 +87,9 @@ parser.add_argument("--picamera_test", action='store_true',
 parser.add_argument("--no_btn", action='store_true',
                     help="Starts the first solving cycles without using the touch button")
 
+# --silent is added to the parser
+parser.add_argument("--silent", action='store_true',
+                    help="Deactivate servos, for 'quite' debug of non-servos related aspects")
 args = parser.parse_args()   # argument parsed assignement
 # ###############################################################################################
 
@@ -140,10 +145,10 @@ def import_parameters(debug=False):
         settings = update_settings_file(fname, settings)
         
         if debug:                                                 # case debug variable is set true on __main_
-            print('\nImporting settings from the text file:', fname)    # feedback is printed to the termina
+            print('\nImporting settings from the text file:', fname)    # feedback is printed to the terminal
             print('\nImported parameters: ')                      # feedback is printed to the terminal
             for parameter, setting in settings.items():           # iteration over the settings dict
-                print(Parameter,': ', setting)                    # feedback is printed to the terminal
+                print(parameter,': ', setting)                    # feedback is printed to the terminal
             print()
             
         os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
@@ -153,9 +158,6 @@ def import_parameters(debug=False):
                 print('Copy of settings parameter is saved as backup at: ', backup_fname)    # feedback is printed to the terminal
             f.write(json.dumps(settings, indent=0))                   # content of the setting file is saved in another file, as backup
             # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
-        
-        if debug:                                                     # case debug variable is set true on __main_
-            print('\nImported parameters are saved to the backup file\n') # feedback is printed to the terminal
 
         try:                                                          # tentative
             if settings['frameless_cube'].lower().strip() == 'false': # case frameless_cube parameter is a string == false
@@ -168,10 +170,6 @@ def import_parameters(debug=False):
                 print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto".\n')  # feedback is printed to the terminal
                 frameless_cube = 'auto'                               # cube with/without black frame around the facelets
             
-            camera_width_res = int(settings['camera_width_res'])      # Picamera resolution on width 
-            camera_hight_res = int(settings['camera_hight_res'])      # Picamera resolution on heigh
-            s_mode = int(settings['s_mode'])                          # camera setting mode (pixels binning)
-            kl = float(settings['kl'])                                # coff. for PiCamera stabili acceptance
             x_l = int(settings['x_l'])                                # image crop on left (before warping)
             x_r = int(settings['x_r'])                                # image crop on right (before warping)
             y_u = int(settings['y_u'])                                # image crop on top (before warping)
@@ -276,17 +274,16 @@ def import_libraries():
         These librries are imported after those needed for the display management.
         Kociemba solver is tentatively imported considering three installation/copy methods."""
     
-    global camera_set_gains, dist, PiRGBArray, PiCamera, servo, rm, GPIO, median, dt, sv, cubie, np, math, time, cv2, os
+    global servo, rm, Popen, PIPE, camera, GPIO, median, dt, sv, cubie, np, math, time, cv2, os
+    
     
     # import custom libraries
-    import Cubotino_T_set_picamera_gain as camera_set_gains  # script that allows to fix some parameters at picamera
     import Cubotino_T_servos as servo                     # custom library controlling Cubotino servos and led module
     import Cubotino_T_moves as rm                         # custom library, traslates the cuber solution string in robot movements string
 
     # import non-custom libraries
-    from picamera.array import PiRGBArray                 # Raspberry pi specific package for the camera, using numpy array
-    from picamera import PiCamera                         # Raspberry pi specific package for the camera
     from statistics import median                         # median is used as sanity check while evaluating facelets contours
+    from subprocess import Popen, PIPE                    # module for interacting with some shell commands
     import RPi.GPIO as GPIO                               # import RPi GPIO library
     import datetime as dt                                 # mainly used as timestamp, like on data logging
     import numpy as np                                    # data array management
@@ -309,7 +306,7 @@ def import_libraries():
         import solver as sv                               # import Kociemba solver copied in /home/pi/cube
         import cubie as cubie                             # import cubie Kociemba solver library part
         solver_found = True                               # boolean to track no exception on import the copied solver
-        if debug:                                         # case debug variable is set true on __main__            
+        if debug:                                         # case debug variable is set True            
             print('Found Kociemba solver copied in active folder')   # feedback is printed to the terminal
     except:                                               # exception is raised if no library in folder or other issues
         solver_found = False                              # boolean to track exception on importing the copied solver
@@ -323,7 +320,7 @@ def import_libraries():
                 import twophase.solver as sv              # import Kociemba solver copied in twophase sub-folder
                 import twophase.cubie as cubie            # import cubie Kociemba solver library part
                 solver_found = True                       # boolean to track the  import the copied solver in sub-folder
-                if debug:                                 # case debug variable is set true on __main__            
+                if debug:                                 # case debug variable is set True            
                     print('Found Kociemba solver copied in subfolder')  # feedback is printed to the terminal
             except:                                       # exception is raised if no library in folder or other issues
                 pass                                      # pass, to keep solver_found = False as it was before
@@ -333,7 +330,7 @@ def import_libraries():
             import twophase.solver as sv                  # import Kociemba solver installed in venv
             import twophase.cubie as cubie                # import cubie Kociemba solver library part
             twophase_solver_found = True                  # boolean to track no exception on import the installed solver
-            if debug:                                     # case debug variable is set true on __main__
+            if debug:                                     # case debug variable is set True
                 print('Found Kociemba solver installed')  # feedback is printed to the terminal
         except:                                           # exception is raised if no library in venv or other issues
             twophase_solver_found = False                 # boolean to track exception on importing the installed solver
@@ -459,14 +456,10 @@ def check_screen_presence():
     
     import os
     
-    if 'DISPLAY' in os.environ:                          # case the environment variable DISPLAY is set to 1 (there is a display)
-        if debug:                                        # case debug variable is set true on __main__
-            print('Display function is availbale')       # feedback is printed to the terminal
-        return True                                      # function returns true, meaning there is a screen connected
-    else:                                                # case the environment variable DISPLAY is set to 0 (there is NOT a display)
-        if debug:                                        # case debug variable is set true on __main__
-            print('Display function is not availbale')   # feedback is printed to the terminal
-        return False                                     # function returns false, meaning there is NOT a screen connected
+    if 'DISPLAY' in os.environ:                # case the environment variable DISPLAY is set to 1 (there is a display)
+        return True                            # function returns true, meaning there is a screen connected
+    else:                                      # case the environment variable DISPLAY is set to 0 (there is NOT a display)
+        return False                           # function returns false, meaning there is NOT a screen connected
 
 
 
@@ -474,46 +467,48 @@ def check_screen_presence():
 
 
 
-def webcam():
-    """ Set the camera and its resolution."""
+def get_os_version():
+    os_version = 0
+    with open('/etc/os-release', 'r') as file:
+        for row in file:
+            if "VERSION_ID" in row:
+                os_version = int(''.join(x for x in row if x.isdigit()))
+                return os_version
+    return os_version
+
+
+
+
+
+
+
+def set_camera():
+    """ Set the camera and its resolution.
+        Different libraries will be used depending on OS version (picamera on OS 10, picamera2 on OS 11)"""
+  
+#     global camera
     
-    global camera, PiRGBArray
+    os_version = get_os_version()
     
-    # PiCamera is set as camera object, with binning. Framerate range limited to 10 allows longer exposure time (when needed)
-    # higher framerate does not really speed up the cube reading process.
-
-#     s_mode = 7    #(AF 7)   # PiCamera V1.3: sensor mode 7 means 4x4 binning, 4:3, Full Field of View
-                              # PiCamera V2:   sensor mode 4 means 2x2 binning, 4:3, Full Field of View
-
-    camera = PiCamera(sensor_mode=s_mode) #, framerate_range = (1/20, 1))  
+    if os_version >0 and os_version <= 10:
+        from Cubotino_T_camera_os10 import camera
+        width = camera.get_width()
+        height = camera.get_height()
+        
+        # case cube side is zero, no request to stop the robot and not automated cycles
+        if side == 0 and not robot_stop and cycles_num == 0 and not picamera_test:
+            camera.printout()
+        
+    elif os_version >= 11:
+        from Cubotino_T_camera_os11 import camera
+        width = camera.get_width()
+        height = camera.get_height()
     
-    rawCapture = PiRGBArray(camera)        # returns (uncoded) RGB array from the camera
-    # camera_width_res = 640   #(AF 640)   # PiCamera width resolution setting (other possible values: 800 or 1088)
-    # camera_hight_res = 480   #(AF 480)  # PiCamera height resolution setting (other possible values: 544 or 720)
+    else:
+        print("Raspberry Pi OS version not recognized")
     
-    width = camera_width_res               # image width
-    height = camera_hight_res             # image height
-    camera.resolution = (width, height)    # camera's resolution is set
-    time.sleep(0.15)                       # little delay to let the camera setting
     
-    binning = camera.sensor_mode           # PiCamera sensor_mode is checked
-    time.sleep(0.15)                       # little delay to let the camera setting
-    
-    if debug:                                      # case debug variable is set true on __main__
-        #  sensor_mode answer from the camera is interpreted
-        if binning <=3:                            # case the binning is <=3 it means no binning
-            binning='none'                         # binning variable is set to none
-        elif binning == 4 or binning == 5:         # case the binning is 4 or 5 it means binning 2x2
-            binning='2x2'                          # binning variable is set to 2x2
-        elif binning > 5:                          # case binning is bigger than 5 it means binning 4x4
-            binning='4x4 if PiCamera V1.3, 2x2 if V2'  # binning 4x4 when PiCamera V1.3, 2x2 when PiCamera V2
-        print('PiCamera mode (binning):', binning) # feedback is printed to the terminal
-    
-    # case cube side is zero, no request to stop the robot and not automated cycles
-    if side == 0 and not robot_stop and cycles_num == 0 and not picamera_test:
-        print('PiCamera resolution (width x height): ',camera.resolution)  # feedback is printed to the terminal
-    
-    return camera, rawCapture, width, height
+    return camera, width, height
 
 
 
@@ -530,101 +525,23 @@ def robot_camera_warmup(camera, start_time):
     To properly cover all the possible situations, this fuction releases the camera warm-up phase only after
     all the gains are stable, meaning an absolute variation < 2% from the average of last 2 seconds."""
     
-
+    PiCamera_param=()
     if not robot_stop:
-        disp.show_on_display('CAMERA', 'SETUP', fs1=25, fs2=28)  # feedback is printed to the display
-        print('\nPiCamera: waiting for AWB and Exposure gains to get stable')  # feedback is printed to the terminal
-        if debug:                              # case debug variable is set true on __main__
-            print('Camera set in auto mode')   # feedback is printed to the terminal
-        camera.exposure_mode = 'auto' # set to auto exposure at the start, to adjust according to light conditions
-        time.sleep(0.05)              # not found documentation if a delay is needed after this PiCamera setting 
-        camera.awb_mode = 'auto'      # set to auto white balance at the start, to adjust according to light conditions
-        time.sleep(0.05)              # not found documentation if a delay is needed after this PiCamera setting
-        camera.shutter_speed = 0      # set to shutter speed to auto at the start, to adjust according to light conditions
-        time.sleep(0.05)              # not found documentation if a delay is needed after this PiCamera setting
+        disp.show_on_display('CAMERA', 'SETUP', fs1=26, fs2=27)  # feedback is printed to the display
+        print('\nPiCamera: waiting for AWB and Exposure gains to get stable')  # feedback is printed to the terminal 
         
-        a_gain_list=[]                # list to store the Picamera analog gain, during warmup period
-        d_gain_list=[]                # list to store the Picamera digital gain, during warmup period
-        awb_blue_list=[]              # list to store the Picamera AWB gain, for blue, during warmup period
-        awb_red_list=[]               # list to store the Picamera AWB gain, for red, during warmup period
-        exp_list=[]                   # list to store the Picamera exposure time, during warmup period
-        t_list=[]                     # list to store the warmup progressive time of checkings
-        
-        # kl = 0.95     #(AF 0.95)    # lower koefficient to define acceptance bandwidth (95%)
-        ku = 2-kl                     # Upper koefficient to define acceptance bandwidth (105%)
-        pts = 8                       # amount of consecutive datapoints to analyse if parameters within acceptable range
-        
-        t_start=time.time()           # time reference is assigned as reference for the next task
-        
-        while time.time()-t_start <20:       # timeout for camera warm-up phase is 20 seconds
-            if robot_stop:                   # case the robot has been requested to stop
-                PiCamera_param=()            # empty tuple is assigned to PiCamera_param variable
-                return PiCamera_param        # PiCamera_param is returned
-                
-            frame, w, h = read_camera()                                 # camera start reading the cube, and adjusts the awb/exposure
-            a_gain=camera.analog_gain                                   # analog gain is inquired to the PiCamera
-            d_gain=camera.digital_gain                                  # digital gain is inquired to the PiCamera
-            awb_gains=camera.awb_gains                                  # awb blue and red gains are inquired to the PiCamera
-            exposure=camera.exposure_speed                              # exposure is inquired to the PiCamera
-            
-            a_gain_list.append(round(float(a_gain),2))                  # analog gain is appended to a list
-            d_gain_list.append(round(float(d_gain),2))                  # digital gain is appended to a list
-            awb_blue_list.append(round(float(awb_gains[0]),2))          # awb blue part gain is appended to a list
-            awb_red_list.append(round(float(awb_gains[1]),2))           # awb blue part gain is appended to a list
-            exp_list.append(exposure)                                   # exposure time (micro secs) is appended to a list
-            t_list.append(round(time.time()- t_start,2))                # time (from AWB and Exposure start adjustement) is appended to a list
-            
-            a_check=False                                               # a flag is negatively set for analog gain (being stable...)
-            d_check=False                                               # a flag is negatively set for digital gain (being stable...)
-            awb_blue_check=False                                        # a flag is negatively set for awb blue gain (being stable...)
-            awb_red_check=False                                         # a flag is negatively set for awb red gain (being stable...)
-            exp_check=False                                             # a flag is negatively set for the exposure time (being stable...)
-            
-            if len(a_gain_list) > pts:                                  # requested a minimum amount of datapoints
-                check = a_gain_list[-1]/(sum(a_gain_list[-pts:])/pts)   # last analog gain value is compared to the average of last pts points
-                if check > kl and check < ku:                           # if comparison within acceptance boundaries
-                    a_check=True                                        # flag is positively set for this gain
-
-                check = d_gain_list[-1]/(sum(d_gain_list[-pts:])/pts)   # last digital gain value is compared to the average of last pts points
-                if check > kl and check < ku:                           # if comparison within acceptance boundaries
-                    d_check=True                                        # flag is positively set for this gain               
-            
-                check = awb_blue_list[-1]/(sum(awb_blue_list[-pts:])/pts) # last awb_blue gain is compared to the average of last pts points
-                if check > kl and check < ku:                           # if comparison within acceptance boundaries
-                    awb_blue_check=True                                 # flag is positively set for this gain    
-                    
-                check = awb_red_list[-1]/(sum(awb_red_list[-pts:])/pts) # last awb_red gain is compared to the average of last pts points
-                if check > kl and check < ku:                           # if comparison within acceptance boundarie
-                    awb_red_check=True                                  # flag is positively set for this gain
-                
-                check = exp_list[-1]/(sum(exp_list[-pts:])/pts)         # last exposure time is compared to the average of last pts points
-                if check > kl and check < ku:                           # if comparison within acceptance boundarie
-                    exp_check=True                                      # flag is positively set for the exposure time                
-         
-                if a_check and d_check and awb_blue_check and awb_red_check and exp_check: # if all gains are stable
-                    PiCamera_param=(a_gain, d_gain, awb_gains, exposure)  # latest parameters returned by the PiCamera are assigned to a tuple
-                    break                                                 # camera warmup while loop cab be break
-
-            if screen and not robot_stop:            # case screen variable is set true on __main__
-                if fixWindPos:                       # case the fixWindPos variable is chosen
-                    cv2.namedWindow('cube')          # create the cube window
-                    cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
-                cv2.imshow('cube', frame)            # shows the frame 
-                cv2.waitKey(1)                       # refresh time is minimized to 1ms  
-        
-        print(f'PiCamera: AWB and Exposure being stable in {round(t_list[-1],1)} secs')
-        if screen:                                        # case screen variable is set true on __main__
-            if debug:                                     # case debug variable is set true on __main__
-                print('\nPiCamera warmup function:')      # feedback is printed to the terminal
-                print('Analog_gain_list',a_gain_list)     # feedback is printed to the terminal
-                print('Digital_gain_list',d_gain_list)    # feedback is printed to the terminal
-                print('Awb_blue_list',awb_blue_list)      # feedback is printed to the terminal
-                print('Awb_red_list',awb_red_list)        # feedback is printed to the terminal
-                print('Camera exp_list', exp_list)        # feedback is printed to the terminal
-                print('Time:', t_list)                    # feedback is printed to the terminal
-                print('Datapoints:', len(t_list))         # feedback is printed to the terminal
-        
-        disp.clean_display()                              # cleans the display
+        frame, w, h = read_camera()              # camera start reading the cube, and adjusts the exposure
+        if screen:                               # case screen variable is set true on __main__
+            if fixWindPos:                       # case the fixWindPos variable is chosen
+                cv2.namedWindow('cube')          # create the cube window
+                cv2.moveWindow('cube', 0,0)      # move the window to (0,0)
+            for i in range(5):
+                cv2.imshow('cube', frame)        # shows the frame 
+                cv2.waitKey(200)                 # refresh time is minimized to 1ms
+        else:
+            time.sleep(0.5)
+    
+        PiCamera_param = camera.is_stable(debug)
     
     return PiCamera_param
 
@@ -643,65 +560,58 @@ def robot_consistent_camera_images(camera, PiCamera_param, start_time):
     if robot_stop:        # case the robot has been requested to stop
         return            # function is terminated
     
-    disp.show_on_display('MEASURING', 'EXPOSURE', fs1=18, fs2=20)    # feedback is printed to the display
+    disp.show_on_display('MEASURING', 'EXPOSURE', fs1=18, fs2=21)    # feedback is printed to the display
     
     a_gain = PiCamera_param[0]                          # analog gain picamera setting when warmup got stable
     d_gain = PiCamera_param[1]                          # digital gainpicamera setting when warmup got stable
     awb_gains = PiCamera_param[2]                       # AutoWhiteBalance gain picamera setting when warmup got stable
+    camera.set_gains(debug, a_gain, d_gain, awb_gains)  # camera gains are set fix, by passing the warmup values
     
     if not robot_stop:                                  # case of no request to stop the robot
         print('\nPiCamera: Reading the exposure time on four cube sides')  # feedback is printed to the terminal
-        if debug:                                       # case debug variable is set true on __main__
-            print('Camera awb set off')                 # feedback is printed to the terminal
     
-    camera.awb_mode = 'off'                             # sets white balance off
-    time.sleep(0.05)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
-    camera.awb_gains = awb_gains                        # sets AWB gain to PiCamera, for consinsent images 
-    time.sleep(0.05)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
-    camera_set_gains.set_analog_gain(camera, a_gain)    # sets analog gain to PiCamera, for consinsent images
-    time.sleep(0.05)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
-    camera_set_gains.set_digital_gain(camera, d_gain)   # sets digital gain to PiCamera, for consinsent images
-    time.sleep(0.05)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
-    camera.shutter_speed = 0      # set the shutter speed to auto at the start, to adjust according to light conditions
-    time.sleep(0.05)                                     # small (arbitrary) delay after setting a new parameter to PiCamera
-
-    
-    # PiCamera exposure is inquired to PiCaera on 4 cube sides reachable via a simple cube flip, to later fix an average exposure time
+    # PiCamera exposure is inquired to PiCamera on 4 cube sides reachable via a simple cube flip, to later fix an average exposure time
     exp_list=[]                                         # list to store the Picamera exposure time, for the first 4 faces
-    exp_list.append(camera.exposure_speed)              # read picamera exposure time (microsec) on first face
+    time.sleep(0.3)
+    exp_list.append(camera.get_exposure())              # read picamera exposure time (microsec) on first face
     
     for i in range(3):                                  # iterate over the next 3 faces reachable via a single cube flip    
         robot_to_cube_side(1,cam_led_bright)            # flipping the cube, to reach the next side 
+#         time.sleep(0.3)
         if screen and not robot_stop:                   # case screen variable is set true on __main__
-            frame, w, h = read_camera()                 # camera start reading the cube, and adjusts the awb/exposure
+            frame, w, h = read_camera()                 # camera start reading the cube, and adjusts the exposure
             if fixWindPos:                              # case the fixWindPos variable is chosen
                 cv2.namedWindow('cube')                 # create the cube window
                 cv2.moveWindow('cube', 0,0)             # move the window to (0,0)
-            cv2.imshow('cube', frame)                   # shows the frame 
-            cv2.waitKey(300)                            # refresh time of 0.3s, used for camera exposure reading
+            for i in range(5):                          # iteration
+                cv2.imshow('cube', frame)               # shows the frame 
+                cv2.waitKey(60)                         # tot refresh time of 0.3s, used for camera exposure reading
         elif not screen and not robot_stop:             # case there are no screen connected     
-            time.sleep(0.1)                             # small (arbitrary) delay before reading the exposure time at PiCamera
-        exp_list.append(camera.exposure_speed)          # read picamera exposure time (microsec) on the face i+1
+            time.sleep(0.3)                             # small (arbitrary) delay before reading the exposure time at PiCamera
+        exp_list.append(camera.get_exposure())          # read picamera exposure time (microsec) on the face i+1
     
     robot_to_cube_side(1,cam_led_bright)                # flipping the cube, to reach the 1st face to be scanned
-    shutter_time = int(sum(exp_list)/len(exp_list))     # set the shutter time to the average exposure time of UBDF faces
-    camera.shutter_speed = shutter_time                 # sets the shutter time to the PiCamera, for consinstent images
-    time.sleep(0.05)                                    # small (arbitrary) delay after setting a new parameter to PiCamera 
+    shutter_time = int(sum(exp_list)/len(exp_list))     # average exposure time of UBDF faces
+    camera.set_exposure(shutter_time)                   # sets the shutter time to the PiCamera, for consistent images
+    t_ref = time.time()
+    while time.time()-t_ref < 1:
+        exposure = camera.get_exposure()                # read picamera exposure time (microsec)
+        if abs(exposure-shutter_time) < 0.05*shutter_time:
+            break
     
     if screen:
         print(f'Exposure time measured on 4 cube sides, in: {round(time.time()-start_time,1)} secs')# feedback is printed to the terminal
     
-    if debug:                                                   # case debug variable is set true on __main__
-        print('\nExposure time on UBDF faces : ', exp_list)     # feedback is printed to the terminal
-        print('\nAverage exposure time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
-        print('Shutter_speed time set by PiCamera: ',camera.shutter_speed, ' micro secs')    # feedback is printed to the terminal
-        print('\nPiCamera parameters, for consistent images, are set to:')                   # feedback is printed to the terminal
-        print('Analog_gain:',round(float(a_gain),2))      # feedback is printed to the terminal
-        print('Digital_gain:',round(float(d_gain),2))     # feedback is printed to the terminal
-        print('Awb_mode:', camera.awb_mode)               # feedback is printed to the terminal
-        print('Awb_blue:',round(float(awb_gains[0]),2))   # feedback is printed to the terminal
-        print('Awb_red:',round(float(awb_gains[1]),2))    # feedback is printed to the terminal
-        print(f'Camera shutter_speed (0=auto): {shutter_time} micro secs, as average measured on UBDF sides') # feedback is printed to the terminal
+    if debug:                                             # case debug variable is set True
+        print('\nexposure time on UBDF faces : ', exp_list)  # feedback is printed to the terminal
+        print('\naverage exposure time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
+        print('shutter_speed time set by PiCamera: ', camera.get_exposure(), ' micro secs')    # feedback is printed to the terminal
+        print('\nPiCamera parameters, for consistent images, are set to:')    # feedback is printed to the terminal
+        print('analog_gain:',round(float(a_gain),2))      # feedback is printed to the terminal
+        print('digital_gain:',round(float(d_gain),2))     # feedback is printed to the terminal
+        print('awb_blue:',round(float(awb_gains[0]),2))   # feedback is printed to the terminal
+        print('awb_red:',round(float(awb_gains[1]),2))    # feedback is printed to the terminal
+        print(f'camera shutter_speed (0=auto): {shutter_time} micro secs, as average measured on UBDF sides') # feedback is printed to the terminal
     
     disp.clean_display()   # cleans the display
 
@@ -714,11 +624,13 @@ def read_camera():
     """ Returns the camera reading, and dimensions."""
     
     global previous_time
-
-    camera.capture(rawCapture, format='bgr')                      # bgr is the picamera format directly compatible with CV2
-    frame = rawCapture.array                                      # picamera array allows usgae of numpy array
+    
+    frame = camera.get_frame()                                    # single frame array request to camera Class
+    width = camera.get_width()                                    # camera width request to camera Class
+    height = camera.get_height()                                  # camera height request to camera Class
+    
     if len(frame)==0:                                             # case the frame is empty
-        print('Webcam frame not available')                       # feedback is print to the terminal
+        print('camera frame not available')                       # feedback is print to the terminal
     
     else:                                                         # case the frame is not empty
         if not picamera_test:                                     # case picamera_test is false
@@ -727,13 +639,10 @@ def read_camera():
             scale = 0.75 if cv_wow else 0.8                       # scaling factor according to cv_wow i 
             frame, w, h = frame_resize(frame, w, h, scale=scale)  # frame is resized (to smaller size), to gain some speed
         
-        elif picamera_test:                                       # case picamera_test is True:
+        elif picamera_test:                                       # case picamera_test is True (also when servos_GUI script is used):
             w = width                                             # widht is assigned to w
             h = height                                            # height is assigned to h
         
-        oneframe = True                                           # flag for a single frame analysis at the time
-        rawCapture.truncate(0)                                    # empties the array in between each camera's capture      
-
         return frame, w, h
 
 
@@ -1063,7 +972,7 @@ def read_facelets(frame, w, h):
     global prev_side
  
     if side!=prev_side:                           # case the current side differs from the previous side
-        if debug:                                 # case debug variable is set true on __main__
+        if debug:                                 # case debug variable is set True
             print()                               # print an empty line to the terminal
         print(f'Reading side {sides[side]}')      # feedback is printed to the terminal
         prev_side=side                            # current side is assigned to previous side variable
@@ -1124,7 +1033,7 @@ def get_facelets(facelets, frame, contour, hierarchy):
             cont, in_cont, out_cont = order_4points(contour_squeeze, w, h)  # vertex of each contour are ordered CW from top left
             contour_tmp = [cont]                                          # list is made with the ordered detected contour
             frame = cv2.drawContours(frame, contour_tmp, -1, (255, 255, 255), 1)  # a white polyline is drawn on the contour (1 px thickness)
-            if debug:                                                     # case debug variable is set true on __main__
+            if debug:                                                     # case debug variable is set True
                 # a white circle is drawn on the 1st vertex (top left), as visual check of proper vertices ordering
                 frame = cv2.circle(frame, (contour_tmp[0][0][0],contour_tmp[0][0][1]), 5, (255, 255, 255), -1)
             contour_tmp = [out_cont]                                      # list is made with the ordered outer contour
@@ -1275,12 +1184,16 @@ def estimate_facelets(facelets, frame, w, h):
             x=2                                       # 2 (as column 2) is assigned
         elif cx[i]>x_high-dist:                       # case the facelet contour center x coordinate is on third grid column
             x=3                                       # 3 (as column 3) is assigned
-        if cy[i]<y_low+dist:                          # case the facelet contour center x coordinate is on first grid row                          
+        else:                                         # case the facelet contour center x coordinate does not fit columns
+            x = 0                                     # zero is assigned
+        if cy[i]<y_low+dist:                          # case the facelet contour center y coordinate is on first grid row                          
             y=1                                       # 1 (as row 1) is assigned
-        elif cy[i]>y_low+dist and cy[i]<y_high-dist:  # case the facelet contour center x coordinate is on second grid row
+        elif cy[i]>y_low+dist and cy[i]<y_high-dist:  # case the facelet contour center y coordinate is on second grid row
             y=2                                       # 2 (as row 2) is assigned
-        elif cy[i]>y_high-dist:                       # case the facelet contour center x coordinate is on third grid row
+        elif cy[i]>y_high-dist:                       # case the facelet contour center y coordinate is on third grid row
             y=3                                       # 3 (as row 3) is assigned
+        else:                                         # case the facelet contour center y coordinate does not fit rows
+            y = 0                                     # zero is assigned
         detected.append(facelet_grid_pos(x, y))       # list with facelet number is populated
     
     s = set(detected)                                        # list with detected facelets numbers is transformed to set
@@ -1372,10 +1285,10 @@ def area_deviation(data, min_area, max_area):
         delta_area=abs((area_list[i]-area_median)/area_median)  # area deviation from the median
         if delta_area > delta_area_limit:                       # filter on area deviating more than threshold
             to_exclude.append(i)                                # list of the contours to exclude is populated
-            if debug:                                           # case debug variable is set true on __main__
+            if debug:                                           # case debug variable is set True
                 print('Removed contour with area: ',area_list[i], " having delta_area of:",delta_area) # feedback is printed to the terminal
 
-    if debug:                                                   # case debug variable is set true on __main__
+    if debug:                                                   # case debug variable is set True
         if len(to_exclude)==0 and len(area_list)>=9:            # case all the face facelets have been detected
             if side == 1:                                       # case the face is the first one (U)
                 print("Acceptable facelets area from min:",min_area, ",  to max:", max_area, ", with max area_delta <=", delta_area_limit)
@@ -1518,7 +1431,7 @@ def cube_colors_interpr(BGR_detected):
         hsv = cv2.cvtColor( np.array([[[BGR[0],BGR[1],BGR[2]]]], dtype=np.uint8), cv2.COLOR_BGR2HSV)   # HSV color space
         HSV_detected[i]=(hsv[0][0][0],hsv[0][0][1],hsv[0][0][2])                                       # HSV tuple 
 
-    if debug:                                         # case debug variable is set true on __main__
+    if debug:                                         # case debug variable is set True
         print(f'\nBGR_detected: {BGR_detected}')      # feedback is printed to the terminal
         print(f'\nHSV: {HSV_detected}')               # feedback is printed to the terminal
 
@@ -1606,7 +1519,7 @@ def cube_colors_interpr(BGR_detected):
     #step 10: function to get the color (sides) order, list of colored center's facelets and white center facelet
     # this depends on the cube orientation when dropped on the robot
     cube_color_sequence, HSV_analysis = retrieve_cube_color_order(VS_value, Hue)  # call to the specific function
-    if debug:                                                   # case debug variable is set true on __main__
+    if debug:                                                   # case debug variable is set True
         print(f'\nCube_color_sequence: {cube_color_sequence}')  # feedback is printed to the terminal
     
     return cube_status, HSV_detected, cube_color_sequence, HSV_analysis
@@ -1626,7 +1539,7 @@ def retrieve_cube_color_order(VS_value,Hue):
     centers=[4, 13, 22, 31, 40, 49]                        # facelets of the cube's sides centers 
     cube_color_sequence=[4, 13, 22, 31, 40, 49]            # list of center facelets, to later store the cube's side COLORS
     
-    if debug:                                              # case debug variable is set true on __main__
+    if debug:                                              # case debug variable is set True
         print(f'\nHue centers: {Hue[centers[0]]}, {Hue[centers[1]]}, '\
               f'{Hue[centers[2]]}, {Hue[centers[3]]}, {Hue[centers[4]]}, {Hue[centers[5]]}') # feedback is printed to the terminal
     
@@ -1645,14 +1558,14 @@ def retrieve_cube_color_order(VS_value,Hue):
         centers.remove(white_center)          # white facelet is removed from the list of center's facelets
     except:                                   # exception is raised if there are more white centers, in case of a bad color detection
         HSV_analysis=False                    # analysis according to HSV is set False
-        if debug:                             # case debug variable is set true on __main__
+        if debug:                             # case debug variable is set True
             print('\nIssue with the white_center')   # feedback is printed to the terminal
     
     try:
         centers.remove(yellow_center)         # yellow facelet is removed from the list of center's facelets
     except:                                   # exception is raised if there are more yellow centers, in case of a bad color detection
         HSV_analysis=False                    # analysis according to HSV is set False
-        if debug:                             # case debug variable is set true on __main__
+        if debug:                             # case debug variable is set True
             print('\nIssue with the yellow_center')    # feedback is printed to the terminal
        
     
@@ -1674,14 +1587,14 @@ def retrieve_cube_color_order(VS_value,Hue):
         centers.remove(red_center)            # red facelet is removed from the list of center's facelets
     except:                                   # exception is raised if there are more red centers, in case of a bad color detection
         HSV_analysis=False                    # analysis according to HSV is set False
-        if debug:                                   # case debug variable is set true on __main__
+        if debug:                                   # case debug variable is set True
             print('\nIssue with the red_center')    # feedback is printed to the terminal
     
     try:
         centers.remove(orange_center)         # orange facelet is removed from the list of center's facelets
     except:                                   # exception is raised if there are more orange centers, in case of a bad color detection
         HSV_analysis=False                    # analysis according to HSV is set False
-        if debug:                             # case debug variable is set true on __main__
+        if debug:                             # case debug variable is set True
             print('\nIssue with the orange_center')   # feedback is printed to the terminal
 
 ################ DEBUG  #########
@@ -1743,7 +1656,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         VS_value[i]=int(V)-int(S)                 # V-S (value-Saturation) delta value for all the facelet, populates the related dict
         Hue[i]=int(H)                             # Hue, for all the facelets, populates the related dict
         i+=1                                      # iterator index is increased
-    if debug:                                     # case debug variable is set true on __main__
+    if debug:                                     # case debug variable is set True
         print('\nV-S_values: ', VS_value)         # feedback is printed to the terminal
         print(f'\nHue: ', Hue )                   # feedback is printed to the terminal
     
@@ -1758,14 +1671,14 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         centers.remove(white_center)                                 # white facelet center is removed from the list of facelets centers
         colored_centers=centers                                      # colored centers (without the white)
         
-        if debug:                                                    # case debug variable is set true on __main__
+        if debug:                                                    # case debug variable is set True
             
             print('\nWhite facelet number: ', white_center)          # feedback is printed to the terminal
             print('\nCube_color_sequence: ', cube_color_sequence)    # feedback is printed to the terminal
         
         # searching all the 9 white facelets
         Hw,Sw,Vw=HSV_detected[white_center]                              # HSV of the white center
-        if debug:                                                        # case debug variable is set true on __main__
+        if debug:                                                        # case debug variable is set True
             print(f'White Hw,Sw,Vw: {Hw}, {Sw}, {Vw}')                   # feedback is printed to the terminal
             print('Colored center facelets numbers: ', colored_centers)  # feedback is printed to the terminal
 
@@ -1784,7 +1697,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         key_ordered_by_VSdelta = [x for x in VSdelta_ordered.keys()]    # list with the key of the (ordered) dict is generated
         white_facelets_list=key_ordered_by_VSdelta[-9:]                 # white facelets have the biggest H-S value, therefore are the last 9
 
-        if debug:                                                       # case debug variable is set true on __main__
+        if debug:                                                       # case debug variable is set True
             print('White facelets: ', white_facelets_list)              # feedback is printed to the terminal
             print('\nHue dict all facelets ', Hue)                      # feedback is printed to the terminal
         
@@ -1800,7 +1713,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
                 print('Issue at cube_colors_interpr_HSV function')  # feedback is printed to the terminal
                 break                                      # for loop is interrupted
         
-        if debug:                                                 # case debug variable is set true on __main__
+        if debug:                                                 # case debug variable is set True
             print('\nHue dict colored facelets ', Hue)            # feedback is printed to the terminal
         
         # facelet's color selection by Hue distance from each center's Hue
@@ -1813,12 +1726,12 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
             Hcenters=[Hue[x] for x in colored_centers]            # list of Hue values for the colored centers
             
         except:                                                   # an exception is raised if the same color is on more centers
-            if debug:                                             # case debug variable is set true on __main__
+            if debug:                                             # case debug variable is set True
                 print('\nNot found 6 different colors at center facelets')  # feedback is printed to the terminal
             HSV_analysis=False                                    # HSV_analysis is set false
             break                                                 # for loop is interrupted
         
-        if debug:                                                 # case debug variable is set true on __main__
+        if debug:                                                 # case debug variable is set True
             print('\nHcenters (no white): ', Hcenters)            # feedback is printed to the terminal
         
         Hc_red=Hue[colored_centers[cube_color_sequence_no_white.index('red')]]     # Hue value for the red center facelet
@@ -1857,14 +1770,14 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
             cube_status_URFDLB={}                                                          # dict with cube status using conventional colors
             for i, color in enumerate(cube_status_detected.values()):                      # iteration on dict with detected colors
                 cube_status_URFDLB[i]=std_cube_color[cube_color_sequence.index(color)]     # colors are exchanged, and assigned to the dict for solver
-            if debug:                                                                      # case debug variable is set true on __main__
+            if debug:                                                                      # case debug variable is set True
                 print('\nCube_status_detected_colors: ', cube_status_detected)             # feedback is printed to the terminal
                 print('\nCube_status_conventional_colors: ', cube_status_URFDLB, '\n')     # feedback is printed to the terminal
             break    # this break quits the while loop (HSV_analysis == True), as the analysis is finally completed 
             
         elif cube_color_sequence == std_cube_color:                                        # case the cube is oriented on the robot as per std URFDLB color
             cube_status_URFDLB = cube_status_detected                                      # detected cube staus is assigned to the URFDLB one
-            if debug:                                                                      # case debug variable is set true on __main__
+            if debug:                                                                      # case debug variable is set True
                 print('\nCube colors and orientation according to URFDLB order')           # feedback is printed to the terminal
                 print('\nCube_status_detected_colors: ', cube_status_detected, '\n')       # feedback is printed to the terminal
             break    # this break quits the while loop (HSV_analysis == True), as the analysis is finally completed 
@@ -2086,8 +1999,11 @@ def scrambling_cube():
     global robot_idle  
     
     robot_idle = False              # robot is not anymore idling
+    
     disp.show_on_display('CUBE', 'SCRAMBLING', fs1=28, fs2=17)  # feedback is printed on the display
-    time.sleep(1)                   # little delay, to let user reading the screen
+    if not silent:                  # case silent variable is set False
+        servo.open_cover()          # top servo is moved to open position
+    time.sleep(0.2)                 # little delay, to let user reading the screen
     start_time = time.time()        # current time 
     cc = cubie.CubieCube()          # cube in cubie reppresentation
     cc.randomize()                  # randomized cube in cubie reppresentation 
@@ -2103,7 +2019,8 @@ def scrambling_cube():
         robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, scrambling=True) # movements to the robot are finally applied
     
     if not robot_stop:              # case there are not request to stop the robot
-        servo.read()                # top cover positioned to have the PiCamera in read position
+        if not silent:              # case silent variable is set False
+            servo.read()            # top cover positioned to have the PiCamera in read position
         servo.cam_led_test()        # the led on top_cover is shortly activated once the scrambilng is done
     
     
@@ -2118,7 +2035,8 @@ def scrambling_cube():
                 disp.clean_display()    # cleans the display
                 disp.__init__()         # display is re-initilized (not elegant, yet it removes random issues at robot stop)
                 disp.set_backlight(1)   # display backlight is turned on, in case it wasn't
-                servo.servo_start_pos(start_pos='read') # servos are placed back to their start position
+                if not silent:          # case silent variable is set False
+                    servo.servo_start_pos(start_pos='read') # servos are placed back to their start position
             
 
             # cube status inspection time, with countdown time visualization
@@ -2132,9 +2050,11 @@ def scrambling_cube():
                     disp.show_on_display(left_time_str, 'INSPECT. TIME', fs1=29, fs2=15)  # feedback is printed to the display
                     time.sleep(0.2)     # small delay to limit CPU usage
                 else:                   # case left time is bigger than zero
-                    servo.open_cover()  # top servo is moved to open position
+                    if not silent:      # case silent variable is set False
+                        servo.open_cover()  # top servo is moved to open position
                     servo.cam_led_test()  # makes a very short led test
-                    servo.read()        # top servo is moved to read position
+                    if not silent:      # case silent variable is set False
+                        servo.read()    # top servo is moved to read position
                     break               # while loop is interrupted
             
             
@@ -2244,15 +2164,17 @@ def decoration(deco_info):
     if not os.path.exists(folder):                       # if case the folder does not exist
         os.makedirs(folder)                              # folder is made if it doesn't exist
     fname = folder+'/cube_collage'+timestamp+'.png'      # folder+filename with timestamp for the resume picture
-    if debug:                                            # case debug variable is set true on __main__
+    if debug:                                            # case debug variable is set True
         print('Unfolded cube status image is saved : ', fname) # feedback is printed to the terminal
     status=cv2.imwrite(fname, collage)                   # cube sketch with detected and interpred colors is saved as image
     
     if screen and not robot_stop:                        # case screen variable is set true on __main__
         cv2.namedWindow('cube_collage')                  # create the collage window
-        cv2.moveWindow('cube_collage', 0,0)              # move the collage window to (0,0)
-        cv2.imshow('cube_collage', collage)              # while the robot solves the cube the starting status is shown
-        cv2.waitKey(int(show_time*1000))                 # showtime is trasformed to seconds 
+        for i in range(5):                               # iteration
+            cv2.moveWindow('cube_collage', 0,0)          # move the collage window to (0,0)
+            cv2.imshow('cube_collage', collage)          # collage (starting cube status) is shown
+            cv2.waitKey(100)                             # showtime of 100ms per iteration
+        cv2.waitKey(int(show_time*1000))                 # showtime in secs is trasformed to milliseconds 
         try:
             cv2.destroyWindow('cube_collage')            # cube_collage window is closed after the show_time
         except:
@@ -2515,7 +2437,7 @@ def read_color(frame, facelets, candidates, BGR_mean, H_mean, wait=20, index=0):
         
         # a progressive facelet numer, 1 to 9, is placed over the facelets
         # the facelet order is the one from camera point of view, therefore before re-ordering according to user POV
-        if debug:                                             # case debug variable is set true on __main__
+        if debug:                                             # case debug variable is set True
             cv2.putText(frame, str(index+1), (int(facelet.get('cx'))-12, int(facelet.get('cy'))+6), font, fontScale,(0,0,0),lineType)
             
         index+=1
@@ -2579,7 +2501,7 @@ def face_image(frame, facelets, side, faces):
 
     
     # text over the cube face's images, for debug purpose
-    if debug:                                # case debug variable is set true on __main__
+    if debug:                                # case debug variable is set True
         text_x = Ax + int(0.2*(Cx-Ax))       # X coordinate for the text starting location
         text_y = int((Ay+Cy)/1.8)            # Y coordinate for the text starting location
         fontscale_coef = (Cx-Ax)/150         # coefficient to adapt the text size to almost fit the cube
@@ -2608,40 +2530,42 @@ def robot_to_cube_side(side, cam_led_bright):
     
     if side==0:                                  # case side equals zero (used for preparing the next steps)
         if not robot_stop:                       # case there are not request to stop the robot
-            servo.read()                         # top cover positioned to have the PiCamera in read position
+            if not silent:                       # case silent variable is set False
+                servo.read()                     # top cover positioned to have the PiCamera in read position
             servo.cam_led_On(cam_led_bright)     # led on top_cover is switched on 
         
     elif side in (1,2,3):                        # first 4 sides (3 sides apart the one already in front of the camera)
         servo.cam_led_Off()                      # led on top_cover is switched off, for power management
-        if not robot_stop:                       # case there are not request to stop the robot
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.flip()                         # are reached by simply flipping the cube
             servo.cam_led_On(cam_led_bright)     # led on top_cover is switched on 
     
     elif side == 4 :                             # at side 4 is needed to change approach to show side 5 to the camera
         servo.cam_led_Off()                      # led on top_cover is switched off, for power managements
-        if not robot_stop:                       # case there are not request to stop the robot
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.spin_out('CW')                 # one spin (90 deg CW) is applied to the cube
             time.sleep(0.1)
-        if not robot_stop:                       # case there are not request to stop the robot
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.flip()                         # one flip is applied to the cube to bring the side 5 on top
             time.sleep(0.1)
-        if not robot_stop:                       # case there are not request to stop the robot
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.spin_home()                    # spin back home is applied to the cube to show the side 5 to the camera
             time.sleep(0.1)
-        if not robot_stop:                       # case there are not request to stop the robot
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.read()                         # top cover positioned to have the PiCamera in read position
             servo.cam_led_On(cam_led_bright)     # led on top_cover is switched on
             
     elif side == 5 :                             # when side5 is in front of the camera
         servo.cam_led_Off()                      # led on top_cover is switched off, for power management
         for i in range(2):                       # at side 5 are needed two flips to show side 6 to the camera
-            if not robot_stop:                   # case there are not request to stop the robot
+            if not robot_stop and not silent:    # case there are not request to stop the robot nor to silentthe servos
                 servo.flip()                     # cube flipping
         if not robot_stop:                       # case there are not request to stop the robot
             servo.cam_led_On(cam_led_bright)     # led on top_cover is switched on
   
     elif side == 6 :                             # case side equal 6 (it is when the cube has been fully scanned)
-        servo.open_pos()                         # top_cover is positioned to open position
+        if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
+            servo.open_pos()                     # top_cover is positioned to open position
         servo.cam_led_Off()                      # led on top_cover is switched off
                            
 
@@ -2662,7 +2586,12 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, s
     
     if not scrambling:                # case the robot is used to solve a cube
         print()                       # print an empty row
-    robot_status, robot_time = servo.servo_solve_cube(robot_moves, scrambling, print_out=debug)   # robot solver is called
+    
+    if not silent:                    # case silent variable is set False
+        robot_status, robot_time = servo.servo_solve_cube(robot_moves, scrambling, print_out=debug)   # robot solver is called
+    else:                             # case silent variable is set True
+        robot_status = 'Servos_disabled' # string indicating the robot status
+        robot_time = 1000             # robot_time set to 1000, clearly different from robot usual time
         
     if solution_Text == 'Error':      # if there is an error (tipicallya bad color reading, leading to wrong amount of facelets per color)                                      
         print('An error occured')                              # error feedback is print at terminal
@@ -2679,7 +2608,8 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, s
                                                                         total_robot_moves)  # cube solved function is called
             disp.show_on_display('CUBE', 'SOLVED !', y1=22, fs1=36)     # feedback is printed to the display 
             if total_robot_moves != 0:                         # case the robot had to move the cube to solve it
-                servo.fun(print_out=debug)                     # cube is rotated CW-CCW for few times, as victory FUN 'dance'
+                if not silent:                                 # case silent variable is set False
+                    servo.fun(print_out=debug)                 # cube is rotated CW-CCW for few times, as victory FUN 'dance'
             
             fs_row1 = 31 if tot_robot_time >=100 else 35       # font size for display first row
             fs_row2 = 28 if robot_solving_time >=100 else 31   # font size for display second row
@@ -2727,8 +2657,9 @@ def text_font():
 
 
 def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_sequence, HSV_analysis, URFDLB_facelets_BGR_mean,
-                        font, fontScale, lineType, show_time, timestamp, solution, solution_Text, color_detection_winner,
-                        cube_status_string, BGR_mean, HSV_detected, start_time, camera_ready_time, cube_detect_time, cube_solution_time):
+                    font, fontScale, lineType, show_time, timestamp, solution, solution_Text, color_detection_winner,
+                    cube_status_string, BGR_mean, HSV_detected, start_time, camera_ready_time, cube_detect_time,
+                    cube_solution_time, os_version):
     
     """ Sequence of commands involving the robot, after the cube status detection
     Within this function the robot is called to solve the cube.
@@ -2762,7 +2693,7 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
         
         # some relevant info are logged into a text file
         log_data(timestamp, facelets_data, cube_status_string, solution, color_detection_winner, tot_robot_time, \
-                 start_time, camera_ready_time, cube_detect_time, cube_solution_time, robot_solving_time)
+                 start_time, camera_ready_time, cube_detect_time, cube_solution_time, robot_solving_time, os_version)
         
         deco_info = (fixWindPos, screen, frame, faces, cube_status, cube_color_sequence,\
                      HSV_analysis, cube_status_string, URFDLB_facelets_BGR_mean, \
@@ -2771,8 +2702,9 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
         
     else:                          # case there is a request to stop the robot
         tot_time_sec = 0           # robot solution time is forced to zero when the solving is interrupted by the stop button
-   
-    servo.servo_start_pos(start_pos='read')  # servos are placed back to their start position
+    
+    if not silent:                 # case silent variable is set False
+        servo.servo_start_pos(start_pos='read')  # servos are placed back to their start position
 
 
 
@@ -2791,7 +2723,8 @@ def robot_timeout_func():
     
     disp.show_on_display('READING', 'TIME-OUT', fs1=24)  # feedback is printed to the display
     time.sleep(5)               # time to let possible reading the display
-    servo.servo_start_pos(start_pos='read')  # top cover and cube lifter to start position
+    if not silent:              # case silent variable is set False
+        servo.servo_start_pos(start_pos='read')  # top cover and cube lifter to start position
 
     if screen:                  # case screen variable is set true on __main__
         cv2.destroyAllWindows() # all the windows are closed
@@ -2827,7 +2760,8 @@ def robot_time_to_solution(start_time, start_robot_time, total_robot_moves):
 
 
 def log_data(timestamp, facelets_data, cube_status_string, solution, color_detection_winner, \
-             tot_robot_time, start_time, camera_ready_time, cube_detect_time, cube_solution_time, robot_solving_time):
+             tot_robot_time, start_time, camera_ready_time, cube_detect_time, cube_solution_time,\
+             robot_solving_time, os_version):
     
     """ Main cube info are logged in a text file
     This function is called obly on the robot (Rpi), to generate a database of info usefull for debug and fun
@@ -2842,9 +2776,10 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
     
     fname = folder+'/Cubotino_solver_log.txt'           # folder+filename for the cube data
     if not os.path.exists(fname):                       # if case the file does not exist, file with headers is generated
-        if debug:                                       # case debug variable is set true on __main__
+        if debug:                                       # case debug variable is set True
             print('\nGenerated AF_cube_solver_log_Rpi.txt file with headers') # feedback is printed to the terminal
-   
+        
+        # headers
         a = 'Date'                                      # 1st column header
         b = 'FramelessCube'                             # 2nd column header
         c = 'ColorAnalysisWinner'                       # 3rd column header
@@ -2858,7 +2793,18 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
         l = 'CubeSolution'                              # 11th column header
         m = 'Screen'                                    # 12th column header
         n = 'Flip2close'                                # 13th column header
-        s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\t'+n+'\n'  # tab separated string of the the headers
+        o = 'OS_ver'                                    # 14th column header
+        
+        # tab separated string of the the headers
+        log_data = (a,b,c,d,e,f,g,h,i,k,l,m,n,o)        # tuple with the columns headers
+        log_data_len = len(log_data)                    # elements in tuple
+        s=''                                            # empty string is assigned to the variable s
+        for i, header in enumerate(log_data):           # interation trhough the tuple
+            s += header                                 # each header is added to the string variable s
+            if i <= log_data_len-2:                     # case the iteration has not reached the last tuple element
+                s += '\t'                               # tab separator is added to the string variable s
+            else:                                       # case the iteration has reached the last tuple element
+                s += '\n'                               # end of line character is added to the string variable s
         
         os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
         
@@ -2868,41 +2814,66 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
     
     else:                                               # case the file does exist
         with open(fname, 'r') as f:                     # file is opened, to adjust the headers in case
-            headers = f.readline().strip('\n').split('\t')  # file headers are listed
-            # latest_header = 'CubeSolution'            # latest_header used until 14/01/2023
-            # latest_header = 'Screen'                  # latest_header used until 26/04/2023
-            latest_header = 'Flip2close'                # latest_header since 16/04/2023
+            line = f.readline().strip('\n').strip('\t')  # file line without spaces nor tab characteres at line start/end
+            headers = line.split('\t')                  # file headers are listed
             
-            if headers[-1] == latest_header:            # case headers[-1] in existing log file equals latest_header
+            # last header in previous script release
+            # 'CubeSolution'                            # latest_header used until 14/01/2023
+            # 'Screen'                                  # latest_header used until 26/04/2023
+            # 'Flip2close'                              # latest_header used until 10/10/2023
+            # 'OS_ver'                                  # latest_header since 10/10/2023
+            
+            # additional headers since the first script release in a tuple (1st element is the last original header)
+            added_headers = ('CubeSolution', 'Screen', 'Flip2close', 'OS_ver')
+            
+            latest_header = added_headers[-1]           # header meant to be the latest
+            last_header = headers[-1].strip().strip('\t') # header found as last
+            
+            if last_header == latest_header:            # case last_header in existing log file equals latest_header
                 pass                                    # do nothing
             
             # updating headers from a previous script version
-            elif headers[-1] != latest_header:          # case headers[-1] in existing log file differs from latest_header
-                print(f"\nOne time action: {latest_header} column header is added to Cubotino_solver_log.txt \n")
+            elif last_header != latest_header:          # case last_header in existing log file differs from latest_header
+                print(f"\nOne time action: Adding column header(s) to Cubotino_solver_log.txt as per last script release\n")
                 new_headers = ''                        # empty string is assigned to the new_headers variable
                 for header in headers:                  # iteration over the current listed headers
                     new_headers += header + '\t'        # new_headers string with tab separated headers
                 
-                if 'Screen' in new_headers:             # case 'Screen' exists in existing headers
-                    new_headers += '\t' + latest_header + '\n' # latest_header is added to the new_headers string
-                else:                                   # case 'Screen' does not exist in existing headers
-                    new_headers += '\t' + 'Screen' + '\t' + latest_header + '\n'  # latest headers are added to the new_headers string
-                
-                with open(fname, 'r') as orig:          # Cubotino_solver_log.txt file is temporary opened as orig
-                    temp_fname = folder + '/temp.txt'   # name for a temporary file
-                    with open(temp_fname, "w") as temp: # temporary file is opened in write mode
-                        for i, data_line in enumerate(orig):  # iteration over the lines of data in orig file Cubotino_solver_log.txt
-                            if i == 0:                  # case the iteration is on the first row
-                                temp.write(new_headers) # the new_headers is written to the temporary file
-                            else:                       # case the iteration is not on the first row
-                                temp.write(data_line)   # data_line from orig file is written to temp file
+                # index of the last header used (previous script) in the new headers tupple
+                if last_header in added_headers:        # case the latest header in the original .txt file is found in the added_headers tuple
+                    last_used_header_idx  = added_headers.index(last_header)   # index of the element in tuple is assigned
+                    
+                    iterations = len(added_headers)-last_used_header_idx-1
+                    for i in range(iterations):             # iteration for the missed headers 
+                        idx = last_used_header_idx + 1 + i  # pointer for the element in added_header stuple
+                        new_headers += added_headers[idx]   # additional header, at idx position in added_headers tupple, is added
+                        print("Added header:", added_headers[idx]) # feedback is printed to the terminal
+                        if idx < iterations:                # case the iteration has not reached the last loop
+                            new_headers += '\t'             # tab separator is added to headers
+                        else:                               # case the iteration has reached the last loop
+                            new_headers += '\n'             # end of line character is added to headers
+                    print()
 
-                os.remove(fname)                        # fname file (Cubotino_solver_log.txt) is removed
-                os.rename(temp_fname, fname)            # temp file is renamed as Cubotino_solver_log.txt (now with latest headers)
+                    # writing the updated headers in the 'existing' file, requires a second temporary file
+                    with open(fname, 'r') as orig:          # Cubotino_solver_log.txt file is temporary opened as orig
+                        temp_fname = folder + '/temp.txt'   # name for a temporary file
+                        with open(temp_fname, "w") as temp: # temporary file is opened in write mode
+                            for i, data_line in enumerate(orig):  # iteration over the lines of data in orig file Cubotino_solver_log.txt
+                                if i == 0:                  # case the iteration is on the first row
+                                    temp.write(new_headers) # the new_headers is written to the temporary file
+                                else:                       # case the iteration is not on the first row
+                                    temp.write(data_line)   # data_line from orig file is written to temp file
+
+                    os.remove(fname)                        # fname file (Cubotino_solver_log.txt) is removed
+                    os.rename(temp_fname, fname)            # temp file is renamed as Cubotino_solver_log.txt (now with latest headers)
+                
+                else:   # case the latest header in the original .txt file is NOT found in the added_headers tuple
+                    print("Cannot add the additional headers to the Cubotino_solver_log.txt file")  # feedback is printed to terminal
             
-            else:    # case headers[-1] in existing log file differs from last_header and latest_header
+            else:    # case last_header in existing log file differs from last_header and latest_header
                 print("\nThere is a problem with the headers names in Cubotino_solver_log.txt")
-            
+    
+    
     # info to log
     a=str(timestamp)                                    # date and time
     b=frameless_cube                                    # frameless cube setting
@@ -2917,13 +2888,25 @@ def log_data(timestamp, facelets_data, cube_status_string, solution, color_detec
     l=str(solution)                                     # solution returned by Kociemba solver
     m='screen'if screen else 'no screen'                # screen presence or absence (it influences the cube detection time)
     n='1' if flip_to_close_one_step else '2'            # flip tp close_cover method used (1 or 2 steps)
+    o=str(os_version)                                   # os_version 
     
     # tab separated string with info to log
-    s = a+'\t'+b+'\t'+c+'\t'+d+'\t'+e+'\t'+f+'\t'+g+'\t'+h+'\t'+i+'\t'+k+'\t'+l+'\t'+m+'\t'+n+'\n'
-    
-    # 'a'means: file will be generated if it does not exist, and data will be appended at the end
+    log_data = (a,b,c,d,e,f,g,h,i,k,l,m,n,o)            # tuple with the columns data
+    log_data_len = len(log_data)                        # elements in tuple
+    s=''                                                # empty string is assigned to the variable s
+    for i, data in enumerate(log_data):                 # interation trhough the tuple
+        s += data                                       # each data is added to the string variable s
+        if i <= log_data_len-2:                         # case the iteration has not reached the last tuple element
+            s += '\t'                                   # tab separator is added to the string variable s
+        else:                                           # case the iteration has reached the last tuple element
+            s += '\n'                                   # end of line character is added to the string variable s
+
+    # 'a' means: file will be generated if it does not exist, and data will be appended at the end
     with open(fname,'a') as f:   # text file is temporary opened
         f.write(s)               # data is appended
+        
+        if debug:                # case debug variable is set True
+            print('\nData is saved in AF_cube_solver_log_Rpi.txt') # feedback is printed to the terminal
 
 
 
@@ -2935,8 +2918,8 @@ def camera_opened_check():
     """ Trivial check if camera is opened, by interrogating it on one of the settings; Funtion returns a boolean."""
 
     try:
-        binning = camera.sensor_mode    # PiCamera sensor_mode is inquired to the camera
-        if binning >= 0:                # case the returned parameter (binning) is bigger than zero
+        ret = camera.get_width()        # PiCamera width setting is inquired to the camera
+        if ret >= 0:                    # case the returned parameter (width) is bigger than zero
             return True                 # camera is opened, and true is returned
     except:                             # except is raised if camera isn't opened or does not properly reply on the inquiry
         return False                    # camera is evaluated as closed, and false is returned
@@ -2953,8 +2936,8 @@ def close_camera():
     
     try:
         camera.close()                  # necessary to close the camera to release the fix settings, like analog/digital gains
-        if debug:                       # case debug variable is set true on __main__
-            print('\nClosed camera')   # feedback is printed to the terminal
+        if debug:                       # case debug variable is set True
+            print('\nClosed camera')    # feedback is printed to the terminal
 
     except:
         pass
@@ -2965,12 +2948,11 @@ def close_camera():
 
 
 
-def robot_set_servo():
+def robot_set_servo(debug):
     """ The robot uses a couple of servos; This functions positions the servos to the start position."""
     
     # servos are initialized, and set to their starting positions
-    return servo.init_servo(start_pos = 'read', f_to_close_mode=flip_to_close_one_step) 
-
+    return servo.init_servo(debug, start_pos = 'read', f_to_close_mode=flip_to_close_one_step)
 
 
 
@@ -2995,7 +2977,8 @@ def stop_cycle(button):
             if not quit_script:                      # case the quit_script variable is False
                 disp.show_on_display('STOPPED', 'CYCLE') # feedback is printed to the display
             robot_stop = True                        # global flag to immediatly interrup the robot movements is set
-            servo.stopping_servos(print_out=debug)   # function to stop the servos    
+            if not silent:                           # case silent variable is set False
+                servo.stopping_servos(print_out=debug)   # function to stop the servos    
             time.sleep(1)
             if not quit_script:                      # case the quit_script variable is False
                 disp.show_on_display('STOPPED', 'CYCLE') # feedback is printed to the display a second time
@@ -3007,7 +2990,8 @@ def stop_cycle(button):
         if not quit_script:                          # case the quit_script variable is False
             disp.show_on_display('QUITTING', '')     # feedback is printed to the display
         robot_stop = True                            # global flag to immediatly interrup the robot movements is set
-        servo.stopping_servos(print_out=debug)       # function to stop the servos    
+        if not silent:                               # case silent variable is set False
+            servo.stopping_servos(print_out=debug)   # function to stop the servos    
         time.sleep(1)
         if not quit_script:                          # case the quit_script variable is False
             disp.show_on_display('QUITTING', '')     # feedback is printed to the display a second time
@@ -3166,7 +3150,7 @@ def start_scrambling(scramb_cycle):
     print('#############################################################################')
     print(f'########################    SCRAMBLING CYCLE  {scramb_cycle}    ##########################')
     print('#############################################################################\n')
-
+    
     scrambling_cube()           # call to the function for random cube generation
     
     if not robot_stop:          # case the robot has not been stopped
@@ -3211,8 +3195,6 @@ def start_solving(solv_cycle):
         cpu_temp(side, delay=2) # cpu temperature is verified, printed at terminal and show at display for delay time
         print(f'\n#######################    END  SOLVING CYCLE  {solv_cycle}   ##########################')
     
-    reset_camera = True         # reset_camera is set true, to reset settings of previous cycle
-    return reset_camera
 
 
 
@@ -3286,13 +3268,13 @@ def start_automated_cycle(cycle, total, cycle_pause):
 
 def show_cube(date=None, cycle=None, total=None):
     """function that activates the Top_cover led and the camera to retrieve one frame.
-        The frame is plot on a window, by adding ."""
+        The frame is plot on a window, by adding datetime as reference."""
     
-    global camera, rawCapture, width, height
+    global camera, width, height
      
     if screen:                                # case screen variable is set true on __main__
         if camera == None:                    # case the camera object does not exist
-            camera, rawCapture, width, height = webcam()  # camera object is created
+            camera, width, height = set_camera()  # camera object is created
         
         servo.cam_led_On(cam_led_bright)      # led on top_cover is switched on
         time.sleep(1)                         # little delay to let the led and camera to stabilize
@@ -3337,8 +3319,9 @@ def robot_reset():
     disp.set_backlight(1)                  # display backlight is turned on, in case it wasn't
     disp.show_on_display('ROBOT', 'RESTARTING', fs1=30, fs2=18) # feedback is printed to display
     time.sleep(2)                          # delay time to let user reading the display
-    servo.stop_release(print_out=debug)    # stop_release at servo script, to enable the servos movements
-    servo.servo_start_pos(start_pos='read')   # servos are rotated to the start position
+    if not silent:                         # case silent variable is set False
+        servo.stop_release(print_out=debug)    # stop_release at servo script, to enable the servos movements
+        servo.servo_start_pos(start_pos='read')   # servos are rotated to the start position
     robot_stop = False                     # flag used to stop or allow robot movements
     if not GPIO.input(touch_btn):          # case the button has been released
         disp.clean_display()               # cleans the display
@@ -3386,8 +3369,9 @@ def stop_or_quit():
                     print('Quitting request')             # feedback is printed to display
                     for i in range(5):                    # iteration for  5 times
                         disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
-                    servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
-                    servo.init_servo(print_out=debug)     # servos are moved to their starting positions
+                    if not silent:                        # case silent variable is set False
+                        servo.stop_release(print_out=debug)   # stop_release at servo script, to enable the servos movements
+                        servo.init_servo(print_out=debug)     # servos are moved to their starting positions
                     quit_func(quit_script=True)           # qutting function is called, with script clossure
     
     time.sleep(5)       # time to mask the button pressing time (interrupt), eventually used to quit the script
@@ -3461,7 +3445,8 @@ def quit_func(quit_script, error = False):
                     if i > 0:                     # case the cont-down is above 0
                         time.sleep(1)             # wait time to let the message visible on the display
                 if cover_self_close:              # case the cover_self_close is set True at the settings file
-                    servo.close_cover()           # top cover is closed
+                    if not silent:                # case silent variable is set False
+                        servo.close_cover()       # top cover is closed
                 time.sleep(0.5)                   # time to allow the servo reaching the close position
                 disp.set_backlight(0)             # display backlight is turned off
             except:
@@ -3603,46 +3588,45 @@ def kill_process(process, nikname):
 def test_picamera():
     """funtion to allow a quick feedback of PiCamera working fine, when the robot is not fully assembled yet."""
     
-    global PiRGBArray, PiCamera, np, time, cv2
-    global side, robot_stop, cycles_num, camera, rawCapture, width, height
+    global np, time, cv2
+    global side, robot_stop, cycles_num, camera, width, height
     
-    # import non-custom libraries
-    from picamera.array import PiRGBArray           # Raspberry pi specific package for the camera, using numpy array
-    from picamera import PiCamera                   # Raspberry pi specific package for the camera
+    # import libraries
     import numpy as np                              # data array management
     import time                                     # time package
-    import cv2                                      # computer vision package
-    
-#     import_parameters()
-    
+    import cv2                                      # computer vision package                      
     
     side = 0                                        # zero is assigned to side (variable used by webcam() function)
     cycles_num = 0                                  # zero is assigned to cycles_num (variable used by webcam() function)
     robot_stop = False                              # false is assigned to robot_stop (variable used by webcam() function)
     
-    camera, rawCapture, width, height = webcam()    # camera relevant info are returned after cropping, resizing, etc
+    camera, width, height = set_camera()            # camera relevant info are returned after cropping, resizing, etc
     frame, w, h = read_camera()                     # video stream and frame dimensions
     font, fontScale, fontColor, lineType = text_font()  # font characteristics
-#     font_size = fontScale * 80/100                  # font size is adjusted according to the frame resizing factor
+    font_k = w/640                                  # font size adjustment factor, based on frame width
     
-
+    show_time = 60
     start = time.time()                             # current time is assigned to variable start
-    show_time = 20
+    fps_start = start                               # initial time reference for FPS calculation
+    fps = 1                                         # initial value to feed the FPS low pass filter of
     while time.time()-start < show_time:            # iteration until the elapsed time is smaller than show_time
         countdown = int(show_time-(time.time()-start))  # remaining time 
         frame, w, h = read_camera()                 # video stream and frame dimensions
-        
         background_h=42                             # height of a black bandwidth used as back ground for text
         cv2.rectangle(frame, (0, 0), (w, background_h), (0,0,0), -1)    # black background bandwidth at frame top
         cv2.rectangle(frame, (0, h-background_h), (w, h), (0,0,0), -1)  # black background bandwidth at frame bottom
-        
-        cv2.putText(frame, str('PiCamera TEST in CUBOTino'), (10, 30), font, fontScale, fontColor, lineType)
+        cv2.putText(frame, f'PiCamera TEST in CUBOTino   (FPS: {fps})', (10, 30), font, fontScale*font_k, fontColor, lineType)
         text = f'Closing in {countdown} seconds,   ESC to quit earlier'
-        cv2.putText(frame, text, (10, int(h-12)), font, fontScale, fontColor, lineType)
+        cv2.putText(frame, text, (10, int(h-12)), font, fontScale*font_k, fontColor, lineType)
         cv2.imshow('PiCamera test', frame)          # shows the frame 
         key = cv2.waitKey(1)                        # refresh time is minimized (1ms), yet real time is much higher
         if key == 27 & 0xFF:                        # ESC button method to close CV2 windows
             break                                   # while loop is interrupted
+        
+        fps_end = time.time()                       # second time reference for FPS calculation
+        fps = round(0.92*fps + 0.08*(1/(fps_end-fps_start)),1)  # FPS calculation with low-pass filter
+        fps_start = fps_end                         # new initial time reference for FPS calculation
+        
     
     try:                                            # tentative
         close_camera()                              # close the camera object
@@ -3663,14 +3647,14 @@ def test_picamera():
 
 
 def tune_image_setup(display, gui_debug):
+    "function used by the GUI script for the tuning"
     
-    global PiRGBArray, PiCamera, np, time, sys, cv2
+    global np, time, sys, cv2
     global disp, debug, screen, robot_stop, picamera_test, cv_wow, Rpi_ZeroW, side, cycles_num
-    global camera, rawCapture, width, height
+    global camera
+    global width, height
     
     # import libraries
-    from picamera.array import PiRGBArray           # Raspberry pi specific package for the camera, using numpy array
-    from picamera import PiCamera                   # Raspberry pi specific package for the camera
     import numpy as np                              # data array management
     import time                                     # time package
     import sys                                      # Python Runtime Environment livrary
@@ -3679,16 +3663,18 @@ def tune_image_setup(display, gui_debug):
     disp = display                                  # display object, defined on the GUI sript
     debug = gui_debug                               # debug variable set in the GUI script
     screen = True                                   # scrren is always true when using the GUI
-    robot_stop = False                              # false is assigned to robot_stop (variable used by webcam() function)
+    robot_stop = False                              # false is assigned to robot_stop (variable used by set_camera() function)
     picamera_test = True                            # this variable helps to use limited functionality from this script
     cv_wow = False                                  # cw_wow is set false
     Rpi_ZeroW = True                                # Rpi_ZeroW is set true for larger compatibility
     import_parameters(debug)                        # imports the robot parameters (not the servo ones)
-    side = 0                                        # zero is assigned to side (variable used by webcam() function)
-    cycles_num = 0                                  # zero is assigned to cycles_num (variable used by webcam() function)
-    camera, rawCapture, width, height = webcam()    # camera is defined
+    side = 0                                        # zero is assigned to side (variable used by set_camera() function)
+    cycles_num = 0                                  # zero is assigned to cycles_num (variable used by set_camera() function)
+    camera, width, height = set_camera()            # camera is defined
     
     return cv2, camera, width, height
+
+
 
 
 
@@ -3699,7 +3685,7 @@ def start_up(first_cycle=False, set_cropping=False):
     """ Start up function, that aims to run (once) all the initial settings needed."""
     
     # global variables
-    global camera, width, height, w, h, rawCapture, camera_set_gains       # camera and frame related variables
+    global camera, width, height, w, h                    # camera and frame related variables
     global show_time, cam_led_bright                      # camera and frame related variables
     global sides, side, faces, prev_side, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables
     global timeout, detect_timeout, robot_stop                             # robot related variables
@@ -3708,9 +3694,9 @@ def start_up(first_cycle=False, set_cropping=False):
 
 
     # series of variables settings, to re-set at each cycle
-    prev_side=0                      # set the initial previous side, when the fps is calculated
+    prev_side=0                      # set the initial previous side to zero
     BGR_mean=[]                      # empty list to be filled with with 54 facelets BGR colors while reading cube status
-    H_mean=[]                        # empty list to be filled with with 54 facelets HUE values, while reading cube status
+    H_mean=[]                        # empty_ list to be filled with with 54 facelets HUE values, while reading cube status
     URFDLB_facelets_BGR_mean=[]      # empty list to be filled with with 54 facelets colors, ordered according URFDLB order
     faces={}                         # dictionary that store the image of each face
     side=0                           # set the initial cube side (cube sides are 1 to 6, while zero is used as starting for other setting)
@@ -3727,13 +3713,15 @@ def start_up(first_cycle=False, set_cropping=False):
 #         detect_timeout = 40             #(AF 40)            # timeout for the cube status detection (in secs)
 #         show_time = 7                      #(AF 7)             # showing time of the unfolded cube images (cube initial status)
         
+        if screen:                                             # case there is a screen connected
+            detect_timeout = int(1.5 * detect_timeout)         # cube status detection timeout is increased
         if cv_wow:                                             # case the cv image analysis plot is set true
-            detect_timeout = 2 * detect_timeout                # cube status detection timeout is doubled
+            detect_timeout = int(3 * detect_timeout)           # cube status detection timeout is increased
         sides={0:'Empty',1:'U',2:'B',3:'D',4:'F',5:'R',6:'L'}  # cube side order used by the robot while detecting facelets colors
         font, fontScale, fontColor, lineType = text_font()     # setting text font paramenters
-        camera, rawCapture, width, height = webcam()           # camera relevant info are returned after cropping, resizing, etc
+        camera, width, height = set_camera()                   # camera object is created
         robot_set_GPIO()                                       # GPIO settings used on the Raspberry pi
-        robot_init_status = robot_set_servo()                  # settings for the servos
+        robot_init_status = robot_set_servo(debug)             # settings for the servos
         if not robot_init_status:                              # case the servo init function returns False
             print("Error occurs at servos init")               # feedback is printed to the terminal
             disp.set_backlight(1)                              # display backlight is turned on, in case it wasn't
@@ -3742,6 +3730,7 @@ def start_up(first_cycle=False, set_cropping=False):
             disp.show_on_display('SHUTTING', 'OFF', fs1=20, fs2=28) # feedback is printed to display
             time.sleep(5)
             quit_func(quit_script=True)                        # qutting function is called, with script clossure
+
 
 
 
@@ -3758,7 +3747,7 @@ def cubeAF():
         Cube solving at robot."""
     
     # global variables
-    global camera, rawCapture, width, height, h, w, cam_led_bright, fixWindPos, screen    # camera and frame related variables          
+    global os_version, camera, width, height, h, w, cam_led_bright, fixWindPos, screen    # camera and frame related variables          
     global sides, side, prev_side, faces, BGR_mean, H_mean, URFDLB_facelets_BGR_mean      # cube status detection related variables
     global font, fontScale, fontColor, lineType                                           # cv2 text related variables
     global servo, robot_stop, robot_idle, timeout, detect_timeout                         # robot related variables
@@ -3769,7 +3758,7 @@ def cubeAF():
     
     if not camera_opened_check():                   # checks if camera is responsive
         print('\nCannot open camera')               # feedback is printed to the terminal
-        disp.show_on_display('CAMERA', 'ERROR')     # feedback is printed to the display
+        disp.show_on_display('CAMERA', 'ERROR', fs1=26, fs2=26)     # feedback is printed to the display
         time.sleep(10)                              # delay to allows display to be read
         quit_func(quit_script=True)                 # script is closed, in case of irresponsive camera
     
@@ -3850,9 +3839,9 @@ def cubeAF():
                             cv2.destroyWindow('cube')            # cube window is closed
                             show_cv_wow(frame, time = 4000 if Rpi_ZeroW else 2000)  # call the function that shows the cv_wow image
                         else:                                    # case the cv image analysis plot is set false
-                            for i in range(9):
-                                cv2.imshow('cube', frame)            # shows the frame 
-                                cv2.waitKey(1)                       # refresh time is minimized (1ms), yet real time is much higher
+                            for i in range(9):                   # iteration
+                                cv2.imshow('cube', frame)        # shows the frame 
+                                cv2.waitKey(10)                  # refresh time is minimized (1ms), yet real time is much higher
                             time.sleep(vnc_delay)                # delay for cube face change, to compensate VNC viewer delay
                     
                     robot_to_cube_side(side, cam_led_bright)     # cube is rotated/flipped to the next face
@@ -3909,16 +3898,17 @@ def cubeAF():
                         robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_seq, HSV_analysis, 
                                             URFDLB_facelets_BGR_mean, font, fontScale, lineType, show_time, timestamp,
                                             solution, solution_Text, color_detection_winner, cube_status_string, BGR_mean,
-                                            HSV_detected, start_time, camera_ready_time, cube_detect_time, cube_solution_time) 
+                                            HSV_detected, start_time, camera_ready_time, cube_detect_time,
+                                            cube_solution_time, os_version) 
                         
                         return              # closes the cube reading/solver function in case it reaches the end
                 
                 
+                # case there are less than 9 contours detected, yet shown on screen as feedback
                 if screen and not robot_stop:        # case screen variable is set true on __main__
                     cv2.imshow('cube', frame)        # shows the frame 
                     cv2.waitKey(1)                   # refresh time is minimized to 1ms, real refresh time depends on other functions
               
-        
         
         # AF_cube function closing part
         if timeout==True or robot_stop ==True:       # timeout or robot being stopped
@@ -3942,9 +3932,11 @@ if __name__ == "__main__":
         2) some general settings (if to printout debug prints, internet connection / time synchronization, if screen connected, etc)
         3) waits for user to press the button, and it starts the cube reading phase."""
     
-    global camera, rawCapture, width, height, robot_stop, robot_idle, timeout
+    global camera, width, height, robot_stop, robot_idle, timeout
     global Rpi_ZeroW, cycles_num, picamera_test, quit_script
 
+    import sys
+    
     
     ################    general settings on how the robot is operated ###############################
     debug = False           # flag to enable/disable the debug related prints
@@ -3987,7 +3979,13 @@ if __name__ == "__main__":
         if args.no_btn:               # case the Cubotino_T.py has been launched with 'no_btn' argument
             btn = False               # flag to enable/disable the button at first cycle is set False
             
-    clear_terminal()        # cleares the terminal
+    
+    silent = False                    # flag to enable/disable servos
+    if args.silent != None:           # case 'silent' argument exists
+        if args.silent:               # case the Cubotino_T.py has been launched with 'silent' argument
+            silent = True             # flag to enable/disable the servos is set True
+    
+    clear_terminal()                  # cleares the terminal
     
     print('\nGeneral settings:')            # feedback is printed to the terminal
     if debug:                               # case the debug print-out are requested
@@ -3995,13 +3993,18 @@ if __name__ == "__main__":
     else:                                   # case the debug print-out are not requested
         print(f'Debug prints not activated\n') # feedback is printed to the terminal
     
-    param_imported, settings = import_parameters() # imports the parameter from a json file
+    param_imported, settings = import_parameters(debug) # imports the parameter from a json file
     if not param_imported:                  # case the function import_parameters returns False
         quit_func(quit_script=True)         # qutting function is called, with script clossure
-    # ###############################################################################################
- 
+    # ##############################################################################################
 
 
+
+    ################    Pigpiod setting       ######################################################
+    from Cubotino_T_pigpiod import pigpiod as pigpiod # start the pigpiod server
+    # ##############################################################################################
+    
+    
     ################    Display setting       ######################################################
     from Cubotino_T_display import display as disp # sets the display object (the one on the robot)             
     disp.clean_display()                    # cleans the display
@@ -4009,7 +4012,7 @@ if __name__ == "__main__":
         
     
     
-    ################    Python version info    ######################################################
+    ################    Python version info    #####################################################
     try:                                    # tentative approach
         print(f'Python version: {sys.version}')   # print to terminal the python version
     except:                                 # case an exception is raised
@@ -4033,7 +4036,24 @@ if __name__ == "__main__":
         pass                                # no actions
     # ###############################################################################################
 
- 
+     
+    
+    ################    OS version info    ##########################################################
+    os_version = get_os_version()          # OS is checkjed
+    if os_version==10:                     # case os_version equals 10
+        print(f'Operative System found: Buster (10)') # print to terminal the OS version detected
+    elif os_version==11:                   # case os_version equals 11
+        print(f'Operative System found: Bullseye (11)')  # print to terminal the OS version detected
+    else:                                  # other cases
+        line = "#"*80
+        print('\n\n')
+        print(line)
+        print('  The detected OS is not listed on those compatible with Cubotino  ')
+        print(line)
+        print('\n\n')
+    # ###############################################################################################
+    
+    
     
     ################    screen presence, a pre-requisite for graphical   ############################
     import time
@@ -4058,11 +4078,16 @@ if __name__ == "__main__":
         if fixWindPos:                                    # case the graphical windows is forced to the top left monitor corner
             print('CV2 windows forced to top-left screen corner')    # feedback is printed to the terminal     
         
-        if flip_to_close_one_step:                        # caase the flip_to_close_one_step is set True
+        if flip_to_close_one_step:                        # case the flip_to_close_one_step is set True
             print('From Flip-Up to close_cover in one continuos movement') # feedback is printed to the terminal
-        else:                                             # caase the flip_to_close_one_step is set False
+        else:                                             # case the flip_to_close_one_step is set False
             print('From Flip-Up to close_cover in two movements') # feedback is printed to the terminal
         
+        if silent:                                        # case the silent variable is set True
+            print('Servos deactivated after init')        # feedback is printed to the terminal
+        else:                                             # case the silent variable is set False
+            print('Servos are activated')                 # feedback is printed to the terminal
+            
         if cv_wow:                                        # case the cv image analysis plot is set true
             print('CV image analysis is plot on screen')  # feedback is printed to the terminal 
         
@@ -4098,7 +4123,6 @@ if __name__ == "__main__":
     print('\nOther settings and environment status:')  # feedback is printed to the terminal
     cycles_num = 0                          # zero is assigned to the (automated) cycles_num variable
     start_up(first_cycle = True)            # sets the initial variables, in this case it is the first cycle
-    reset_camera = False                    # at the start the camera has default settings, no need to reset it
     solv_cycle = 0                          # variable to count the solving cycles per session is set to zero
     scramb_cycle = 0                        # variable to count the scrambling cycles per session is set to zero
     quit_script = False
@@ -4134,11 +4158,11 @@ if __name__ == "__main__":
         robot_idle = True                   # robot is idling
         timeout = False                     # flag used to limit the cube facelet detection time
         
-        if reset_camera:                    # case the reset_camera is set true (after a solving cycle is done or stopped)
-            close_camera()                  # this is necessary to get rid of analog/digital gains previously used
-            time.sleep(0.5)                 # little delay between the camera closing, and a new camera opening
-            camera, rawCapture, width, height = webcam()  # camera has to be re-initialized, to removes previous settings
-            start_up(first_cycle = False)   # sets the initial variables, in this case it is not the first cycle
+#         if reset_camera():                    # case the reset_camera() is set true (after a solving cycle is done or stopped)
+#             close_camera()                  # this is necessary to get rid of analog/digital gains previously used
+#             time.sleep(0.5)                 # little delay between the camera closing, and a new camera opening
+#             camera, width, height = set_camera()  # camera has to be re-initialized, to removes previous settings
+#             start_up(first_cycle = False)   # sets the initial variables, in this case it is not the first cycle
         
         while not automated:                # while automated is false: (inner) infinite loop, until 'solve' process is chosen
             if btn:                         # case the variable btn is set True (touch button enables)
@@ -4155,7 +4179,7 @@ if __name__ == "__main__":
             
             elif cycle == 'solve':          # case the chosen cycle is cube scrambling
                 solv_cycle += 1             # counter, for the number of solving cycles perfomed within a session, is incremented
-                reset_camera = start_solving(solv_cycle)  # start_solving function is called
+                start_solving(solv_cycle)  # start_solving function is called
                 break      # (inner) infinite loop is interrupted once cube solving cycle is done or stopped
       
         if automated:                           # case automated variable is true
@@ -4169,8 +4193,7 @@ if __name__ == "__main__":
                     timeout = False             # flag used to limit the cube facelet detection time       
                     close_camera()              # this is necessary to get rid of analog/digital gains previously used
                     time.sleep(0.5)             # little delay between the camera closing, and a new camera opening
-                    camera, rawCapture, width, height = webcam()  # camera has to be re-initialized, to removes previous settings
-                    start_up(first_cycle = False)  # sets the initial variables, in this case it is not the first cycle
+                    camera, width, height = set_camera()  # camera has to be re-initialized, to removes previous settings
                 
                 if i+1 == cycles_num:           # case all the cycles have been done
                     # closing the automated cycles section
@@ -4179,13 +4202,10 @@ if __name__ == "__main__":
                     print(f'\nScrambled and solved the cube {cycles_num} times\n')
                     solv_cycle = cycles_num     # cycle_num is assigned to variable counting the solving cycles manually requested
                     scramb_cycle = cycles_num   # cycle_num is assigned to variable counting the scrambling cycles manually requested
-                    reset_camera = True         # camera reset for the next (non-automated) cycle
                     
                     if args.shutoff:                  # case the --shutoff argument has been provided
                         quit_func(quit_script = True) # the script is terminated and, depending on Cubotino_T_bash.sh, it might shut the RPI off
                     else:                             # case the --shutoff argument has not been provided
                         automated = False             # automated variable is set false, robot waits for solve button commands
-                    
                 
-
-
+                start_up(first_cycle = False)  # sets the initial variables, to use the camera in manual mode
