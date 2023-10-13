@@ -90,6 +90,7 @@ if [[ "$os_version" == "10" ]]; then
     # hash for opencv for pizero seems to be bad on pywheel, bypass it for the moment. It is ok for pizero 2w
     machine=$(uname -m)
     if [ "$machine" == "armv6l" ]; then
+        apt install -y qq libqtgui4 libqt4-test
         pip3 install https://www.piwheels.org/simple/opencv-contrib-python/opencv_contrib_python-4.1.0.25-cp37-cp37m-linux_armv6l.whl
     else
         pip3 install opencv-contrib-python==4.6.0.66
@@ -109,7 +110,7 @@ if [[ "$os_version" == "10" ]]; then
 
 
 
-# ##################################### RASPBIAN 11 and 12 specific ################################
+# ##################################### RASPBIAN 11 specific #######################################
 elif [[ "$os_version" == "11" ]]; then
 
     print_header "Creating python virtual env"
