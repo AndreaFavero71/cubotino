@@ -59,27 +59,31 @@ apt -y -qq upgrade
 
 
 os_version=$(lsb_release -r | tr -cd '[[:digit:]]')
-echo -e "\n\n####################################################"
-echo "Setup proceed, based on Raspberry Pi os_version: $os_version"
-echo -e "####################################################\n\n"
+echo -e "\n\n#####################################################"
+echo "Setup proceeds, based on Raspberry Pi os_version: $os_version"
+echo -e "#####################################################\n\n"
+
 
 
 # ##################################### RASPBIAN 10 specific ######################################
+# (20231012 image) https://downloads.raspberrypi.org/raspios_oldstable_armhf/images/raspios_oldstable_armhf-2023-05-03/2023-05-03-raspios-buster-armhf.img.xz
+
 if [[ "$os_version" == "10" ]]; then
-    
+
     print_header "Removing other old packages"
     apt remove -y -qq python3-numpy python3-picamera
     apt autoremove -y
 
     print_header "Installing required packages"
     apt install -y -qq python3-rpi.gpio python3-pigpio python3-gpiozero python3-pil python3-pip python3-venv
-    apt install -y -qq libatlas-base-dev python3-h5py libjasper-runtime
+    apt install -y -qq libatlas-base-dev python3-h5py libjasper-runtime libqtgui4 libqt4-test
 
     print_header "Creating python virtual env"
     python3 -m venv .virtualenvs --system-site-packages
     source .virtualenvs/bin/activate
 
     print_header "Installing required python packages"
+    pip3 install --upgrade pip
     pip3 install numpy==1.21.4
     pip3 install "picamera[array]"
     pip3 install st7735==0.0.4.post1
@@ -90,10 +94,9 @@ if [[ "$os_version" == "10" ]]; then
     # hash for opencv for pizero seems to be bad on pywheel, bypass it for the moment. It is ok for pizero 2w
     machine=$(uname -m)
     if [ "$machine" == "armv6l" ]; then
-        apt install -y qq libqtgui4 libqt4-test
         pip3 install https://www.piwheels.org/simple/opencv-contrib-python/opencv_contrib_python-4.1.0.25-cp37-cp37m-linux_armv6l.whl
     else
-        pip3 install opencv-contrib-python==4.6.0.66
+        pip3 install opencv-contrib-python==4.4.0.46
     fi
 
     set +e
@@ -111,14 +114,19 @@ if [[ "$os_version" == "10" ]]; then
 
 
 # ##################################### RASPBIAN 11 specific #######################################
+# (20231012 image) https://downloads.raspberrypi.org/raspios_oldstable_armhf/images/raspios_oldstable_armhf-2023-10-10/2023-05-03-raspios-bullseye-armhf.img.xz
+
 elif [[ "$os_version" == "11" ]]; then
+
+    print_header "Installing required packages"
+    apt-get -y install python3-opencv
 
     print_header "Creating python virtual env"
     python3 -m venv .virtualenvs --system-site-packages
     source .virtualenvs/bin/activate
 
     print_header "Installing required python packages"
-    apt-get -y install python3-opencv
+    pip3 install --upgrade pip
     pip3 install st7735==0.0.4.post1
     pip3 install st7789==0.0.4
     pip3 install RubikTwoPhase==1.1.1
@@ -132,7 +140,7 @@ elif [[ "$os_version" == "11" ]]; then
         echo -e 'MAILTO=""';\
         echo -e '@reboot su - pi -c "/usr/bin/vncserver-virtual :1 -randr=1280x720"';\
         echo -e '#@reboot su - pi -c "/usr/bin/vncserver-virtual :1 -randr=1920x1080"';\
-        echo -e '@reboot /bin/sleep 5; bash -l /home/pi/cubotino/src/Cubotino_T_bash.sh > /home/pi/cubotino/src/Cubotino_T_terminal.log 2>&1')\
+        echo -e '#@reboot /bin/sleep 5; bash -l /home/pi/cubotino/src/Cubotino_T_bash.sh > /home/pi/cubotino/src/Cubotino_T_terminal.log 2>&1')\
         | crontab -
     fi
 
