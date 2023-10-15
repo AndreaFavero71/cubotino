@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 12 October 2023
+#  Andrea Favero, 15 October 2023
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -12,7 +12,7 @@
 #
 #  This is the core script, that interracts with few other files.
 #  Many functions of this code have been developed on 2021, for my previous robot (https://youtu.be/oYRXe4NyJqs).
-#p
+#
 #  The cube status is detected via a camera system (piCamera) and OpenCV .
 #  Kociemba solver is used foer the cube solution (from: https://github.com/hkociemba/RubiksCube-TwophaseSolver)
 #  Credits to Mr. Kociemba for his great job !
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '6.0 (12 Oct 2023)'
+version = '6.1 (15 Oct 2023)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -3935,7 +3935,7 @@ if __name__ == "__main__":
     global camera, width, height, robot_stop, robot_idle, timeout
     global Rpi_ZeroW, cycles_num, picamera_test, quit_script
 
-    import sys
+    import sys, time
     
     
     ################    general settings on how the robot is operated ###############################
@@ -4042,8 +4042,10 @@ if __name__ == "__main__":
     os_version = get_os_version()          # OS is checkjed
     if os_version==10:                     # case os_version equals 10
         print(f'Operative System found: Buster (10)') # print to terminal the OS version detected
+        os_ver_txt = 'Buster'
     elif os_version==11:                   # case os_version equals 11
         print(f'Operative System found: Bullseye (11)')  # print to terminal the OS version detected
+        os_ver_txt = 'Bullseye'
     else:                                  # other cases
         line = "#"*80
         print('\n\n')
@@ -4051,12 +4053,16 @@ if __name__ == "__main__":
         print('  The detected OS is not listed on those compatible with Cubotino  ')
         print(line)
         print('\n\n')
+    
+    script_v = version[:3]
+    disp.set_backlight(1)                  # display backlight is turned on, in case it wasn't
+    disp.show_on_display('OS: '+ os_ver_txt, 'Script V:'+ script_v, fs1=18, fs2=18) #feedbak is print to to the display
+    time.sleep(3)                          # time delay to let possible readig the display
     # ###############################################################################################
     
     
     
     ################    screen presence, a pre-requisite for graphical   ############################
-    import time
     screen_presence = check_screen_presence()             # checks if a screen is connected (also via VNC)
     
     if debug:                                             # case the debug print-out are requested
@@ -4179,7 +4185,8 @@ if __name__ == "__main__":
             
             elif cycle == 'solve':          # case the chosen cycle is cube scrambling
                 solv_cycle += 1             # counter, for the number of solving cycles perfomed within a session, is incremented
-                start_solving(solv_cycle)  # start_solving function is called
+                start_solving(solv_cycle)   # start_solving function is called
+                start_up(first_cycle = False)  # sets the initial variables, to use the camera in manual mode
                 break      # (inner) infinite loop is interrupted once cube solving cycle is done or stopped
       
         if automated:                           # case automated variable is true

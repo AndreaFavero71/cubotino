@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 12 October 2023
+# Andrea Favero 15 October 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -1083,6 +1083,11 @@ def servo_solve_cube(moves, scrambling=False, print_out=s_debug, test=False):
         
     if print_out:                                  # case the print_out variable is set true
         print(f'Total amount of servo movements: {tot_moves}\n')   # feedback is printed to the terminal   
+    
+    if moves[0] == 'S':                            # case the first move requires a cube spin
+        flip_to_open()                             # Top_cover is set to open position
+    elif moves[0] == 'R':                          # case the first move requires a cube layer rotation
+        flip_to_close()                            # Top_cover is set to close position
     
     string_len=len(moves)                          # number of characters in the moves string
     for i in range(string_len):                    # iteration over the characters of the moves string
