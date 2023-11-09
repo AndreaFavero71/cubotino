@@ -2587,12 +2587,16 @@ def robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, s
     if not scrambling:                # case the robot is used to solve a cube
         print()                       # print an empty row
     
-    if not silent:                    # case silent variable is set False
-        robot_status, robot_time = servo.servo_solve_cube(robot_moves, scrambling, print_out=debug)   # robot solver is called
-    else:                             # case silent variable is set True
-        robot_status = 'Servos_disabled' # string indicating the robot status
-        robot_time = 1000             # robot_time set to 1000, clearly different from robot usual time
-        
+    if len(robot_moves) > 0:
+        if not silent:                    # case silent variable is set False
+            robot_status, robot_time = servo.servo_solve_cube(robot_moves, scrambling, print_out=debug)   # robot solver is called
+        else:                             # case silent variable is set True
+            robot_status = 'Servos_disabled' # string indicating the robot status
+            robot_time = 1000             # robot_time set to 1000, clearly different from robot usual time
+    else:
+        robot_status = 'Nothing_to_do'
+        robot_time = 0
+        total_robot_moves = 1
     if solution_Text == 'Error':      # if there is an error (tipicallya bad color reading, leading to wrong amount of facelets per color)                                      
         print('An error occured')                              # error feedback is print at terminal
         robot_solving_time = 0                                 # robot solving time is set to zero to underpin the error
