@@ -1,0 +1,27 @@
+{
+"t_min_pulse_width": "1",
+"t_max_pulse_width": "2",
+"t_servo_close": "0",
+"t_servo_open": "-0.33",
+"t_servo_read": "-0.5",
+"t_servo_flip": "-0.9",
+"t_servo_rel_delta": "0.02",
+"t_flip_to_close_time": "0.6",
+"t_close_to_flip_time": "0.6",
+"t_flip_open_time": "0.5",
+"t_open_close_time": "0.3",
+"t_rel_time": "0.2",
+
+"b_min_pulse_width": "1",
+"b_max_pulse_width": "2",
+"b_servo_CCW": "-1",
+"b_servo_CW": "1",
+"b_home": "0",
+"b_rel_CCW": "0.04",
+"b_rel_CW": "0.04",
+"b_extra_home_CCW": "0.12",
+"b_extra_home_CW": "0.12",
+"b_spin_time": "0.7",
+"b_rotate_time": "0.8",
+"b_rel_time": "0.2"
+}

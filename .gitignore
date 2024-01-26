@@ -1,0 +1,12 @@
+*.log
+__pycache__/
+*.py[cod]
+.virtualenvs/
+
+# ignore logs and picture of your own bot
+src/CubesDataLog/
+src/CubesStatusPictures/
+
+# ignore settings amd settings backup of your own bot
+*_backup.txt
+*settings.txt
