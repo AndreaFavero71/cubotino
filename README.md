@@ -27,6 +27,7 @@ ssh pi@cubotino.local
 ```
 git clone https://github.com/AndreaFavero71/cubotino.git
 cd cubotino/src
+chmod +x install/setup.sh
 sudo ./install/setup.sh
 ```
 6. Make sure the script runs without error until the end. It should ask you to reboot. Type 'y' and hit enter.
