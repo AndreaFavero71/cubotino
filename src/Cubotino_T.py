@@ -3,14 +3,14 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 28 January 2024
+#  Andrea Favero, 02 February 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
 #  Demo at https://youtu.be/dEOLhvVMcUg
 #  Instructions:https://www.instructables.com/CUBOTino-Autonomous-Small-3D-Printed-Rubiks-Cube-R/
 #
-#  This is the core script, that interacts with few other files.
+#  This is the core script, that interracts with few other files.
 #  Many functions of this code have been developed since 2021, for my previous robots (https://youtu.be/oYRXe4NyJqs).
 #
 #  The cube status is detected via a camera system (PiCamera) and OpenCV .
@@ -27,14 +27,14 @@
 #  - Numpy: 1.21.4
 #
 #  Updated for:
-#  - Raspberry Pi OS 11 (A port of Debian Bulleys with security updates and desktop environment)
+#  - Raspberry Pi OS 11 (A port of Debian Bullseye with security updates and desktop environment)
 #
 #############################################################################################################
 """
 
 
 # __version__ variable
-version = '6.5 (28 Jan 2024)'
+version = '6.6 (02 Feb 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -536,10 +536,8 @@ def robot_camera_setting(debug, os_version, camera, face):
     all the gains are stable. This function returns the camera parameters once within absolute variation < 5% from
     the average of 'pts' points."""
     
-    t_start = time.time()     # time reference
-    stable_camera = False     # flag to trak whether the camera gets stable within the timeout
-    
-    
+    stable_camera = False     # flag to track whether the camera gets stable within the timeout
+
     if os_version <= 10:      # case the OS is Buster or older
         t_max = 5             # timeout to quit this function and deliver the latest camera parameters
         if debug:             # case debug variable is set True
@@ -547,14 +545,15 @@ def robot_camera_setting(debug, os_version, camera, face):
         else:                 # case debug variable is set False
             pts = 10          # consecutive datapoints to analyse if parameters within acceptable range
         
-
     elif os_version >= 11:    # case the OS is Bullseye or newer
-        t_max = 3             # timeout to quit this function and deliver the latest camera parameters
+        t_max = 3             # timeout to quit this function and deliver the latest camera parameter
         if debug:             # case debug variable is set True
             pts = 9           # consecutive datapoints to analyse if parameters within acceptable range
         else:                 # case debug variable is set False
             pts = 11          # consecutive datapoints to analyse if parameters within acceptable range
-        
+    
+    if Rpi_ZeroW:             # case a ZeroW board is used
+        t_max = 3*t_max       # max time for camera setting is increased
     
     ku = 2-kl                 # Upper koefficient to define acceptance bandwidth (default +/-5%) 
 
@@ -569,7 +568,8 @@ def robot_camera_setting(debug, os_version, camera, face):
         if fixWindPos:                                 # case the fixWindPos variable is chosen
             cv2.namedWindow('cube')                    # create the cube window
             cv2.moveWindow('cube', 0,0)                # move the window to (0,0)
-                
+    
+    t_start = time.time()                              # time referenc
     while time.time()-t_start<t_max:                   # timeout for camera stabilization
         if screen and not robot_stop:                  # case screen variable is set True
             frame, w, h = read_camera()                # camera reading, not necessary but nice to show
@@ -623,12 +623,16 @@ def robot_camera_setting(debug, os_version, camera, face):
                 stable_camera = True
                 break                                  # camera warmup while loop break
     
-    a_gain_value = a_gain_list[-1]  # last a_gain list value is assigned
-    d_gain_value = d_gain_list[-1]  # last d_gain list value is assigned
-    awb_gains = (awb_blue_list[-1], awb_red_list[-1])  # last awb_gains list tuple is assigned
-    exposure = exp_list[-1]         # last exposure list value is assigned
-    t_stable = round(time.time()-t_start,1)            # time to get the camera stable on this cube face
-    
+    if len(a_gain_list)==0:                            # case a_gain_list (the first list of camera setting) is empty
+        print("The camera takes very long time to stabilize")  # feedback is printed to terminal
+        print("The script is ended")                   # feedback is printed to terminal
+        quit_func(quit_script=True)                    # script is quitted
+    else:                                              # case the first list (a_gain_list) is not empty
+        a_gain_value = a_gain_list[-1]                 # last a_gain list value is assigned
+        d_gain_value = d_gain_list[-1]                 # last d_gain list value is assigned
+        awb_gains = (awb_blue_list[-1], awb_red_list[-1])  # last awb_gains list tuple is assigned
+        exposure = exp_list[-1]                        # last exposure list value is assigned
+        t_stable = round(time.time()-t_start,1)        # time to get the camera stable on this cube face
     
     # latest PiCamera settings, in auto mode, are assigned to a tuple
     PiCamera_param=(a_gain_value, d_gain_value, awb_gains, exposure, stable_camera, t_stable)  
@@ -751,7 +755,7 @@ def robot_consistent_camera_images(debug, os_version, camera, start_time):
         
         print('\n\nPiCamera average parameters set for consistent images:')   # feedback is printed to the terminal
         print('Analog_gain sent to PiCamera', a_gain)   # feedback is printed to the terminal
-        print('Digital_gain sent to PiCamera', d_gain)  # feedback is printed to the terminal
+        print('Digital_gain sent to PiCamera (only when OS 10)', d_gain)  # feedback is printed to the terminal
         print('Awb_blue sentt to PiCamera', awb_gains[0]) # feedback is printed to the terminal
         print('Awb_red sent to PiCamera',awb_gains[1])  # feedback is printed to the terminal
         print('Average exposure time: ', int(sum(exp_list)/len(exp_list)), 'micro secs') # feedback is printed to the terminal
@@ -1636,18 +1640,18 @@ def save_coordinates(coordinates):
 
 
 def load_coordinates():
-    """Loads the coordinates of the 4 facelets from a text file.
-        Checks if all the characters in file are valid, else remove lines with non valid characters."""
+    """Loads the coordinates of the 9 facelets from a text file."""
     
-    lines = []                                              # empty list to store the data from the file, or to return is empty
-    historical_data = False                                 # flag to track presence of historical data is set False
-    
+    historical_data = False                                 # flag to track presence or assence of historical data is set False
     fname = 'Cubotino_T_coordinates.txt'                    # fname for the text file to retrieve the coordinates
     folder = pathlib.Path().resolve()                       # active folder (should be home/pi/cubotino/src) 
     fname = os.path.join(folder, fname)                     # folder and file name for the coordinates, to be loaded
+    
     if os.path.exists(fname):                               # case the coordinates file exists
         with open(fname, "r") as f:                         # settings file is opened in reading mode
             lines = f.readlines()                           # all lines are assigned as list to lines variable
+        if len(lines)>=1:                                   # case the file has at least one row of data
+            historical_data = True                          # flag to track presence or assence of historical data is set True
     else:                                                   # case the coordinates file does not exist
         print(f"Not found file {fname}")                    # print feedback to the terminal
         print("This file is generated by the robot at the first successfull cycles") # print feedback to the terminal
@@ -1694,7 +1698,7 @@ def load_coordinates():
         all_coordinates = []                                # empty list to store all the coordinates (prevoius solves cubes)
         for line in lines:                                  # iterating on each set of coordinates (each cube)
             coordinates=[]                                  # empty list to store the coordinated parsed from text to integers
-            for i in range(7):                              # iterating over the 4 facelets of each cube set of coordinates
+            for i in range(17):                             # iterating over the 9 facelets of each cube set of coordinates
                 val = int(line[: line.find(',')])           # coordinate is retrieved and converted to integer
                 line = line[line.find(',')+1:]              # line is sliced for the remaining coordinates
                 coordinates.append(val)                     # facelet coordinate is appended to the coordinates list
@@ -1705,7 +1709,8 @@ def load_coordinates():
         n = len(all_coordinates)                            # quantity of coordinates sets (cubes) stored
         if n > 5:                                           # case there are more than 5 sets of coordinates (more than 5 cubes' history)
             all_coordinates = all_coordinates[-5:]          # only the last 5 are considered
-        if n > 10:                                          # case there are more than 30 sets of coordinates (more than 5 cubes' history)
+        
+        if n > 10:                                          # case there are more than 10 sets of coordinates (more than 5 cubes' history)
             remove_old_data(fname)                          # call a function that removes old data from the text file
         
         # average the coordinates from the dataset
@@ -3994,35 +3999,6 @@ def test_picamera():
 
 
 
-def tune_image_setup_UpTo20240109(display, gui_debug):
-    "function used by the GUI script for the tuning"
-    
-    global np, time, sys, cv2
-    global disp, debug, screen, robot_stop, picamera_test, cv_wow, Rpi_ZeroW, side, cycles_num
-    global camera
-    global width, height
-    
-    # import libraries
-    import numpy as np                              # data array management
-    import time                                     # time package
-    import sys                                      # Python Runtime Environment livrary
-    import cv2                                      # computer vision package
-    
-    disp = display                                  # display object, defined on the GUI sript
-    debug = gui_debug                               # debug variable set in the GUI script
-    screen = True                                   # scrren is always true when using the GUI
-    robot_stop = False                              # false is assigned to robot_stop (variable used by set_camera() function)
-    picamera_test = True                            # this variable helps to use limited functionality from this script
-    cv_wow = False                                  # cw_wow is set false
-    Rpi_ZeroW = True                                # Rpi_ZeroW is set true for larger compatibility
-    import_parameters(debug)                        # imports the robot parameters (not the servo ones)
-    side = 0                                        # zero is assigned to side (variable used by set_camera() function)
-    cycles_num = 0                                  # zero is assigned to cycles_num (variable used by set_camera() function)
-    camera, width, height = set_camera()            # camera is defined
-    
-    return cv2, camera, width, height
-
-
 def tune_image_setup(expo_shift, display, gui_debug):
     "function used by the GUI script for the tuning"
     
@@ -4067,7 +4043,7 @@ def start_up(first_cycle=False, set_cropping=False):
     global sides, side, faces, prev_side, BGR_mean, H_mean, URFDLB_facelets_BGR_mean   # cube status detection related variables
     global timeout, detect_timeout, robot_stop                             # robot related variables
     global font, fontScale, fontColor, lineType                            # cv2 text related variables
-    global f_coordinates
+    global f_coordinates, fcs_delay
 
 
 
@@ -4092,9 +4068,15 @@ def start_up(first_cycle=False, set_cropping=False):
 #         show_time = 7                      #(AF 7)             # showing time of the unfolded cube images (cube initial status)
         
         if screen:                                             # case there is a screen connected
-            detect_timeout = int(1.5 * detect_timeout)         # cube status detection timeout is increased
+            detect_timeout = int(2 * detect_timeout)           # cube status detection timeout is increased
+            fcs_delay = 2*fcs_delay                            # delay to start the FCS (Fix Coordinates System) 
         if cv_wow:                                             # case the cv image analysis plot is set true
             detect_timeout = int(3 * detect_timeout)           # cube status detection timeout is increased
+            fcs_delay = 3*fcs_delay                            # delay to start the FCS (Fix Coordinates System) 
+        if  Rpi_ZeroW:                                         # case a raspberry Pi ZeroW board is detected                              
+            detect_timeout = int(3 * detect_timeout)           # cube status detection timeout is increased
+            fcs_delay = 3*fcs_delay                            # delay to start the FCS (Fix Coordinates System)
+            
         sides={0:'Empty',1:'U',2:'B',3:'D',4:'F',5:'R',6:'L'}  # cube side order used by the robot while detecting facelets colors
         font, fontScale, fontColor, lineType = text_font()     # setting text font paramenters
         camera, width, height = set_camera()                   # camera object is created
@@ -4110,6 +4092,7 @@ def start_up(first_cycle=False, set_cropping=False):
             quit_func(quit_script=True)                        # qutting function is called, with script clossure
             
         f_coordinates = load_coordinates()
+        
 
 
 
