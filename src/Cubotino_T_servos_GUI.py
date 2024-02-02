@@ -416,7 +416,7 @@ def read_cam_settings_file(fname=''):
             cam_settings = json.load(f)                        # json file is parsed to a local dict variable
         
         # update key-values parameters, needed in case of additional parameters added at remote repo
-        cam_settings = update_settings_file(fname, settings)
+        cam_settings = update_settings_file(fname, cam_settings)
         
         try:           
             # from the dict obtained via json.load the settings dict adds individual data type check
