@@ -1,6 +1,6 @@
 {
 "frameless_cube": "false",
-"disp_width": "130",
+"disp_width": "128",
 "disp_height": "160",
 "disp_offsetL": "0",
 "disp_offsetT": "0",
