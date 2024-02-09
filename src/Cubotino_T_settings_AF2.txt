@@ -1,10 +1,12 @@
-{"frameless_cube": "auto",
+{
+"frameless_cube": "auto",
 "disp_width": "128",
 "disp_height": "164",
 "disp_offsetL": "0",
 "disp_offsetT": "-4",
 "camera_width_res": "640",
 "camera_hight_res": "480",
+"s_mode": "7",
 "kl": "0.95",
 "x_l": "50",
 "x_r": "80",
@@ -25,4 +27,8 @@
 "warn_time": "1.5",
 "quit_time": "4.5",
 "cover_self_close": "true",
-"vnc_delay": "0.5"}
+"vnc_delay": "0.5",
+"built_by": "",
+"built_by_x": "25",
+"built_by_fs": "16"
+}

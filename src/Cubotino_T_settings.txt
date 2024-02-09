@@ -1,4 +1,5 @@
-{"frameless_cube": "false",
+{
+"frameless_cube": "false",
 "disp_width": "130",
 "disp_height": "160",
 "disp_offsetL": "0",
@@ -26,4 +27,8 @@
 "warn_time": "1.5",
 "quit_time": "4.5",
 "cover_self_close": "false",
-"vnc_delay": "0.0"}
+"vnc_delay": "0.0",
+"built_by": "",
+"built_by_x": "25",
+"built_by_fs": "16"
+}
