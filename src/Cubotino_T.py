@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 02 February 2024
+#  Andrea Favero, 10 February 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '6.6 (02 Feb 2024)'
+version = '6.7 (10 Feb 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -1161,20 +1161,14 @@ def get_approx_contours(component):
 
 
 
-def get_facelets(facelets, frame, contour, hierarchy, t_ref):
+def get_facelets(facelets, frame, contour, hierarchy):
     """ Contours are analyzed in order to detect the cube's facelets; Argument are simplified contours.
     Returns contours having square characteristics
     
     [parameter to be square like: Area within limits, limited egde lenght deviation, limited diagonals lenght deviation
     (to prevent rhonbus), limited area variation between the 9 facelets].
     This function is called on each of the cube sides, therefore the return relates to the face under analysis.""" 
-    
-    if len(f_coordinates)>0 and time.time() - t_ref > fcs_delay:  # case the (edges based) facelets detection takes more than fcs_delay secs
-        facelets, frame = get_facelets_fcs(facelets, frame)  # facelets info are based on fix coordinates
-        fix_c = True                # fix_c (fix coordinates usage) is set to true   
-        return facelets, frame, fix_c   # list of potential facelet's contour is returned
         
-
     min_area = int(0.08*(w*h)/9)    #(AF int(0.08*(w*h)/9))  # min area limit for a single facelet's contour
     max_area = 6*min_area           #(AF 6*min_area)         # max area limit for a single facelet's contour       
 
@@ -1213,9 +1207,7 @@ def get_facelets(facelets, frame, contour, hierarchy, t_ref):
                 else:                                   # case there are not facelets to be excluded, due to large area deviation
                     if frameless_cube != 'false':       # case the cube status reading is for frameless cubes or auto (with and without frames)
                         facelets, frame = estimate_facelets(facelets,frame, w, h)  # calls the function to estimate the remaining facelets                                 
-        
-    fix_c = False                   # fix_coordinate approach was not used
-    return facelets, frame, fix_c   # list of potential facelet's contour is returned
+    return facelets, frame                              # list of potential facelet's contour is returned
 
 
 
@@ -1621,12 +1613,11 @@ def save_coordinates(coordinates):
         This action is done when a cubes_status is correctly determined.
         The 9 coordinates are averaged from the 6 faces."""
     
-    print("coordinates:", coordinates)
     coordinates = np.array(coordinates)                     # the coordinates list is converted to numpy array 
     avg = coordinates.mean(axis=0)                          # coordinates are averaged by 'columns'
     avg = np.round(avg, decimals=0).astype(int)             # coordinates are first rounded to 0 decimal then converted to integers
-    avg = str(list(avg)).replace('[','').replace(']','')+'\n'  # coordinates are converted to list, then to string without parentheses
-    
+    avg = str(list(avg))                                    # coordinates are converted from array to list to string
+    avg = avg.replace('[','').replace(']','').replace(' ','')+'\n'  # coordinates string without parentheses and empty spaces
     fname = 'Cubotino_T_coordinates.txt'                    # fname for the text file to retrieve the coordinates
     folder = pathlib.Path().resolve()                       # active folder (should be home/pi/cubotino/src)
     fname = os.path.join(folder, fname)                     # folder and file name for the coordinates, to be saved
@@ -1643,6 +1634,7 @@ def load_coordinates():
     """Loads the coordinates of the 9 facelets from a text file."""
     
     historical_data = False                                 # flag to track presence or assence of historical data is set False
+    lines=[]                                                # lines variable is set as empty list
     fname = 'Cubotino_T_coordinates.txt'                    # fname for the text file to retrieve the coordinates
     folder = pathlib.Path().resolve()                       # active folder (should be home/pi/cubotino/src) 
     fname = os.path.join(folder, fname)                     # folder and file name for the coordinates, to be loaded
@@ -1654,10 +1646,10 @@ def load_coordinates():
             historical_data = True                          # flag to track presence or assence of historical data is set True
     else:                                                   # case the coordinates file does not exist
         print(f"Not found file {fname}")                    # print feedback to the terminal
-        print("This file is generated by the robot at the first successfull cycles") # print feedback to the terminal
+        print("This file is generated by the robot at the first successfull cycle") # print feedback to the terminal
 
     corrupted_data = False                                  # corrupted_data is initially set False
-    if len(lines)>=1:                                       # case the file has at least one row of data
+    if historical_data:                                     # case there is historical data
         lines = [line.replace(' ', '') for line in lines]   # all spaces are removed
         valid_chars = set('0123456789,')                    # set of valid charcters (includes comma)
         for line in lines:                                  # iteration through the lines
@@ -1668,7 +1660,7 @@ def load_coordinates():
             if corrupted_data:                              # case corrupted_data is True
                 break                                       # outer loop_is interrupted
        
-    if corrupted_data:                                      # case corrupted_data is True
+    if historical_data and corrupted_data:                  # case there is historical yet corrupted_data
         if debug:                                           # case debug is set true
             print(f"\nNot valid characters in {fname}")     # feedback is printed to the terminal
         new_lines=[]                                        # empty list to store the cleaned lines
@@ -1683,16 +1675,26 @@ def load_coordinates():
                     if keep_line:                           # case keep_line variable is (still) True
                         f.write(line)                       # that line is written to text file
                         new_lines.append(line)              # line is appended to lines
-        if debug:                                           # case debug is set true
-            print(f"The file got repaired")                 # feedback is printed to the terminal
-        lines = new_lines                                   # new_lines is assigned to lines
-    
-    if len(lines)>=1:                                       # case the file has at least one row of data
-        historical_data = True                              # flag to track presence or assence of historical data is set True
-    
-    if debug:                                               # case debug is set true
-        print("Loaded facelets coordinates")                # feedback is printed to the terminal
         
+        if len(new_lines)>=1:                               # case the file has at least one row of data
+            lines = new_lines                               # new_lines is assigned to lines
+            if debug:                                       # case debug is set true
+                print(f"The file got repaired")             # feedback is printed to the terminal
+        else:                                               # case the remaining file does not have any row of data
+            lines=[]                                        # lines variable is set as an empty list
+            historical_data = False                         # historical data variable is set False
+            
+    if historical_data:                                     # case there is historical data
+        if len(lines)>=1:                                   # case the file has at least one row of data
+            for line in lines:                              # iteration over the lines
+                if len(line)>35:                            # case the line has at least 35 characters
+                    historical_data = True                  # flag to track presence or assence of historical data is set True
+                else:                                       # case the line has at less than 26 characters
+                    historical_data = False                 # flag to track presence or assence of historical data is set True
+                    print("The file with facelets coordinates seems empty") # feedback is printed to the terminal
+                    print("File will be filled and/or repaired the next time Cubotino_T.py is launched") # feedback is printed to the terminal
+                    break                                   # for loop is interrupted
+    
     if historical_data:                                     # case there is historical data
         # convert from string to integers and feed a list with coordinates values as tuple
         all_coordinates = []                                # empty list to store all the coordinates (prevoius solves cubes)
@@ -1718,8 +1720,13 @@ def load_coordinates():
         avg = all_coordinates.mean(axis=0)                  # coordinates are averaged by 'columns'
         avg = np.round(avg, decimals=0).astype(int)         # coordinates are first rounded to 0 decimal then converted to integers
         avg = avg.tolist()                                  # coordinates are assigned to a list
+        if debug:                                           # case debug is set true
+            print("Loaded facelets coordinates:", avg)      # feedback is printed to the terminal
         return avg                                          # the average coordinates are returned
+    
     else:                                                   # case there isn't historical data
+        if debug:                                           # case debug is set true
+            print("Not loaded facelets coordinates")        # feedback is printed to the terminal
         return []                                           # an empty list is returned 
 
 
@@ -4180,9 +4187,12 @@ def cubeAF():
                     cv2.imshow('cube', frame)                          # shows the frame 
                     cv2.waitKey(1)      # refresh time is minimized to 1ms, refresh time mostly depending to all other functions
                 
+                if len(f_coordinates)>0 and time.time() - t_ref > fcs_delay:  # case the (edges based) facelets detection takes more than fcs_delay secs
+                    facelets, frame = get_facelets_fcs(facelets, frame)  # facelets info are based on fix coordinates
+                    fcs += 1                                           # fcs (Fix Coordinates System) is incremented
+                
                 if corners==4:                                         # contours with 4 corners are of interest
-                    facelets, frame, fix_c = get_facelets(facelets, frame, contour, hierarchy, t_ref) # returns a dict with cube compatible contours
-                    fcs += fix_c                                       # fcs (Fix Coordinates System) is incremented
+                    facelets, frame = get_facelets(facelets, frame, contour, hierarchy) # returns a dict with cube compatible contours
                     
                 if len(facelets)==9:                                   # case there are 9 contours having facelets compatible characteristics
                     facelets = order_9points(facelets, new_center=[])  # contours are ordered from top left
