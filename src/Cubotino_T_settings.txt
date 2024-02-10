@@ -30,5 +30,6 @@
 "vnc_delay": "0.0",
 "built_by": "",
 "built_by_x": "25",
-"built_by_fs": "16"
+"built_by_fs": "16",
+"fcs_delay": "3"
 }

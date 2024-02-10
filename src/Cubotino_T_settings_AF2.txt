@@ -8,11 +8,11 @@
 "camera_hight_res": "480",
 "s_mode": "7",
 "kl": "0.95",
-"x_l": "50",
-"x_r": "80",
-"y_u": "30",
+"x_l": "56",
+"x_r": "106",
+"y_u": "60",
 "y_b": "100",
-"warp_fraction": "7",
+"warp_fraction": "7.2",
 "warp_slicing": "1.5",
 "square_ratio": "1",
 "rhombus_ratio": "0.3",
@@ -30,5 +30,7 @@
 "vnc_delay": "0.5",
 "built_by": "",
 "built_by_x": "25",
-"built_by_fs": "16"
+"built_by_fs": "16",
+"expo_shift": "-0.5",
+"fcs_delay": "3"
 }

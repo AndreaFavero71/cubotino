@@ -3,7 +3,7 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 20 January 2024
+# Andrea Favero 10 February 2024
 # 
 # GUI helping tuninig CUBOTino servos positions.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
@@ -248,31 +248,31 @@ def upload_servo_settings(srv_settings):
 def update_servo_settings_dict():
     """ Function to update the servo settings dictionary based on the global variables.""" 
     
-    srv_settings['t_min_pulse_width'] = t_min_pulse_width        # defines the min Pulse With the top servo reacts to
-    srv_settings['t_max_pulse_width'] = t_max_pulse_width        # defines the max Pulse With the top servo reacts to
-    srv_settings['t_servo_close'] = t_servo_close                # Top_cover close position, in gpiozero format
-    srv_settings['t_servo_open'] = t_servo_open                  # Top_cover open position, in gpiozero format
-    srv_settings['t_servo_read'] = t_servo_read                  # Top_cover camera read position, in gpiozero format
-    srv_settings['t_servo_flip'] = t_servo_flip                  # Top_cover flip position, in gpiozero format
-    srv_settings['t_servo_rel_delta'] = t_servo_rel_delta        # Top_cover release angle movement from the close position to release tension
-    srv_settings['t_flip_to_close_time'] = t_flip_to_close_time  # time for Top_cover from flip to close position
-    srv_settings['t_close_to_flip_time'] = t_close_to_flip_time  # time for Top_cover from close to flip position 
-    srv_settings['t_flip_open_time'] = t_flip_open_time          # time for Top_cover from open to flip position, and viceversa  
-    srv_settings['t_open_close_time'] = t_open_close_time        # time for Top_cover from open to close position, and viceversa
-    srv_settings['t_rel_time'] = t_rel_time                      # time for Top_cover to release tension from close to close position
+    srv_settings['t_min_pulse_width'] = str(t_min_pulse_width)    # defines the min Pulse With the top servo reacts to
+    srv_settings['t_max_pulse_width'] = str(t_max_pulse_width)    # defines the max Pulse With the top servo reacts to
+    srv_settings['t_servo_close'] = str(t_servo_close)            # Top_cover close position, in gpiozero format
+    srv_settings['t_servo_open'] = str(t_servo_open)              # Top_cover open position, in gpiozero format
+    srv_settings['t_servo_read'] = str(t_servo_read)              # Top_cover camera read position, in gpiozero format
+    srv_settings['t_servo_flip'] = str(t_servo_flip)              # Top_cover flip position, in gpiozero format
+    srv_settings['t_servo_rel_delta'] = str(t_servo_rel_delta)    # Top_cover release angle movement from the close position to release tension
+    srv_settings['t_flip_to_close_time'] = str(t_flip_to_close_time)  # time for Top_cover from flip to close position
+    srv_settings['t_close_to_flip_time'] = str(t_close_to_flip_time)  # time for Top_cover from close to flip position 
+    srv_settings['t_flip_open_time'] = str(t_flip_open_time)      # time for Top_cover from open to flip position, and viceversa  
+    srv_settings['t_open_close_time'] = str(t_open_close_time)    # time for Top_cover from open to close position, and viceversa
+    srv_settings['t_rel_time'] = str(t_rel_time)                  # time for Top_cover to release tension from close to close position
     
-    srv_settings['b_min_pulse_width'] = b_min_pulse_width        # defines the min Pulse With the bottom servo reacts to
-    srv_settings['b_max_pulse_width'] = b_max_pulse_width        # defines the max Pulse With the bottom servo reacts to
-    srv_settings['b_servo_CCW'] = b_servo_CCW                    # Cube_holder max CCW angle position
-    srv_settings['b_servo_CW'] = b_servo_CW                      # Cube_holder max CW angle position
-    srv_settings['b_home'] = b_home                              # Cube_holder home angle position
-    srv_settings['b_rel_CCW'] = b_rel_CCW                        # Cube_holder release angle from CCW angle positions, to release tension
-    srv_settings['b_rel_CW'] = b_rel_CW                          # Cube_holder release angle from CW angle positions, to release tension
-    srv_settings['b_extra_home_CW'] = b_extra_home_CW            # Cube_holder release angle from home angle positions, to release tension
-    srv_settings['b_extra_home_CCW'] = b_extra_home_CCW          # Cube_holder release angle from home angle positions, to release tension
-    srv_settings['b_spin_time'] = b_spin_time                    # time for Cube_holder to spin 90 deg (cune not contrained)
-    srv_settings['b_rotate_time'] = b_rotate_time                # time for Cube_holder to rotate 90 deg (cube constrained)
-    srv_settings['b_rel_time'] = b_rel_time                      # time for Cube_holder to release tension at home, CCW and CW positions
+    srv_settings['b_min_pulse_width'] = str(b_min_pulse_width)    # defines the min Pulse With the bottom servo reacts to
+    srv_settings['b_max_pulse_width'] = str(b_max_pulse_width)    # defines the max Pulse With the bottom servo reacts to
+    srv_settings['b_servo_CCW'] = str(b_servo_CCW)                # Cube_holder max CCW angle position
+    srv_settings['b_servo_CW'] = str(b_servo_CW)                  # Cube_holder max CW angle position
+    srv_settings['b_home'] = str(b_home)                          # Cube_holder home angle position
+    srv_settings['b_rel_CCW'] = str(b_rel_CCW)                    # Cube_holder release angle from CCW angle positions, to release tension
+    srv_settings['b_rel_CW'] = str(b_rel_CW)                      # Cube_holder release angle from CW angle positions, to release tension
+    srv_settings['b_extra_home_CW'] = str(b_extra_home_CW)        # Cube_holder release angle from home angle positions, to release tension
+    srv_settings['b_extra_home_CCW'] = str(b_extra_home_CCW)      # Cube_holder release angle from home angle positions, to release tension
+    srv_settings['b_spin_time'] = str(b_spin_time)                # time for Cube_holder to spin 90 deg (cune not contrained)
+    srv_settings['b_rotate_time'] = str(b_rotate_time)            # time for Cube_holder to rotate 90 deg (cube constrained)
+    srv_settings['b_rel_time'] = str(b_rel_time)                  # time for Cube_holder to release tension at home, CCW and CW positions
     
     return srv_settings
 
@@ -547,14 +547,14 @@ def load_previous_cam_settings():
 def update_cam_settings_dict():
     """ Function to update the cam settings dictionary based on the global variables.""" 
     
-    cam_settings['x_l'] = x_l                            # pixels to remove at the left image side
-    cam_settings['x_r'] = x_r                            # pixels to remove at the right image side
-    cam_settings['y_u'] = y_u                            # pixels to remove at the upper image side
-    cam_settings['y_b'] = y_b                            # pixels to remove at the bottom image side
-    cam_settings['warp_fraction'] = warp_fraction        # image warping factor
-    cam_settings['warp_slicing'] = warp_slicing          # image slicing after warping
-    cam_settings['cam_led_bright'] = cam_led_bright      # PWM level for the 3W led at Top_cover
-    cam_settings['expo_shift'] = expo_shift              # exposure shift for PiCamera 
+    cam_settings['x_l'] = str(x_l)                            # pixels to remove at the left image side
+    cam_settings['x_r'] = str(x_r)                            # pixels to remove at the right image side
+    cam_settings['y_u'] = str(y_u)                            # pixels to remove at the upper image side
+    cam_settings['y_b'] = str(y_b)                            # pixels to remove at the bottom image side
+    cam_settings['warp_fraction'] = str(warp_fraction)        # image warping factor
+    cam_settings['warp_slicing'] = str(warp_slicing)          # image slicing after warping
+    cam_settings['cam_led_bright'] = str(cam_led_bright)      # PWM level for the 3W led at Top_cover
+    cam_settings['expo_shift'] = str(expo_shift)              # exposure shift for PiCamera 
     
     return cam_settings
 
