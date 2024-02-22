@@ -143,7 +143,7 @@ class Display:
         barLength = w-2*x-4 #135   # lenght of the bar, in pixels
         filledPixels = int( x+gap +(barLength-2*gap)*percent/100)  # bar filling length, as function of the percent
         disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))      # outer bar border
-        disp_draw.rectangle((x+gap, y+gap, filledPixels-1 , y+barWidth-gap), fill=(255,255,255)) # bar filling
+        disp_draw.rectangle((x+gap, y+gap, filledPixels , y+barWidth-gap), fill=(255,255,255)) # bar filling
         
         self.disp.display(disp_img) # image is plotted to the display
 
