@@ -285,7 +285,7 @@ def import_libraries():
         These librries are imported after those needed for the display management.
         Kociemba solver is tentatively imported considering three installation/copy methods."""
     
-    global servo, rm, Popen, PIPE, camera, GPIO, median, dt, sv, cubie, np, math, time, cv2, os
+    global servo, rm, Popen, PIPE, camera, Button, LED, median, dt, sv, cubie, np, math, time, cv2, os
     
     
     # import custom libraries
@@ -295,14 +295,17 @@ def import_libraries():
     # import non-custom libraries
     from statistics import median                         # median is used as sanity check while evaluating facelets contours
     from subprocess import Popen, PIPE                    # module for interacting with some shell commands
-    import RPi.GPIO as GPIO                               # import RPi GPIO library
+    from gpiozero.pins.pigpio import PiGPIOFactory        # Import gpiozero for gpio buttons
+    from gpiozero import Device, Button, LED
     import datetime as dt                                 # mainly used as timestamp, like on data logging
     import numpy as np                                    # data array management
     import math                                           # math package
     import time                                           # time package
     import cv2                                            # computer vision package
     import os                                             # os is imported to ensure the file presence check/make
-    
+
+    Device.pin_factory = PiGPIOFactory()                  # Use pigpio as the pin control factory
+
     print(f'CV2 version: {cv2.__version__}')              # print to terminal the cv2 version
     
     # Up to here Cubotino logo is shown on display
@@ -385,7 +388,7 @@ def press_to_start():
                 cubotino_logo = False          # cubotino logo boolean is set false
             time.sleep(0.05)                   # little sleep time 
             
-        if GPIO.input(touch_btn):              # case touch_button is 'pressed'
+        if touch_button.is_pressed:            # case touch_button is 'pressed'
             servo.cam_led_On(cam_led_bright)   # led on top_cover is switched on as button feedback
             choice = solve_or_scramble()       # function for single/double touch (solve or scramble)
             return choice                      # choice is returned, breaking inner and outer while loop
@@ -393,7 +396,7 @@ def press_to_start():
 
 ##### addition for Maker Faire setup ##########
 # it uses two inputs in logic AND to start the robot. These buttons don't do enything else (no scrambling, no time filtering)
-        if GPIO.input(touch_btn1_faire) and GPIO.input(touch_btn2_faire):
+        if faire_btn1.is_pressed and faire_btn2.is_pressed:
             # case both the touch buttons on the faire setup are 'pressed'
             return 'solve'  # 'solve' is returned
 ###############################################
@@ -415,9 +418,9 @@ def solve_or_scramble():
     extra_time = 1.2                          # extra time to accept a single button press as intention to 'solve' a cube
     last_time = time.time()                   # variable holding the time of the last change to 'pressed' button
     pulse_count = 0                           # pulses counter is initially set to zero
-    
+
     while robot_idle:                         # boolean robot_idle is used to sustain this loop
-        new_state = GPIO.input(touch_btn)     # touch button status is assigned (it's ON when pressed)
+        new_state = touch_button.value        # touch button status is assigned (it's ON when pressed)
         if new_state and not state:           # case the touch sensor changes from 'not pressed' to 'pressed'
             pulse_count += 1                  # pulse counter is incremented
             state = True                      # set the state to true
@@ -427,7 +430,7 @@ def solve_or_scramble():
         
         # case the elapsed time is bigger than max time and at least 1 pulse
         if time.time() > (last_time + max_delay) and pulse_count > 0:
-            if GPIO.input(touch_btn):         # case button is still pressed
+            if touch_button.is_pressed:       # case button is still pressed
                 if pulse_count == 1:          # case the button has been pressed only once
                     if time.time()< last_time + max_delay + extra_time: # case time is within the given extratime
                         servo.cam_led_Off()   # led OFF at Top_cover, to suggest the user to remove the finger
@@ -439,7 +442,7 @@ def solve_or_scramble():
                     servo.cam_led_Off()       # led OFF at Top_cover
                     break                     # while loop is interrupted
 
-            elif not GPIO.input(touch_btn):   # touch button is NOT pressed
+            elif not touch_button.is_pressed: # touch button is NOT pressed
                 if pulse_count == 1:          # case pulses equal one, and button not 'pressed'
                     choice = 'solve'          # 'solve' is assigned to choice variable
                 elif pulse_count >= 2:        # case pulses are two or more,  and button not 'pressed'
@@ -2393,7 +2396,7 @@ def scrambling_cube():
             inspec_time = 15            # time to let user studying the cube status
             left_time_str ='00:00.0'    # left_time_str initialized to prevent potential missed variable error
             t_ref = dt.datetime.now()   # current datetime is assigned to t_ref as reference
-            while not GPIO.input(touch_btn):   # while the button is not pressed
+            while not touch_button.is_pressed:   # while the button is not pressed
                 left_time =  (dt.datetime.now() - t_ref).seconds  # elapsed time in seconds (integer) assigned to d_time
                 if left_time  <= inspec_time:  # case left time is smaller than inspect_time
                     left_time_str = str(dt.timedelta(seconds = inspec_time - left_time))[2:]+'.0'  # left time in secs converted to time string
@@ -2412,14 +2415,14 @@ def scrambling_cube():
             d_time_str ='00:00.0'       # d_time_string initialized to prevent potential missed variable error
             disp.show_on_display(d_time_str, 'PRESS TO STOP', fs1=29, fs2=14)   # feedback is printed to the display
             
-            if GPIO.input(touch_btn):   # case the button is pressed
+            if touch_button.is_pressed: # case the button is pressed
                 time.sleep(2)           # delay to prevent skipping the next part is button pushed while INSPECT. TIME
             
             timer_timeout = False       # boolean to track whether the timer timeout has been reached
             t_ref = time.time()         # current time assigned to t_ref as reference for overall time
             t_ref2 = time.time()        # current time assigned to t_ref2 as reference for fraction of second
             secs = 0.0                  # variable secs is set to zero
-            while not GPIO.input(touch_btn):       # while the button is not pressed
+            while not touch_button.is_pressed:     # while the button is not pressed
                 d_time = int(time.time() - t_ref)  # elapsed time in seconds (float) assigned to d_time
                 if time.time() - t_ref2 >= 0.1:    # case other 0.1 secs have elapsed
                     t_ref2 = time.time()           # time reference used for fraction of second is asigned
@@ -3326,11 +3329,12 @@ def stop_cycle(button):
     The function calls the quitting function, that closes the script."""
     
     global robot_stop
+
     
     time.sleep(0.5)  # delay between function being called, and new GPIO check, to filter unintentionally touches
     
     # case robot not idling and solve or scrambling button is pressed 
-    if GPIO.input(touch_btn) and not robot_idle:     # case touch button is 'pressed' while robot not idling
+    if touch_button.is_pressed and not robot_idle:   # case touch button is 'pressed' while robot not idling
         if not robot_stop:                           # in case the robot was working and not yet stopped
             servo.cam_led_Off()                      # sets off the led at top_cover
             disp.set_backlight(1)                    # display backlight is turned on, in case it wasn't
@@ -3344,7 +3348,7 @@ def stop_cycle(button):
                 disp.show_on_display('STOPPED', 'CYCLE') # feedback is printed to the display a second time
             quit_func(quit_script=False)             # quit function is called, without forcing the script quitting
     
-    elif GPIO.input(touch_btn) and robot_idle:       # case touch button is 'pressed' while robot is idling
+    elif touch_button.is_pressed and robot_idle:     # case touch button is 'pressed' while robot is idling
         servo.cam_led_Off()                          # sets off the led at top_cover
         disp.set_backlight(1)                        # display backlight is turned on, in case it wasn't
         if not quit_script:                          # case the quit_script variable is False
@@ -3369,26 +3373,24 @@ def robot_set_GPIO():
     This function sets the GPIO way of working
     This function also sets an interrupt for the start/stop button."""
     
-    global GPIO, touch_btn
- 
-    GPIO.setwarnings(False)                                         # GPIO warning set to False to reduce effort on handling them
-    GPIO.setmode(GPIO.BCM)                                          # GPIO modulesetting
+    global touch_button
+
     touch_btn = 26                                                  # GPIO pin used for the touch button (start/stop button)
-    GPIO.setup(touch_btn, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)      # set the touch_button_pin as an input
+    touch_button = Button(touch_btn, pull_up=False, bounce_time=0.020)
     try:
         # interrupt usage (of the same input pin), to quicly stop the robot movements
-        GPIO.add_event_detect(touch_btn, GPIO.RISING, callback=stop_cycle, bouncetime=20)
+        touch_button.when_pressed = stop_cycle
     except:
         pass
 
 
 ###### addition for faire demo setup #####
 # it uses two inputs in logic AND to start the robot. These buttons don't do enything else. No pressing time filters
-    global touch_btn1_faire, touch_btn2_faire
+    global faire_btn1, faire_btn2
     touch_btn1_faire = 23                                              # GPIO pin used for the touch button1 at faire (only start function)
-    GPIO.setup(touch_btn1_faire, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # set the touch_button_pin as an input
+    faire_btn1 = Button( touch_btn1_faire, pull_up=False)
     touch_btn2_faire = 24                                              # GPIO pin used for the touch button2 at faire (only start function)
-    GPIO.setup(touch_btn2_faire, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # set the touch_button_pin as an input
+    faire_btn2 = Button( touch_btn2_faire, pull_up=False)
 ##########################################
 
 
@@ -3683,10 +3685,10 @@ def robot_reset():
         servo.stop_release(print_out=debug)    # stop_release at servo script, to enable the servos movements
         servo.servo_start_pos(start_pos='read')   # servos are rotated to the start position
     robot_stop = False                     # flag used to stop or allow robot movements
-    if not GPIO.input(touch_btn):          # case the button has been released
+    if not touch_button.is_pressed:
         disp.clean_display()               # cleans the display
         disp.__init__() # display is re-initilized (not elegant, yet it removes random issues at robot stop)
-    
+
 
 
 
@@ -3706,8 +3708,8 @@ def stop_or_quit():
     warning = False                          # warning is set false, to warn user to keep or release the button
     quitting = False                         # quitting variable is set false
 
-    if GPIO.input(touch_btn):                # case touch_btn is still 'pressed' once the cube_AF function returns           
-        while GPIO.input(touch_btn):                      # while touch_btn is 'pressed'
+    if touch_button.is_pressed:                # case touch_btn is still 'pressed' once the cube_AF function returns           
+        while touch_button.is_pressed:                      # while touch_btn is 'pressed'
             if not warning:                               # case warning is false
                 if time.time() - ref_time >= warn_time:   # case time elapsed is >= warn time reference
                     warning = True                        # warning is set true
@@ -3715,7 +3717,7 @@ def stop_or_quit():
             while warning:                                # case warning is true
                 disp.set_backlight(1)                     # display backlight is turned on, in case it wasn't
                 disp.show_on_display('SURE TO', 'QUIT ?') # feedback is printed to display
-                if not GPIO.input(touch_btn):             # case the touch_btn is 'released'
+                if not touch_button.is_pressed:             # case the touch_btn is 'released'
                     disp.clean_display()                  # cleans the display
                     disp.show_on_display('NOT', 'QUITTING', fs1=32, fs2=22) # feedback is printed to display
                     break                                 # while loop is interrupted
@@ -3850,7 +3852,7 @@ def quit_func(quit_script, error = False):
             pass
         
         try:
-            GPIO.setup(4, GPIO.OUT, initial=GPIO.LOW) # GPIO 4 (display backlight) is set as output, and forced low
+             led = LED(4, active_high=True, initial_value=False)
         except:
             print("Raised exception while setting low the display backlight GPIO at script quitting")   # feedback is printed to the terminal
         
@@ -3858,7 +3860,7 @@ def quit_func(quit_script, error = False):
         # below 'if' block is to kill the bash process that has eventually been launched with this script.
         # this approach helps during development, to stop the script without starting the Rpi shutt off process
         try: 
-            if GPIO.input(touch_btn):                   # case button is pressed
+            if touch_button.is_pressed:                 # case button is pressed
                 print("Request to quit the script without shutthing off the Raspberri Pi")
                 disp.set_backlight(1)                   # display backlight is turned on for the first time
                 disp.show_on_display('EXITING', 'SCRIPT', fs1=24, fs2=26) # feedback is printed to the display

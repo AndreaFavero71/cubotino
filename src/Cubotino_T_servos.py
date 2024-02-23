@@ -45,9 +45,6 @@ s_disp.set_backlight(1)     # activates the display backlight
 
 ##################    imports standard libraries   #################################
 import time                            # import time library
-import RPi.GPIO as GPIO                # import RPi GPIO library
-GPIO.setmode(GPIO.BCM)                 # setting GPIO pins as "Broadcom SOC channel" number, these are the numbers after "GPIO"
-GPIO.setwarnings(False)                # setting GPIO to don't return allarms
 from gpiozero import Servo, PWMLED     # import modules for the PWM part
 from get_macs_AF import get_macs_AF    # import the get_macs_AF function
 # ##################################################################################
