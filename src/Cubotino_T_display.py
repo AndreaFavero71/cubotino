@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 22 January 2024
+#  Andrea Favero 29 February 2024
 #
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script manages the display, and it's imported by Cubotino_T.py and Cubotino_T_servos.py
@@ -76,6 +76,22 @@ class Display:
             if not self.display_initialized:                          # case display_initialized is set False
                 print("\nDisplay initialized\n")                      # feedback is printed to the terminal
                 self.display_initialized = True                       # display_initialized is set True
+        
+        # loading the CUBOTino logo
+        fname = "Cubotino_T_Logo_265x212_BW.jpg"                      # file name with logo image
+        fname = os.path.join(folder,fname)                            # folder and file name for the logo image
+        if os.path.exists(fname):                                     # case the logo file exists
+            logo = Image.open(fname)                                  # opens the CUBOTino logo image (jpg file)
+            self.logo = logo.resize((self.disp_w, self.disp_h))       # resizes the image to match the display.
+        else:                                                         # case the logo file does not exist
+            print(f"\nNot found {fname}")                             # feedback is printedto terminal
+            print("Cubotino logo image is missed\n")                  # feedback is printedto terminal
+            self.logo = Image.new('RGB', (self.disp_w, self.disp_h), color=(0, 0, 0))  # full black screen as new image
+            logo_text = ImageDraw.Draw(self.logo)                     # image is drawned
+            f1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)  # font and size
+            f2 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)  # font and size
+            logo_text.text((10, 44), "CUBOT", font=f1, fill=(255, 255, 255))  # text, font, white color
+            logo_text.text((112, 48), "ino", font=f2, fill=(255, 255, 255))   # text, font, white color
 
 
 
@@ -110,6 +126,7 @@ class Display:
         disp_draw.text((x1, y1), r1, font=font1, fill=(255, 255, 255))    # first text row start coordinate, text, font, white color
         disp_draw.text((x2, y2), r2, font=font2, fill=(255, 255, 255))    # second text row start coordinate, text, font, white color
         self.disp.display(disp_img)                                       # image is plot to the display
+        self.disp.set_backlight(1)                                        # display backlight is set on
 
 
 
@@ -142,22 +159,20 @@ class Display:
             
         barLength = w-2*x-4 #135   # lenght of the bar, in pixels
         filledPixels = int( x+gap +(barLength-2*gap)*percent/100)  # bar filling length, as function of the percent
-        disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))      # outer bar border
-        disp_draw.rectangle((x+gap, y+gap, filledPixels , y+barWidth-gap), fill=(255,255,255)) # bar filling
+        disp_draw.rectangle((x, y, x+barLength, y+barWidth), outline="white", fill=(0,0,0))   # outer bar border
+        disp_draw.rectangle((x+gap, y+gap, filledPixels, y+barWidth-gap), fill=(255,255,255)) # bar filling
         
         self.disp.display(disp_img) # image is plotted to the display
+        self.disp.set_backlight(1)  # display backlight is set on
 
 
 
 
     def show_cubotino(self, built_by='', x=25, fs=22):
         """ Shows the Cubotino logo on the display."""
-                
-        image = Image.open("Cubotino_T_Logo_265x212_BW.jpg")       # opens the CUBOTino logo image (jpg file)
-        image = image.resize((self.disp_w, self.disp_h))           # resizes the image to match the display.
         
-        if built_by != '':                                         # case the built_by variable is not empty
-            disp_draw = ImageDraw.Draw(image)                      # image is plotted to display
+        if built_by != '':                                 # case the built_by variable is not empty
+            disp_draw = ImageDraw.Draw(self.logo)          # image is plotted to display
             font1 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14)  # font1
             disp_draw.text((15, 10), "Andrea FAVERO's", font=font1, fill=(0, 0, 255))  # first row text test
             
@@ -166,7 +181,8 @@ class Display:
             
             font3 = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", fs)  # font1
             disp_draw.text((x, 104), built_by, font=font3, fill=(255, 0, 0))              # third row text test
-        self.disp.display(image)                                   # draws the image on the display hardware.
+        self.disp.display(self.logo)                       # draws the image on the display hardware.
+        self.disp.set_backlight(1)                         # display backlight is set on
 
 
 
@@ -204,6 +220,60 @@ class Display:
         
         self.disp.display(disp_img) # image is plotted to the display
 
+    
+    
+    def plot_status(self, cube_status, plot_color, startup=False):
+        """ Function to print the cube sketch of the cube colors."""
+        
+        if startup:
+            self.c = plot_color
+
+            x_start = 4                                    # x coordinate for face top-left corner
+            y_start = 7                                    # y coordinate for face top-left corner
+            s = 2                                          # gap between faces
+            self.d = 12                                    # facelet square side
+            self.g = 1                                     # offset for xy origin-square of colored facelet
+            self.gg = 2*self.g                             # offset for xy end-square of colored facelet
+            
+            # dict with the top-left coordinate of each face (not facelets !)
+            starts={0:(x_start+3*self.d+  s, y_start),
+                    1:(x_start+6*self.d+2*s, y_start+3*self.d+  s),
+                    2:(x_start+3*self.d+  s, y_start+3*self.d+  s),
+                    3:(x_start+3*self.d+  s, y_start+6*self.d+2*s),
+                    4:(x_start,              y_start+3*self.d+  s),
+                    5:(x_start+9*self.d+3*s, y_start+3*self.d+  s)}
+            
+            # coordinate origin for the 54 facelets
+            tlc=[]                                         # list of all the top-left vertex coordinate for the 54 facelets
+            for value in starts.values():                  # iteration over the 6 faces
+                x_start=value[0]                           # x coordinate fo the face top left corner
+                y_start=value[1]                           # y coordinate fo the face top left corner
+                y = y_start                                # y coordinate value for the first 3 facelets
+                for i in range(3):                         # iteration over rows
+                    x = x_start                            # x coordinate value for the first facelet
+                    for j in range(3):                     # iteration over columns
+                        tlc.append((x, y))                 # x and y coordinate, as list, for the top left vertex of the facelet is appendended
+                        x = x+self.d                       # x coordinate is increased by square side
+                        if j == 2: y = y+self.d            # once at the second column the row is incremented
+            self.tlc = tuple(tlc)                          # tlc list is converted to tuple
+            
+            self.disp_img = Image.new('RGB', (self.disp_w, self.disp_h), color=(0, 0, 0))  # full black image
+            self.disp_draw = ImageDraw.Draw(self.disp_img) # image is drawned
+            
+        
+        # below part gets updated at every new cube_status sent
+        for i, color in enumerate(cube_status):            # iteration over the 54 facelets interpreted colors
+            B,G,R = self.c[color]                          # BGR values of the assigned colors for the corresponding detected color
+            x = self.tlc[i][0]+self.g                      # x coordinate for the origin-square colored facelet
+            y = self.tlc[i][1]+self.g                      # y coordinate for the origin-square colored facelet
+            dx = x + self.d - self.gg                      # x coordinate for the end-square colored facelet
+            dy = y + self.d - self.gg                      # y coordinate for the end-square colored facelet
+            self.disp_draw.rectangle((x, y, dx, dy), (B,G,R))   # cube sketch grid
+        
+        self.disp.display(self.disp_img)                   # image is drawned
+        self.disp.set_backlight(1)                         # display backlight is set on
+
+    
     
     
     def test1_display(self):

@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 10 February 2024
+#  Andrea Favero, 29 February 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '6.7 (10 Feb 2024)'
+version = '6.8 (29 Feb 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -54,6 +54,10 @@ parser.add_argument("-f", "--twosteps", action='store_true',
 # --debug argument is added to the parser
 parser.add_argument("-d", "--debug", action='store_true',
                     help="Activates printout of settings, variables and info for debug purpose")
+
+# --no_animation argument is added to the parser
+parser.add_argument("--no_animation", action='store_true',
+                    help="Deactivates the animation on display and screen")
 
 # --cv_wow argument is added to the parser
 parser.add_argument("--cv_wow", action='store_true',
@@ -2602,9 +2606,12 @@ def cube_sketch_coordinates(x_start, y_start, d):
     
     square_start_pt=[]   # lits of all the top-left vertex coordinate for the 54 facelets
     
-    starts={0:(x_start+3*d, y_start), 1:(x_start+6*d, y_start+3*d),
-            2:(x_start+3*d, y_start+3*d), 3:(x_start+3*d, y_start+6*d),
-            4:(x_start, y_start+3*d), 5:(x_start+9*d, y_start+3*d)}      # dict with the top-left coordinate of each face (not facelets !)
+    starts={0:(x_start+3*d, y_start),
+            1:(x_start+6*d, y_start+3*d),
+            2:(x_start+3*d, y_start+3*d),
+            3:(x_start+3*d, y_start+6*d),
+            4:(x_start,     y_start+3*d),
+            5:(x_start+9*d, y_start+3*d)}   # dict with the top-left coordinate of each face (not facelets !)
     
     for value in starts.values():                          # iteration over the 6 faces
         x_start=value[0]                                   # x coordinate fo the face top left corner
@@ -3042,6 +3049,17 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
     if not robot_stop:             # case there are no request to stop the robot
         # movements to the robot are finally applied
         solved, tot_robot_time, robot_solving_time = robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time)
+        
+        if solution_Text != 'Error' and not robot_stop:  # case the solver has not returned an error and no stop requests
+            cube_bright_colors = {'white':(255,255,255), 'red':(0,0,204), 'green':(0,132,0),
+                                  'yellow':(0,245,245), 'orange':(0,128,255), 'blue':(204,0,0)}   # bright colors assigned to the six faces colors
+            URFDLB = 'URFDLB'                                             # string with the faces order when plotting
+            colors_a={}                                                   # empty dict to store the colors to plot
+            for i, col in enumerate(cube_color_sequence):                 # iteration ove the detected cube color sequence
+                colors_a[URFDLB[i]] = cube_bright_colors[col]             # colors are assigned to the dictionary
+            
+            if animation_activated:                                       # case animation_activated is set True
+                animation(screen, colors_a, cube_status_string, robot_moves)  # call the animation function
         
         # some relevant info are logged into a text file
         log_data(timestamp, facelets_data, cube_status_string, solution, color_detection_winner, tot_robot_time, \
@@ -4041,6 +4059,151 @@ def tune_image_setup(expo_shift, display, gui_debug):
 
 
 
+def cube_facelets_permutation(cube_status, move_type, direction):
+    """Function that updates the cube status, according to the move type the robot does
+       The 'ref' tuples provide the facelet current reference position to be used on the updated position.
+       As example, in case of flip, the resulting facelet 0 is the one currently in position 53 (ref[0])."""
+    
+    if move_type == 'F':         # case the robot move is a cube flip (complete cube rotation around L-R horizontal axis) 
+        ref=(53,52,51,50,49,48,47,46,45,11,14,17,10,13,16,9,12,15,0,1,2,3,4,5,6,7,8,\
+             18,19,20,21,22,23,24,25,26,42,39,36,43,40,37,44,41,38,35,34,33,32,31,30,29,28,27)
+    
+    elif move_type == 'S':       # case the robot move is a spin (complete cube rotation around vertical axis)
+        if direction == '1':     # case spin is CW
+            ref=(2,5,8,1,4,7,0,3,6,18,19,20,21,22,23,24,25,26,36,37,38,39,40,41,42,43,44,\
+                 33,30,27,34,31,28,35,32,29,45,46,47,48,49,50,51,52,53,9,10,11,12,13,14,15,16,17)
+        elif direction == '3':      # case spin is CCW
+            ref=(6,3,0,7,4,1,8,5,2,45,46,47,48,49,50,51,52,53,9,10,11,12,13,14,15,16,17,\
+                 29,32,35,28,31,34,27,30,33,18,19,20,21,22,23,24,25,26,36,37,38,39,40,41,42,43,44)
+    
+    elif move_type == 'R':       # case the robot move is a rotation (lowest layer rotation versus mid and top ones) 
+        if direction == '1':     # case 1st layer rotation is CW
+            ref=(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,24,25,26,18,19,20,21,22,23,42,43,44,\
+                 33,30,27,34,31,28,35,32,29,36,37,38,39,40,41,51,52,53,45,46,47,48,49,50,15,16,17)
+        elif direction == '3':   # case 1st layer rotation is CCW
+            ref=(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,51,52,53,18,19,20,21,22,23,15,16,17,\
+                 29,32,35,28,31,34,27,30,33,36,37,38,39,40,41,24,25,26,45,46,47,48,49,50,42,43,44)
+    
+    new_status = ""              # empty string to generate the cube status, updated according to move_type and direction
+    for i in range(54):          # iteration over the 54 facelets
+        new_status+=str(cube_status[ref[i]])  # updated cube status takes the facelet from previous status at ref location
+    
+    return new_status                      # updated cube status is returneddef cube_facelets_permutation(cube_status, move_type, direction):
+
+
+
+
+
+
+
+def plot_animation(wait, colors_a, cube_status, startup=False, kill=False):
+    """ Based on the detected cube status, a sketch of the cube is plot with bright colors on the pictures collage."""
+
+    if startup:
+        global plot_colors_a, sketch_a, frame_a, start_points_a, inner_points_a, x_start_a, y_start_a, d_a
+        
+        plot_colors_a = colors_a
+        
+        x_start_a = 20                              # x coordinate origin for the sketch
+        y_start_a = 20                              # y coordinate origin for the sketch
+        d_a = 60                                    # edge lenght for each facelet reppresentation
+        
+        sketch_a = np.zeros([9*d_a + 2*y_start_a, 12*d_a + 2*x_start_a, 3],dtype=np.uint8)  # empty array
+        sketch_a.fill(230)                          # array is filled with light gray
+        
+        _, facelets_start_a = cube_sketch_coordinates(x_start_a, y_start_a, d_a)  # dict with the top-left coordinates for each of the 54 facelets
+        
+        inner_points_a = []                         # empty list to store the inner points (coordinates) to be later colored
+        for i in range(54):                         # iteration over the 54 facelets
+            inner_points_a.append(inner_square_points(facelets_start_a,i,d_a)) # array with the 4 square inner vertex coordinates
+        inner_points_a = tuple(inner_points_a)      # list is converted to tuple
+
+        for i in range(54):                         # iteration over the 54 facelets interpreted colors
+            cv2.rectangle(sketch_a,
+            tuple(facelets_start_a[i]),
+            (facelets_start_a[i][0]+d_a, facelets_start_a[i][1]+d_a),
+            (0,0,0), 1)               # square black frame are plot to define the cube sketch
+            
+        cv2.namedWindow('animation')                # create the cube window
+        cv2.moveWindow('animation', 0,0)            # move the window to (0,0)
+        for i in range(5):                          # iteration for 5 times (to refresh the new window on screen)
+            cv2.imshow("animation", sketch_a)       # sketch is plot to screen
+            cv2.waitKey(10)                         # refresh time is limited
+
+    for i, color in enumerate(cube_status):         # iteration over the 54 facelets interpreted colors
+        B,G,R = plot_colors_a[color]                # BGR values of the assigned colors for the corresponding detected color
+        cv2.fillPoly(sketch_a, pts = [inner_points_a[i]], color=(B,G,R))  # inner square is colored with bright color    
+    
+    cv2.imshow("animation", sketch_a)               # sketch_a is plot to screen
+    cv2.waitKey(wait)                               # refresh time
+    
+    if kill:                                        # case kill variable is set True
+        cv2.destroyAllWindows()                     # all the windows are closed
+
+
+
+
+
+
+
+def animation(screen, colors_a, cube_status_string, robot_moves):
+    """Plots to screen the facelets animation on a cube sketch.
+        Detected colors are used to identify the different facelets."""
+
+    cube_status_a = cube_status_string              # cube_status_string is assigned to a local and shorter variable
+    
+    # changing the URF oriented cube status to the cube orientation after the scanning 
+    cube_status_a = cube_facelets_permutation(cube_status_a, 'S', '3')  # facelets permutation assigned to updated cube_status_a
+    cube_status_a = cube_facelets_permutation(cube_status_a, 'F', '1')  # facelets permutation assigned to updated cube_status_a
+    
+    idx = 1                                         # idx variale used for the dict key
+    csa = {}                                        # dict to store the cube status from the start until solution
+    csa[0] = cube_status_a                          # first csa value is the cube status after scanning
+    for i in range(0, len(robot_moves),2):          # iteration over the "in-between" robot movements
+        move_type = robot_moves[i:i+1]              # robot move type is retrieved from robot_moves string
+        direction = robot_moves[i+1:i+2]            # robot move direction/repeats is retrieved from robot_moves string
+        if move_type == 'F':                        # case the robot move is F (flip)
+            for k in range(int(direction)):         # iteration over the quantity of flips
+                # facelets permutation assigned to pdated cube_status_a
+                cube_status_a = cube_facelets_permutation(cube_status_a, move_type, direction)
+                csa[idx] = cube_status_a            # csa gets cube_status_a as new value for the idx index
+                idx+=1                              # idx index is incremented
+        else:                                       # case the robot move is not F (not flip means spin or rotate)
+            # facelets permutation assigned to pdated cube_status_a
+            cube_status_a = cube_facelets_permutation(cube_status_a, move_type, direction)
+            csa[idx] = cube_status_a                # csa gets cube_status_a as new value for the idx index
+            idx+=1                                  # idx index is incremented
+        
+    frames = len(csa)                               # len(csa) defines the frames quantity
+    for i in range(frames):                         # iteration over the frames quantity
+        if i == 0:                                  # case of the first frame
+            disp.plot_status(csa[i], colors_a, startup=True)  # csa is plot to display, after setting the display up
+            time.sleep(2)                           # sleep time to let visible the cube status on display
+        else:                                       # case from the 2nd to the last frames
+            disp.plot_status(csa[i], colors_a)      # csa is plot to display
+            time.sleep(0.5)                         # (smaller) sleep time to let visible the cube status on display
+    time.sleep(3)                                   # additional sleep time at the end
+
+    if screen:                                      # case screen variable is set True
+        t1 = 3000                                   # t1 in ms (plot time for initial and final cube status on the sketch)
+        t2 = 500                                    # t2 in ms(plot time for cube status while moving the cube)
+        for i in range(frames):                     # iteration over the frames quantity
+            if i == 0:                              # case of the first frame
+                show_ms = t1                        # sketch showing time as per t1
+                plot_animation(show_ms, colors_a, csa[i], startup=True) # initial cube status is plot to the screen
+            elif i< frames-1:                       # case from the 2nd to the last but frames
+                show_ms = t2                        # sketch showing time as per t1
+                plot_animation(show_ms, colors_a, csa[i])  # cube status is plot to the screen
+            if i == frames-1:                       # case for the last frames (the new if serves the case of 1 frames)
+                show_ms = t1                        # sketch showing time as per t1
+                plot_animation(show_ms, colors_a, csa[i], kill=True)  # the final cube status is plot with kill instruction
+
+
+
+
+
+
+
 def start_up(first_cycle=False, set_cropping=False):
     """ Start up function, that aims to run (once) all the initial settings needed."""
     
@@ -4336,6 +4499,11 @@ if __name__ == "__main__":
             
     screen = True           # flag to enable/disable commands requiring a screen connection, for graphical print out
     fixWindPos = True       # flag to fix the CV2 windows position, starting from coordinate 0,0 (top left)
+    
+    animation_activated = True    # flag to enable/disable the cube_status animation on screen is set True
+    if args.no_animation != None: # case 'no_animation' argument exists
+        if args.no_animation:     # case the Cubotino_P.py has been launched with 'no_animation' argument
+            animation_activated = False   # flag to enable/disable the cube_status animation on screen is set False
     
     cv_wow = False          # flag to enable/disable the visualization of the image analysis used to find the facelets
     if args.cv_wow != None: # case 'cv_wow' argument exists
