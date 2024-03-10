@@ -3,10 +3,11 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 10 February 2024
+# Andrea Favero 10 March 2024
 # 
-# GUI helping tuninig CUBOTino servos positions.
+# GUI helping tuninig CUBOTino servos positions, and some of the camera settings.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
+# 
 #
 ######################################################################################################################
 """
@@ -20,14 +21,14 @@ from tkinter import ttk              # GUI library
 import datetime as dt                # date and time library used as timestamp on a few situations (i.e. data log)
 import numpy as np                   # array management library
 import time                          # import time library  
-import glob, os.path, pathlib        # os is imported to ensure the file presence, check/make
-import json                          # libraries needed for the json, and parameter import
-from getmac import get_mac_address   # library to get the device MAC ddress
+import os.path                       # os is imported to check for file presence
 
 
-# project specific libraries  
+
+# project specific libraries
+from Cubotino_T_settings_manager import settings as settings   # custom library managing the settings from<>to the settings files
 from Cubotino_T_pigpiod import pigpiod as pigpiod        # start the pigpiod server
-import Cubotino_T_servos as servo    # custom library controlling Cubotino servos and led module
+import Cubotino_T_servos as servo                        # custom library controlling Cubotino servos and led module
 from Cubotino_T_display import display as disp           # custom library controlling Cubotino disply module
 from Cubotino_T import tune_image_setup as camera_setup  # import the camera setting up function
 from Cubotino_T import read_camera as read_camera        # import the camera reading function
@@ -131,74 +132,16 @@ def take_image(refresh=5, widgets_freeze=True):
 
 # #################### functions to manage servos settings from/to files   ###########################################
 
-def get_fname_AF(fname, mac_pos):
-    """generates a filename based on fname and pos value.
-        This is used to match AF specific setting files to the mac address and its position on macs_AF.txt"""
-    
-    return fname[:-4]+'_AF'+str(mac_pos+1)+'.txt'
-
-
-
 def read_servo_settings_file(fname=''):
-    """ Function to assign the servo settings to a dictionary, after testing their data type."""   
+    """ Function to read servo settings and test their data type."""
     
-    import os.path, pathlib, json                                    # libraries needed for the json, and parameter import
-    # convenient choice for Andrea Favero, to upload the settings fitting his robot based on mac address check                
-    from getmac import get_mac_address                               # library to get the device MAC ddress
-    
-    if len(fname) == 0:                                              # case fname equals empty string
-        fname = 'Cubotino_T_servo_settings.txt'                      # fname for the text file to retrieve servos settings
-        if eth_mac in macs_AF:                                       # case the script is running on AF (Andrea Favero) robot
-            fname = get_fname_AF(fname, mac_pos)                     # generates the AF filename
-        else:                                                        # case the script is not running on AF (Andrea Favero) robot
-            fname = os.path.join(folder, fname)                      # folder and file name for the servos settings, to be tuned
-    
-    srv_settings = {}                                                # empty dict to store the settings, or to return empty in case of errors
-    if os.path.exists(fname):                                        # case the servo_settings file exists
-        with open(fname, "r") as f:                                  # servo_settings file is opened in reading mode
-            srv_settings = json.load(f)                              # json file is parsed to a local dict variable
-        
-        try:                                                         # tentative approach
-            # dict with all the servos settings from the txt file
-            # from the dict obtained via json.load the srv_settings dict adds individual data type check
-            srv_settings['t_min_pulse_width'] = float(srv_settings['t_min_pulse_width'])   # defines the min Pulse With the top servo reacts to
-            srv_settings['t_max_pulse_width'] = float(srv_settings['t_max_pulse_width'])   # defines the max Pulse With the top servo reacts to
-            srv_settings['t_servo_close'] = float(srv_settings['t_servo_close'])           # Top_cover close position, in gpiozero format
-            srv_settings['t_servo_open'] = float(srv_settings['t_servo_open'])             # Top_cover open position, in gpiozero format
-            srv_settings['t_servo_read'] = float(srv_settings['t_servo_read'])             # Top_cover camera read position, in gpiozero format
-            srv_settings['t_servo_flip'] = float(srv_settings['t_servo_flip'])             # Top_cover flip position, in gpiozero format
-            srv_settings['t_servo_rel_delta'] = float(srv_settings['t_servo_rel_delta'])   # Top_cover release angle movement from the close position to release tension
-            srv_settings['t_flip_to_close_time'] = float(srv_settings['t_flip_to_close_time'])  # time for Top_cover from flip to close position
-            srv_settings['t_close_to_flip_time'] = float(srv_settings['t_close_to_flip_time'])  # time for Top_cover from close to flip position 
-            srv_settings['t_flip_open_time'] = float(srv_settings['t_flip_open_time'])     # time for Top_cover from open to flip position, and viceversa
-            srv_settings['t_open_close_time'] = float(srv_settings['t_open_close_time'])   # time for Top_cover from open to close position, and viceversa
-            srv_settings['t_rel_time'] = float(srv_settings['t_rel_time'])                 # time for Top_cover to release tension from close position
-    
-            srv_settings['b_min_pulse_width'] = float(srv_settings['b_min_pulse_width'])   # defines the min Pulse With the bottom servo reacts to
-            srv_settings['b_max_pulse_width'] = float(srv_settings['b_max_pulse_width'])   # defines the max Pulse With the bottom servo reacts to
-            srv_settings['b_servo_CCW'] = float(srv_settings['b_servo_CCW'])               # Cube_holder max CCW angle position
-            srv_settings['b_servo_CW'] = float(srv_settings['b_servo_CW'])                 # Cube_holder max CW angle position
-            srv_settings['b_home'] = float(srv_settings['b_home'])                         # Cube_holder home angle position
-            srv_settings['b_rel_CCW'] = float(srv_settings['b_rel_CCW'])                   # Cube_holder release angle at CCW angle positions, to release tension
-            srv_settings['b_rel_CW'] = float(srv_settings['b_rel_CW'])                     # Cube_holder release angle at CW angle positions, to release tension
-            srv_settings['b_extra_home_CW'] = float(srv_settings['b_extra_home_CW'])       # Cube_holder release angle from CW to home positions to release tension
-            srv_settings['b_extra_home_CCW'] = float(srv_settings['b_extra_home_CCW'])     # Cube_holder release angle from CCW to home positions to release tension
-            srv_settings['b_spin_time'] = float(srv_settings['b_spin_time'])               # time for Cube_holder to spin 90 deg (cune not contrained)
-            srv_settings['b_rotate_time'] = float(srv_settings['b_rotate_time'])           # time for Cube_holder to rotate 90 deg (cube constrained)
-            srv_settings['b_rel_time'] = float(srv_settings['b_rel_time'])                 # time for Cube_holder to release tension at home, CCW and CW positions
-            
-            return srv_settings                                                           # return settings
-            
-        except:   # exception will be raised if json keys differs, or parameters cannot be converted to float
-            print(f'Error on converting to proper format the servos imported parameters, from {fname}')   # feedback is printed to the terminal
-            return {}                            # return (empty) settings
-        
-    
-    else:                                        # case the settings file does not exists, or name differs
-        print(f'Could not find {fname}')         # feedback is printed to the terminal
- 
-    
-    
+    try:                                                         # tentative approach
+        srv_settings = settings.get_servos_settings()            # settings are retrieved via the settings Class
+        return srv_settings                                      # return settings
+    except:                                                      # case of exception
+        print(f'Error at read_servo_settings_file in Cubotino_T_servos_GUI.py')  # feedback is printed to the terminal
+        return {}                                                # return (empty) settings
+
 
 
 
@@ -248,31 +191,34 @@ def upload_servo_settings(srv_settings):
 def update_servo_settings_dict():
     """ Function to update the servo settings dictionary based on the global variables.""" 
     
-    srv_settings['t_min_pulse_width'] = str(t_min_pulse_width)    # defines the min Pulse With the top servo reacts to
-    srv_settings['t_max_pulse_width'] = str(t_max_pulse_width)    # defines the max Pulse With the top servo reacts to
-    srv_settings['t_servo_close'] = str(t_servo_close)            # Top_cover close position, in gpiozero format
-    srv_settings['t_servo_open'] = str(t_servo_open)              # Top_cover open position, in gpiozero format
-    srv_settings['t_servo_read'] = str(t_servo_read)              # Top_cover camera read position, in gpiozero format
-    srv_settings['t_servo_flip'] = str(t_servo_flip)              # Top_cover flip position, in gpiozero format
-    srv_settings['t_servo_rel_delta'] = str(t_servo_rel_delta)    # Top_cover release angle movement from the close position to release tension
-    srv_settings['t_flip_to_close_time'] = str(t_flip_to_close_time)  # time for Top_cover from flip to close position
-    srv_settings['t_close_to_flip_time'] = str(t_close_to_flip_time)  # time for Top_cover from close to flip position 
-    srv_settings['t_flip_open_time'] = str(t_flip_open_time)      # time for Top_cover from open to flip position, and viceversa  
-    srv_settings['t_open_close_time'] = str(t_open_close_time)    # time for Top_cover from open to close position, and viceversa
-    srv_settings['t_rel_time'] = str(t_rel_time)                  # time for Top_cover to release tension from close to close position
-    
-    srv_settings['b_min_pulse_width'] = str(b_min_pulse_width)    # defines the min Pulse With the bottom servo reacts to
-    srv_settings['b_max_pulse_width'] = str(b_max_pulse_width)    # defines the max Pulse With the bottom servo reacts to
-    srv_settings['b_servo_CCW'] = str(b_servo_CCW)                # Cube_holder max CCW angle position
-    srv_settings['b_servo_CW'] = str(b_servo_CW)                  # Cube_holder max CW angle position
-    srv_settings['b_home'] = str(b_home)                          # Cube_holder home angle position
-    srv_settings['b_rel_CCW'] = str(b_rel_CCW)                    # Cube_holder release angle from CCW angle positions, to release tension
-    srv_settings['b_rel_CW'] = str(b_rel_CW)                      # Cube_holder release angle from CW angle positions, to release tension
-    srv_settings['b_extra_home_CW'] = str(b_extra_home_CW)        # Cube_holder release angle from home angle positions, to release tension
-    srv_settings['b_extra_home_CCW'] = str(b_extra_home_CCW)      # Cube_holder release angle from home angle positions, to release tension
-    srv_settings['b_spin_time'] = str(b_spin_time)                # time for Cube_holder to spin 90 deg (cune not contrained)
-    srv_settings['b_rotate_time'] = str(b_rotate_time)            # time for Cube_holder to rotate 90 deg (cube constrained)
-    srv_settings['b_rel_time'] = str(b_rel_time)                  # time for Cube_holder to release tension at home, CCW and CW positions
+    for key, value in srv_settings.items():                       # iteration trhough the srv_settings dict
+        srv_settings[key] = str(value)                            # dict values are converted to string
+        
+#     srv_settings['t_min_pulse_width'] = str(t_min_pulse_width)    # defines the min Pulse With the top servo reacts to
+#     srv_settings['t_max_pulse_width'] = str(t_max_pulse_width)    # defines the max Pulse With the top servo reacts to
+#     srv_settings['t_servo_close'] = str(t_servo_close)            # Top_cover close position, in gpiozero format
+#     srv_settings['t_servo_open'] = str(t_servo_open)              # Top_cover open position, in gpiozero format
+#     srv_settings['t_servo_read'] = str(t_servo_read)              # Top_cover camera read position, in gpiozero format
+#     srv_settings['t_servo_flip'] = str(t_servo_flip)              # Top_cover flip position, in gpiozero format
+#     srv_settings['t_servo_rel_delta'] = str(t_servo_rel_delta)    # Top_cover release angle movement from the close position to release tension
+#     srv_settings['t_flip_to_close_time'] = str(t_flip_to_close_time)  # time for Top_cover from flip to close position
+#     srv_settings['t_close_to_flip_time'] = str(t_close_to_flip_time)  # time for Top_cover from close to flip position 
+#     srv_settings['t_flip_open_time'] = str(t_flip_open_time)      # time for Top_cover from open to flip position, and viceversa  
+#     srv_settings['t_open_close_time'] = str(t_open_close_time)    # time for Top_cover from open to close position, and viceversa
+#     srv_settings['t_rel_time'] = str(t_rel_time)                  # time for Top_cover to release tension from close to close position
+#     
+#     srv_settings['b_min_pulse_width'] = str(b_min_pulse_width)    # defines the min Pulse With the bottom servo reacts to
+#     srv_settings['b_max_pulse_width'] = str(b_max_pulse_width)    # defines the max Pulse With the bottom servo reacts to
+#     srv_settings['b_servo_CCW'] = str(b_servo_CCW)                # Cube_holder max CCW angle position
+#     srv_settings['b_servo_CW'] = str(b_servo_CW)                  # Cube_holder max CW angle position
+#     srv_settings['b_home'] = str(b_home)                          # Cube_holder home angle position
+#     srv_settings['b_rel_CCW'] = str(b_rel_CCW)                    # Cube_holder release angle from CCW angle positions, to release tension
+#     srv_settings['b_rel_CW'] = str(b_rel_CW)                      # Cube_holder release angle from CW angle positions, to release tension
+#     srv_settings['b_extra_home_CW'] = str(b_extra_home_CW)        # Cube_holder release angle from home angle positions, to release tension
+#     srv_settings['b_extra_home_CCW'] = str(b_extra_home_CCW)      # Cube_holder release angle from home angle positions, to release tension
+#     srv_settings['b_spin_time'] = str(b_spin_time)                # time for Cube_holder to spin 90 deg (cune not contrained)
+#     srv_settings['b_rotate_time'] = str(b_rotate_time)            # time for Cube_holder to rotate 90 deg (cube constrained)
+#     srv_settings['b_rel_time'] = str(b_rel_time)                  # time for Cube_holder to release tension at home, CCW and CW positions
     
     return srv_settings
 
@@ -283,26 +229,7 @@ def update_servo_settings_dict():
 def load_previous_servo_settings():
     """ Function load the servo settings from latest json backup file saved."""
     
-    fname = 'Cubotino_T_servo_settings.txt'                    # fname for the text file to retrieve settings
-    if eth_mac in macs_AF:                                     # case the script is running on AF (Andrea Favero) robot
-        fname = get_fname_AF(fname, mac_pos)                   # generates the AF filename
-    else:                                                      # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder, fname)                    # folder and file name for the settings, to be tuned
-    
-    backup_fname = fname[:-4] + '_backup*.txt'                 # backup filename is made
-    backup_files = sorted(glob.iglob(backup_fname), key=os.path.getmtime, reverse=True) # ordered list of backuped settings files 
-    if len(backup_files) > 0:                                  # case there are backup setting files
-        if len(backup_files) > 10:                             # case there are more than 10 backup files
-            while len(backup_files) > 10:                      # iteration until there will only be 10 backup files
-                os.remove(backup_files[-1])                    # the oldes backup file is deleted
-                backup_files = sorted(glob.iglob(backup_fname), key=os.path.getctime, reverse=True) # ordered list of backuped settings files     
-        latest_backup = backup_files[0]                        # latest settings files backed up
-        srv_settings = read_servo_settings_file(latest_backup) # settings are read from the latest_backup file
-        print(f"\nUploaded settings from latest_backup:  {latest_backup}")  # feedback is printed to the terminal
-    else:                                                      # case there are backup setting files
-        srv_settings = read_servo_settings_file(fname)         # settings are read from the fname file
-        print(f"\nNot found backup files, uploaded settings from file: {fname}")
-    
+    srv_settings = settings.load_previous_settings(servo=True) # call the function that loads the latest backuped file
     upload_servo_settings(srv_settings)                        # settings are uploaded (to global variables)
     update_servo_sliders()                                     # sliders are updated
 
@@ -316,30 +243,19 @@ def save_new_servo_settings():
     
     global srv_settings
     
-    fname = 'Cubotino_T_servo_settings.txt'                    # fname for the text file to retrieve settings 
-    if eth_mac in macs_AF:                                     # case the script is running on AF (Andrea Favero) robot
-        fname = get_fname_AF(fname, mac_pos)                   # generates the AF filename
-    else:                                                      # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder, fname)                    # folder and file name for the settings, to be tuned
-    
+    fname = settings.get_servo_settings_fname()                # fname for the text file to retrieve settings
     if os.path.exists(fname):                                  # case the servo_settings file exists    
         datetime = dt.datetime.now().strftime('%Y%m%d_%H%M%S') # date_time variable is assigned, for file name
         backup_fname = fname[:-4] + '_backup_' + datetime + '.txt' # backup file name
-        with open(backup_fname, "w") as f:                     # original servo_settings are saved to a backup file with datetime ref
-            f.write(json.dumps(srv_settings, indent=0))        # content of the setting file is saved
-            print("\nSaving previous settings to backup file:", backup_fname)
+        print("\nSaving previous settings to backup file:", backup_fname)
+        settings.save_setting(backup_fname, srv_settings, debug=False)  # original servo_settings are saved to a backup file with datetime ref
         
-        backup_fname = fname[:-4] + '_backup*.txt'             # common name prefix for the backup files
-        backup_files = sorted(glob.iglob(backup_fname), key=os.path.getmtime, reverse=True) # ordered list of backuped settings files 
-        if len(backup_files) > 10:                             # case there are more than 10 backup files
-            while len(backup_files) > 10:                      # iteration until there will only be 10 backup files
-                os.remove(backup_files[-1])                    # the oldes backup file is deleted
-                backup_files = sorted(glob.iglob(backup_fname), key=os.path.getctime, reverse=True) # ordered list of backuped settings files 
-        
+        settings.backups_cleanup(fname, n=10)                  # calls the function that keeps the latest n backups
+
         srv_settings = update_servo_settings_dict()            # settings updated to sliders values
-        with open(fname, "w") as f:                            # servo_settings file is opened in reading mode
-            f.write(json.dumps(srv_settings, indent=0))        # content of the setting file is saved
-            print("Saving settings to:", fname)                # feedback is printed to the terminal
+        print("Saving current settings to:", fname)            # feedback is printed to the terminal
+        settings.save_setting(fname, srv_settings, debug=False) # calls the function that saves the settings
+        
     else:                                                      # case the servo_settings file exists
         print(f"File name {fname} does not exists at save_new_servo_settings function")
 
@@ -398,99 +314,14 @@ def last_btn_srv_pos():
 
 # #################### functions to manage camera settings from/to files   ###########################################
 def read_cam_settings_file(fname=''):
-    """ Function to assign the cam settings to a dictionary, after testing their data type."""   
+    """ Function to read the cam settings and testing their data type."""
     
-    import os.path, pathlib, json                              # libraries needed for the json, and parameter import
-    # convenient choice for Andrea Favero, to upload the settings fitting his robot based on mac address check                
-    from getmac import get_mac_address                         # library to get the device MAC ddress
-    
-    if len(fname) == 0:                                        # case fname equals empty string
-        fname = 'Cubotino_T_settings.txt'                      # fname for the text file to retrieve settings
-        if eth_mac in macs_AF:                                 # case the script is running on AF (Andrea Favero) robot
-            fname = get_fname_AF(fname, mac_pos)               # generates the AF filename
-        else:                                                  # case the script is not running on AF (Andrea Favero) robot
-            fname = os.path.join(folder, fname)                # folder and file name for the settings, to be tuned
-    
-    if os.path.exists(fname):                                  # case the settings file exists
-        with open(fname, "r") as f:                            # settings file is opened in reading mode
-            cam_settings = json.load(f)                        # json file is parsed to a local dict variable
-        
-        # update key-values parameters, needed in case of additional parameters added at remote repo
-        cam_settings = update_settings_file(fname, cam_settings)
-        
-        try:           
-            # from the dict obtained via json.load the settings dict adds individual data type check
-            cam_settings['x_l'] = int(cam_settings['x_l'])         # pixels to remove at the left image side
-            cam_settings['x_r'] = int(cam_settings['x_r'])         # pixels to remove at the right image side
-            cam_settings['y_u'] = int(cam_settings['y_u'])         # pixels to remove at the upper image side
-            cam_settings['y_b'] = int(cam_settings['y_b'])         # pixels to remove at the bottom image side
-            cam_settings['warp_fraction'] = float(cam_settings['warp_fraction'])  # warp correction factor
-            cam_settings['warp_slicing'] = float(cam_settings['warp_slicing'])    # image slicing after warping
-            cam_settings['cam_led_bright'] = float(cam_settings['cam_led_bright'])    # PWM level for the 3W led at Top_cover
-            cam_settings['expo_shift'] = float(cam_settings['expo_shift'])    # exposure shift for PiCamera 
-            
-            return cam_settings
-            
-        except:   # exception will be raised if json keys differs, or parameters cannot be converted to float
-            print(f'Error on converting to proper format the cam imported parameters, from {fname}')   # feedback is printed to the terminal                                  
-            return {}                                    # return (empty) settings
-    
-    else:                                                # case the cam_settings file does not exists, or name differs
-        print(f'Could not find {fname}')                 # feedback is printed to the terminal                                  
-        return cam_settings                              # return settings
-
-
-
-
-def update_settings_file(fname, settings):
-    """Function to check if the existing fname (Cubotino_T_settings.txt) has all the parameters that were instroduced after firt release.
-        This will allow every Makers to 'git pull' the updates while pre-serving personal settings (added *_settings.txt to gitignore).
-        Cubotino_T.py and Cubotino_T_servos_GUI.py will update Cubotino_T_settings.txt with eventually missed parameters
-        and related default values.
-        """
-
-    settings_keys = settings.keys()
-    any_change = False
-    
-    if 'frameless_cube' not in settings_keys:
-        settings['frameless_cube']='false'
-        any_change = True
-        
-    if 'cover_self_close' not in settings_keys:
-        settings['cover_self_close']='false'
-        any_change = True
-        
-    if 's_mode' not in settings_keys:
-        settings['s_mode']='7'
-        any_change = True
-        
-    if 'vnc_delay' not in settings_keys:
-        settings['vnc_delay']= '0.5'
-        any_change = True
-    
-    if 'built_by' not in settings_keys:
-        settings['built_by']=''
-        any_change = True
-        
-    if 'built_by_x' not in settings_keys:
-        settings['built_by_x']='25'
-        any_change = True
-        
-    if 'built_by_fs' not in settings_keys:
-        settings['built_by_fs']='16'
-        any_change = True
-    
-    if 'expo_shift' not in settings_keys:
-        settings['expo_shift']='-1.0'        # this parameter is ignored on OS10 (Buster)
-        any_change = True
-     
-    if any_change:
-        print('\nOne time action: Adding new parameters to the Cubotino_T_settings.txt')
-        print('Action necessary for compatibility with the latest downloaded Cubotino_T.py \n')
-        with open(fname, 'w') as f:
-            f.write(json.dumps(settings, indent=0))   # content of the updated setting is saved
-    
-    return settings
+    try:
+        cam_settings = settings.get_settings()           # settings are retrieved via the settings Class 
+        return cam_settings                              # cam resttings are returned
+    except:                                              # case of exceptions
+        print(f'Error at read_cam_settings_file function in Cubotino_servos_GUI.py')   # feedback is printed to the terminal                                  
+        return {}                                        # return (empty) settings
 
 
 
@@ -514,31 +345,14 @@ def upload_cam_settings(cam_settings):
 
 
 
+
 def load_previous_cam_settings():
-    """ Function load the cam settings from latest json backup file saved.""" 
+    """ Function load the cam settings from latest json backup file saved."""
     
-    fname = 'Cubotino_T_settings.txt'                          # fname for the text file to retrieve settings
-    if eth_mac in macs_AF:                                     # case the script is running on AF (Andrea Favero) robot
-        fname = get_fname_AF(fname, mac_pos)                   # generates the AF filename
-    else:                                                      # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder, fname)                    # folder and file name for the settings, to be tuned
-    
-    backup_fname = fname[:-4] + '_backup*.txt'                 # backup filename is made
-    backup_files = sorted(glob.iglob(backup_fname), key=os.path.getmtime, reverse=True) # ordered list of backuped settings files 
-    if len(backup_files) > 0:                                  # case there are backup setting files
-        if len(backup_files) > 10:                             # case there are more than 10 backup files
-            while len(backup_files) > 10:                      # iteration until there will only be 10 backup files
-                os.remove(backup_files[-1])                    # the oldes backup file is deleted
-                backup_files = sorted(glob.iglob(backup_fname), key=os.path.getctime, reverse=True) # ordered list of backuped settings files     
-        latest_backup = backup_files[0]                        # latest settings files backed up
-        cam_settings = read_cam_settings_file(latest_backup)   # settings are read from the latest_backup file
-        print(f"\nUploaded cam settings from latest_backup:  {latest_backup}")  # feedback is printed to the terminal
-    else:                                                      # case there are backup setting files
-        cam_settings = read_cam_settings_file(fname)           # settings are read from the fname file
-        print(f"\nNot found backup files, uploaded settings from file: {fname}")
-    
+    cam_settings = settings.load_previous_settings(servo=False) # call the function that loads the latest backuped file
     upload_cam_settings(cam_settings)                          # cam settings are uploaded (to global variables)
     update_cam_sliders()                                       # cam sliders are updated
+
 
 
 
@@ -568,32 +382,23 @@ def save_new_cam_settings():
     
     global cam_settings
     
-    fname = 'Cubotino_T_settings.txt'                              # fname for the text file to retrieve settings
-    if eth_mac in macs_AF:                                         # case the script is running on AF (Andrea Favero) robot
-        fname = get_fname_AF(fname, mac_pos)                       # generates the AF filename
-    else:                                                          # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder, fname)                        # folder and file name for the settings, to be tuned
-    
+    fname = settings.get_settings_fname()                          # fname for the text file to retrieve settings
     if os.path.exists(fname):                                      # case the servo_settings file exists
         datetime = dt.datetime.now().strftime('%Y%m%d_%H%M%S')     # date_time variable is assigned, for file name
-        backup_fname = fname[:-4] + '_backup_' + datetime + '.txt' # backup file name
-        with open(backup_fname, "w") as f:                         # original servo_settings are saved to a backup file with datetime ref
-            f.write(json.dumps(cam_settings, indent=0))            # content of the setting file is saved
-            print("\nSaving previous settings to backup file:", backup_fname)
+        backup_fname = fname[:-4] + '_backup_' + datetime + '.txt' # backup file name with datetime reference
+        print("\nSaving previous camera settings to backup file:", backup_fname)  # feedback is printed to the terminal
+        settings.save_setting(backup_fname, cam_settings, debug=False)  # original cam_settings are saved to a backup file with datetime ref
         
-        backup_fname = fname[:-4] + '_backup*.txt'                 # common name prefix for the backup files
-        backup_files = sorted(glob.iglob(backup_fname), key=os.path.getmtime, reverse=True) # ordered list of backuped settings files 
-        if len(backup_files) > 10:                                 # case there are more than 10 backup files
-            while len(backup_files) > 10:                          # iteration until there will only be 10 backup files
-                os.remove(backup_files[-1])                        # the oldes backup file is deleted
-                backup_files = sorted(glob.iglob(backup_fname), key=os.path.getctime, reverse=True) # ordered list of backuped settings files 
+        settings.backups_cleanup(fname, n=10)                      # calls the function that keeps the latest n backups
         
         cam_settings = update_cam_settings_dict()                  # settings updated to sliders values
-        with open(fname, "w") as f:                                # robot setting file is opened in reading mode
-            f.write(json.dumps(cam_settings, indent=0))            # content of the setting file is saved
-            print("Saving settings to:", fname)                    # feedback is printed to the terminal
+        print("Saving current camera settings to:", fname)         # feedback is printed to the terminal
+        settings.save_setting(fname, cam_settings, debug=False)    # calls the function that saves the settings
     else:                                                          # case the servo_settings file exists
         print(f"File name {fname} does not exists at save_new_cam_settings function")
+
+        
+
 
 
 
@@ -1053,8 +858,15 @@ def enable_widgets(parent, relief):
 
 def show_window(window, startup=False):
     """Function to bring to the front the window in argument."""
-    global servoWindow_ontop
+    global servoWindow_ontop, t_servo_pos
     if window==servoWindow:                    # case the request is to show the servo settings windows
+        if not startup:                        # case startup is set false (not at the start)
+            try:                               # tentative approach
+                open_top_cover()               # top_cover is set in its open position
+                t_servo_pos = 'read'           # top_cover position tracker set 'read' disable sliders till OPEN btn pressed
+                btm_srv_widgets_status()       # updates the bottom servo related widgests status, based on top servo pos
+            except:                            # case of expection
+                pass                           # do nothing
         window.tkraise()                       # servo settings windows is raised on top
         servoWindow_ontop=True                 # boolean of servo settings windows being on top is set true
         root.geometry('+0+40')                 # windows is presented at top-left of the screen
@@ -1096,17 +908,6 @@ printout = False                             # boolean to print the settings to 
 servoWindow_ontop=True                       # boolean to track which window is on top
 picamera_initialized = False                 # boolean to track if the camera has been initialized
 startup = True                               # boolean to track the first time window generation
-
-folder = pathlib.Path().resolve()            # active folder (should be home/pi/cubotino)
-eth_mac = get_mac_address().lower()          # board mac address is retrieved
-macs_AF = get_macs_AF()                      # mac addresses of AF bots are retrieved
-
-if eth_mac in macs_AF:                       # case board mac is in macs_AF tupple
-    mac_pos = macs_AF.index(eth_mac)         # mac addreess position in the tupple
-#     print("Board's mac is listed in macs_AF.txt file")      # feedback is printed to the terminal
-else:                                        # case board mac is not in macs_AF tupple
-    mac_pos = ''                             # the mac addreess position is set empty
-#     print("Board's mac is not listed in macs_AF.txt file")  # feedback is printed to the terminal
     
 srv_settings  = read_servo_settings_file()   # servos settings are retrieved from the json settings files
 upload_servo_settings(srv_settings)          # servos settings are loaded to global
@@ -1138,6 +939,7 @@ camWindow=tk.Frame(root)                  # a second windows (called camWindow) 
 for window in (servoWindow, camWindow):   # iteration over the two defined windows
     window.grid(row=0,column=0,sticky='nsew')  # each window goes to the only row/column, and centered
 
+startup = True
 show_window(servoWindow, startup)         # the first window (mainWindow) is the one that will initially appear
 ######################################################################################################################
 

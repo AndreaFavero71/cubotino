@@ -3,17 +3,17 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 20 January 2024
+#  Andrea Favero 10 March 2024
 #
 # This script relates to CUBOTino Pocket, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the CUBOTino versions for the Rubik's cube 2x2x2.
 # This specific script manages the camera, for Raspberry Pi OS 11 (Bullseye).
-# This file is imported by Cubotino_T.py
+# This file is imported by Cubotino_T.py and Cubotino_servos_GUI.py.
 #
 #############################################################################################################
 """
 
-
+from Cubotino_T_settings_manager import settings as settings  # settings manager Class
 from picamera2 import Picamera2        # Raspberry Pi specific package for the camera, since Raspberry Pi OS 11
 from libcamera import controls
 import os.path, pathlib, json          # library for the json parameter parsing for the display
@@ -27,29 +27,14 @@ class Camera:
     
     def __init__(self):
         """ Imports and set the picamera (V1.3)"""
-        print("\nLoading camera parameters")
         
-        # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
-        fname = 'Cubotino_T_settings.txt'                             # fname for the text file to retrieve settings
-        folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
-        eth_mac = get_mac_address()                                   # mac address is retrieved
-        if eth_mac in macs_AF:                                        # case the script is running on AF (Andrea Favero) robot
-            pos = macs_AF.index(eth_mac)                              # return the mac addreess position in the tupple
-            fname = self.get_fname_AF(fname, pos)                     # generates the AF filename
-        else:                                                         # case the script is not running on AF (Andrea Favero) robot
-            fname = os.path.join(folder, fname)                       # folder and file name for the settings, to be tuned
-        if os.path.exists(fname):                                     # case the settings file exists
-            with open(fname, "r") as f:                               # settings file is opened in reading mode
-                settings = json.load(f)                               # json file is parsed to a local dict variable
-            try:                                                      # tentative
-                camera_width_res = int(settings['camera_width_res'])  # Picamera resolution on width 
-                camera_height_res = int(settings['camera_hight_res']) # Picamera resolution on heigh
-                self.kl = float(settings['kl'])                       # coff. for PiCamera stability acceptance
-                self.expo_shift = float(settings['expo_shift'])            # Picamera shift on exposure value
-            except:   # exception will be raised if json keys differs, or parameters cannot be converted to int/float
-                print('error on converting the imported parameters to int, float or string')   # feedback is printed to the terminal    
-        else:                                                         # case the settings file does not exists, or name differs
-            print(f'could not find {fname}')                          # feedback is printed to the terminal
+        print("\nLoading camera parameters")
+        sett = settings.get_settings()                   # settings are retrieved from the settings Class
+        camera_width_res = sett['camera_width_res']      # Picamera resolution on width 
+        camera_height_res = sett['camera_hight_res']     # Picamera resolution on heigh
+        self.kl = sett['kl']                             # coff. for PiCamera stability acceptance
+        self.expo_shift = sett['expo_shift']             # Picamera shift on exposure value
+  
             
         print("Setting up the camera\n")                              # feedback is printed to the terminal
         self.width = camera_width_res                                 # image width

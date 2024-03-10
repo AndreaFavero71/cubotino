@@ -3,16 +3,17 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 20 January 2023
+#  Andrea Favero 10 March 2023
 #
 # This script relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
-# This specific script manages the camera, for Raspberry Pi OS ==10
-# This file is imported by Cubotino_T.py
+# This specific script manages the camera, for Raspberry Pi OS ==10 (Buster).
+# This file is imported by Cubotino_T.py and Cubotino_servos_GUI.py.
 #
 #############################################################################################################
 """
 
+from Cubotino_T_settings_manager import settings as settings  # settings manager Class
 from picamera.array import PiRGBArray        # Raspberry Pi specific package for the camera, using numpy array
 from picamera import PiCamera                # Raspberry Pi specific package for the camera
 import os.path, pathlib, json                # library for the json parameter parsing for the display
@@ -27,41 +28,24 @@ class Camera:
     
     def __init__(self):
         """ Imports and set the picamera (V1.3)"""
-        print("\nLoading camera parameters")
         
-        # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac check
-        fname = 'Cubotino_T_settings.txt'                             # fname for the text file to retrieve settings
-        folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cube)  
-        eth_mac = get_mac_address()                                   # mac address is retrieved
-        if eth_mac in macs_AF:                                        # case the script is running on AF (Andrea Favero) robot
-            pos = macs_AF.index(eth_mac)                              # return the mac addreess position in the tupple
-            fname = self.get_fname_AF(fname, pos)                     # generates the AF filename
-        else:                                                         # case the script is not running on AF (Andrea Favero) robot
-            fname = os.path.join(folder, fname)                       # folder and file name for the settings, to be tuned
-        if os.path.exists(fname):                                     # case the settings file exists
-            with open(fname, "r") as f:                               # settings file is opened in reading mode
-                settings = json.load(f)                               # json file is parsed to a local dict variable
-            try:                                                      # tentative
-                camera_width_res = int(settings['camera_width_res'])  # Picamera resolution on width 
-                camera_height_res = int(settings['camera_hight_res']) # Picamera resolution on heigh
-                s_mode = int(settings['s_mode'])                      # camera setting mode (pixels binning)
-                self.kl = float(settings['kl'])                       # coff. for PiCamera stability acceptance
-
-            except:   # exception will be raised if json keys differs, or parameters cannot be converted to int/float
-                print('error on converting the imported parameters to int, float or string')   # feedback is printed to the terminal
-                
-        else:                                                         # case the settings file does not exists, or name differs
-            print(f'could not find {fname}')                          # feedback is printed to the terminal
+        print("\nLoading camera parameters")             # feedback is printed to the terminal
+        sett = settings.get_settings()                   # settings are retrieved from the settings Class
+        
+        camera_width_res = sett['camera_width_res']      # Picamera resolution on width 
+        camera_height_res = sett['camera_hight_res']     # Picamera resolution on heigh
+        s_mode = sett['s_mode']                          # camera setting mode (pixels binning)
+        self.kl = sett['kl']                             # coff. for PiCamera stability acceptance
             
-        print("Setting camera\n")                                     # feedback is printed to the terminal
-        self.width = camera_width_res                                 # image width
-        self.height = camera_height_res                               # image height
+        print("Setting camera\n")                        # feedback is printed to the terminal
+        self.width = camera_width_res                    # image width
+        self.height = camera_height_res                  # image height
         
         # PiCamera V1.3: sensor mode 7 means 4x4 binning, 4:3, Full Field of View
         # PiCamera V2:   sensor mode 4 means 2x2 binning, 4:3, Full Field of View
-        self.cam = PiCamera(sensor_mode=s_mode)                       # sets the camera mode (resolution and binnig)
-        self.rawCapture = PiRGBArray(self.cam)                        # returns (uncoded) RGB array from the camera
-        self.cam.resolution = (self.width, self.height)               # camera.resolution is an attribute, not a method 
+        self.cam = PiCamera(sensor_mode=s_mode)          # sets the camera mode (resolution and binnig)
+        self.rawCapture = PiRGBArray(self.cam)           # returns (uncoded) RGB array from the camera
+        self.cam.resolution = (self.width, self.height)  # camera.resolution is an attribute, not a method 
 
     
     def get_width(self):
@@ -158,11 +142,11 @@ class Camera:
 
 camera = Camera()
 
-# if __name__ == "__main__":
-#     """the main function can be used to test the camera. """
-# 
-# 
-#     print(camera.binning)
-#     print(camera.cam.resolution)
-#     print(camera.debug)
+if __name__ == "__main__":
+    """the main function can be used to test the camera. """
+
+
+    print(camera.binning)
+    print(camera.cam.resolution)
+    print(camera.debug)
 

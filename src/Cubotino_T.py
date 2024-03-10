@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 29 February 2024
+#  Andrea Favero, 10 March 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '6.8 (29 Feb 2024)'
+version = '7.0 (10 March 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -99,184 +99,63 @@ args = parser.parse_args()   # argument parsed assignement
 
 
 import sys                                               # sys library is imported
-from get_macs_AF import get_macs_AF                      # import the get_macs_AF function
-
-
-
-
-
-def get_fname_AF(fname, pos):
-    """generates a filename based on fname and pos value.
-        This is used to match AF specific setting files to the mac address and its position on macs_AF.txt"""
-    return fname[:-4]+'_AF'+str(pos+1)+'.txt'
-
-
 
 
 
 def import_parameters(debug=False):
     """ Function to import parameters from a json file, to make easier to list/document/change the variables
         that are expected to vary on each robot."""
-       
+    
+    from Cubotino_T_settings_manager import settings as settings  # settings manager Class
+    
     global frameless_cube, camera_width_res, camera_hight_res, s_mode
     global expo_shift, kl, x_l, x_r, y_u, y_b, w_f, w_s, square_ratio, rhombus_ratio
     global delta_area_limit, sv_max_moves, sv_max_time, collage_w, marg_coef, cam_led_bright, cam_led_auto
     global detect_timeout, show_time, warn_time, quit_time, cover_self_close, vnc_delay, fcs_delay
     global built_by, built_by_x, built_by_fs
-    global pathlib, json
     
-    # convenient choice for Andrea Favero, to upload the settings fitting my robot, via mac address check
-    import os.path, pathlib, json                                 # libraries needed for the json, and parameter import
-    from getmac import get_mac_address                            # library to get the device MAC ddress
-    import time
-    
-    macs_AF = get_macs_AF()                                       # mac addresses of AF bots are retrieved
-    fname = 'Cubotino_T_settings.txt'                             # fname for the text file to retrieve settings
-    folder = pathlib.Path().resolve()                             # active folder (should be home/pi/cubotino/src)  
-    eth_mac = get_mac_address().lower()                           # mac address is retrieved
-    if eth_mac in macs_AF:                                        # case the script is running on AF (Andrea Favero) robot
-        pos = macs_AF.index(eth_mac)                              # return the mac addreess position in the tupple
-        fname = get_fname_AF(fname, pos)                          # generates the AF filename
-    else:                                                         # case the script is not running on AF (Andrea Favero) robot
-        fname = os.path.join(folder, fname)                       # folder and file name for the settings, to be tuned
-    
-    if os.path.exists(fname):                                     # case the settings file exists
-        with open(fname, "r") as f:                               # settings file is opened in reading mode
-            settings = json.load(f)                               # json file is parsed to a local dict variable
-            # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
+    try:                                                  # tentative
+        sett = settings.get_settings()                    # settings are retrieved from the settings Class
+        frameless_cube = sett['frameless_cube']           # cube frameless (with/without black frame around the facelets)
+        expo_shift = sett['expo_shift']                   # camera exposure shift
+        kl = sett['kl']                                   # coefficient for PiCamera stability acceptance (l= lower)
+        x_l = sett['x_l']                                 # image crop on left (before warping)
+        x_r = sett['x_r']                                 # image crop on right (before warping)
+        y_u = sett['y_u']                                 # image crop on top (before warping)
+        y_b = sett['y_b']                                 # image crop on bottom (before warping)
+        w_f = sett['warp_fraction']                       # coeff for warping the image
+        w_s = sett['warp_slicing']                        # coeff for cropping the bottom warped image
+        square_ratio = sett['square_ratio']               # acceptance threshold for square sides difference
+        rhombus_ratio = sett['rhombus_ratio']             # acceptance threshold for rhombus axes difference
+        delta_area_limit = sett['delta_area_limit']       # acceptance threshold for facelet area dev from median
+        sv_max_moves = sett['sv_max_moves']               # max moves requested to the Kociemba solver
+        sv_max_time = sett['sv_max_time']                 # timeout requested to the Kociemba solver
+        collage_w = sett['collage_w']                     # image width for unfolded cube collage
+        marg_coef = sett['marg_coef']                     # cropping margin arounf faces for immage collage
+        cam_led_bright = sett['cam_led_bright']           # PWM level for the 3W led at Top_cover
+        detect_timeout = sett['detect_timeout']           # timeout for cube status detection
+        show_time = sett['show_time']                     # showing time of the unfolded cube image collage
+        warn_time = sett['warn_time']                     # solve button pressing time before get a worning
+        quit_time = sett['quit_time']                     # solve button pressing time before the quit process
+        vnc_delay = sett['vnc_delay']                     # delay for cube moving to next face at scan (for VNC viewer)
+        built_by = sett['built_by']                       # maker's name to add on the Cubotino logo
+        built_by_x = sett['built_by_x']                   # x coordinate for maker's name on display
+        built_by_fs = sett['built_by_fs']                 # font size for the maker's name on display
+        fcs_delay = sett['fcs_delay']                     # delay in secs to switch to Fix Coordinates System for facelets position
+        cover_self_close = sett['cover_self_close']       # cover_self_close parameter 
         
-        # update key-values parameters, needed in case of additional parameters added at remote repo
-        settings = update_settings_file(fname, settings)
+        if debug:                                         # case debug variable is set true
+            fname = settings.get_settings_fname()         # settings filename is retrieved
+            print('\nImporting servos settings from the text file:', fname)  # feedback is printed to the terminal
+            for param, s in sett.items():                 # iteration over the settings dict
+                print(param,': ', s)                      # feedback is printed to the terminal
+            print()                                       # prints an empty line
         
-        if debug:                                                 # case debug variable is set true on __main_
-            print('\nImporting settings from the text file:', fname)    # feedback is printed to the terminal
-            print('\nImported parameters: ')                      # feedback is printed to the terminal
-            for parameter, setting in settings.items():           # iteration over the settings dict
-                print(parameter,': ', setting)                    # feedback is printed to the terminal
-            print()
-            
-        os.umask(0) # The default umask is 0o22 which turns off write permission of group and others
-        backup_fname = os.path.join(folder,'Cubotino_T_settings_backup.txt')          # folder and file name for the settings backup
-        with open(os.open(backup_fname, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:  # settings_backup file is opened in writing mode
-            if debug:                                                 # case debug variable is set true on __main_
-                print('Copy of settings parameter is saved as backup at: ', backup_fname)    # feedback is printed to the terminal
-            f.write(json.dumps(settings, indent=0))                   # content of the setting file is saved in another file, as backup
-            # NOTE: in case of git pull, the settings file will be overwritten, the backup file not
-
-        try:                                                          # tentative
-            if settings['frameless_cube'].lower().strip() == 'false': # case frameless_cube parameter is a string == false
-                frameless_cube = 'false'                              # cube with black frame around the facelets
-            elif settings['frameless_cube'].lower().strip() == 'true': # case frameless_cube parameter is a string == true
-                frameless_cube = 'true'                               # cube without black frame around the facelets
-            elif settings['frameless_cube'].lower().strip() == 'auto': # case frameless_cube parameter is a string == auto
-                frameless_cube = 'auto'                               # cube with/without black frame around the facelets
-            else:                                                     # case the frameless parameter is not 'false', 'true' or 'auto'
-                print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto".\n')  # feedback is printed to the terminal
-                frameless_cube = 'auto'                               # cube with/without black frame around the facelets
-            
-            expo_shift = float(settings['expo_shift'])                # camera exposure shift
-            kl = float(settings['kl'])                                # coefficient for PiCamera stability acceptance (l= lower)
-            x_l = int(settings['x_l'])                                # image crop on left (before warping)
-            x_r = int(settings['x_r'])                                # image crop on right (before warping)
-            y_u = int(settings['y_u'])                                # image crop on top (before warping)
-            y_b = int(settings['y_b'])                                # image crop on bottom (before warping)
-            w_f = float(settings['warp_fraction'])                    # coeff for warping the image
-            w_s = float(settings['warp_slicing'])                     # coeff for cropping the bottom warped image
-            if w_s == 0:                                              # case the parameter equals to zero
-                w_s = 0.1                                             # the parameter is set to 0.1
-            square_ratio = float(settings['square_ratio'])            # acceptance threshold for square sides difference
-            rhombus_ratio = float(settings['rhombus_ratio'])          # acceptance threshold for rhombus axes difference
-            delta_area_limit = float(settings['delta_area_limit'])    # acceptance threshold for facelet area dev from median
-            sv_max_moves = int(settings['sv_max_moves'])              # max moves requested to the Kociemba solver
-            sv_max_time = float(settings['sv_max_time'])              # timeout requested to the Kociemba solver
-            collage_w = int(settings['collage_w'])                    # image width for unfolded cube collage
-            marg_coef = float(settings['marg_coef'])                  # cropping margin arounf faces for immage collage
-            cam_led_bright = float(settings['cam_led_bright'])        # PWM level for the 3W led at Top_cover
-            detect_timeout = int(settings['detect_timeout'])          # timeout for cube status detection
-            show_time = int(settings['show_time'])                    # showing time of the unfolded cube image collage
-            warn_time = float(settings['warn_time'])                  # solve button pressing time before get a worning
-            quit_time = float(settings['quit_time'])                  # solve button pressing time before the quit process
-            vnc_delay = float(settings['vnc_delay'])                  # delay for cube moving to next face at scan (for VNC viewer)
-            built_by = str(settings['built_by'])                      # maker's name to add on the Cubotino logo
-            built_by_x = int(settings['built_by_x'])                  # x coordinate for maker's name on display
-            built_by_fs = int(settings['built_by_fs'])                # font size for the maker's name on display
-            fcs_delay = float(settings['fcs_delay'])                  # delay in secs to switch to Fix Coordinates System for facelets position
-            if settings['cover_self_close'].lower().strip() == 'false':  # case cover_self_close parameter is a string == false
-                cover_self_close = False                              # cover_self_close parameter is set boolean False
-            elif settings['cover_self_close'].lower().strip() == 'true': # case cover_self_close parameter is a string == true
-                cover_self_close = True                               # cover_self_close parameter is set boolean True
-            else:                               # case the frameless parameter is not 'false', 'true' or 'auto'
-                print('\n\nAttention: Wrong cover_self_close parameter: It should be "true" or "false."\n')  # feedback is printed to the terminal
-                cover_self_close = False                              # cover_self_close parameter is set boolean False
-            return True, settings
-            
-        except:   # exception will be raised if json keys differs, or parameters cannot be converted to int/float
-            print('Error on converting the imported parameters to int, float or string')   # feedback is printed to the terminal                                  
-            return False, ''                                    # return robot_init_status variable, that is False
+        return True, sett                                 # return True for loaded settings and the sett dictionary
     
-    else:                                                       # case the settings file does not exists, or name differs
-        print('Could not find Cubotino_T_servo_settings.txt')   # feedback is printed to the terminal                                  
-        return False, ''                                        # return robot_init_status variable, that is False
-
-
-
-
-
-
-
-def update_settings_file(fname, settings):
-    """Function to check if the existing fname (Cubotino_T_settings.txt) has all the parameters that were instroduced after firt release.
-        This will allow every Makers to 'git pull' the updates while pre-serving personal settings.
-        This works by adding  *_settings.txt to gitignore.
-        Cubotino_T.py will update Cubotino_T_settings.txt with eventually missed parameters and related default values.
-        """
-
-    settings_keys = settings.keys()
-    any_change = False
-    
-    if 'frameless_cube' not in settings_keys:
-        settings['frameless_cube']='false'
-        any_change = True
-        
-    if 'cover_self_close' not in settings_keys:
-        settings['cover_self_close']='false'
-        any_change = True
-        
-    if 's_mode' not in settings_keys:
-        settings['s_mode']='7'
-        any_change = True
-        
-    if 'vnc_delay' not in settings_keys:
-        settings['vnc_delay']= '0.5'
-        any_change = True
-    
-    if 'built_by' not in settings_keys:
-        settings['built_by']=''
-        any_change = True
-        
-    if 'built_by_x' not in settings_keys:
-        settings['built_by_x']='25'
-        any_change = True
-        
-    if 'built_by_fs' not in settings_keys:
-        settings['built_by_fs']='16'
-        any_change = True
-    
-    if 'expo_shift' not in settings_keys:
-        settings['expo_shift']='-0.5'        # this parameter is ignored on OS10 (Buster)
-        any_change = True
-    
-    if 'fcs_delay' not in settings_keys:
-        settings['fcs_delay']='3'
-        any_change = True
-     
-    if any_change:
-        print('\nOne time action: Adding new parameters to the Cubotino_T_settings.txt')
-        print('Action necessary for compatibility with the latest downloaded Cubotino_T.py \n')
-        with open(fname, 'w') as f:
-            f.write(json.dumps(settings, indent=0))   # content of the updated setting is saved
-    
-    return settings
+    except:   # exception will be raised if json keys differs, or parameters cannot be converted to int/float
+        print('Error at imported_parameters function in Cubotino_T.py')   # feedback is printed to the terminal                                  
+        return False, ''                                  # return robot_init_status variable, that is False
 
 
 
@@ -289,16 +168,18 @@ def import_libraries():
         These librries are imported after those needed for the display management.
         Kociemba solver is tentatively imported considering three installation/copy methods."""
     
-    global servo, rm, Popen, PIPE, camera, GPIO, median, dt, sv, cubie, np, math, time, cv2, os
-    
+    global servo, rm, Popen, PIPE, camera, GPIO, median, dt, sv, cubie
+    global np, math, time, cv2, os, pathlib
     
     # import custom libraries
+    from Cubotino_T_settings_manager import settings as settings   # custom library managing the settings from<>to the settings files
     import Cubotino_T_servos as servo                     # custom library controlling Cubotino servos and led module
     import Cubotino_T_moves as rm                         # custom library, traslates the cuber solution string in robot movements string
 
     # import non-custom libraries
     from statistics import median                         # median is used as sanity check while evaluating facelets contours
     from subprocess import Popen, PIPE                    # module for interacting with some shell commands
+    import os.path, pathlib                               # import libraries for file and folder management
     import RPi.GPIO as GPIO                               # import RPi GPIO library
     import datetime as dt                                 # mainly used as timestamp, like on data logging
     import numpy as np                                    # data array management
@@ -4088,7 +3969,7 @@ def cube_facelets_permutation(cube_status, move_type, direction):
     for i in range(54):          # iteration over the 54 facelets
         new_status+=str(cube_status[ref[i]])  # updated cube status takes the facelet from previous status at ref location
     
-    return new_status                      # updated cube status is returneddef cube_facelets_permutation(cube_status, move_type, direction):
+    return new_status            # updated cube status is returneddef cube_facelets_permutation(cube_status, move_type, direction):
 
 
 
@@ -4175,26 +4056,38 @@ def animation(screen, colors_a, cube_status_string, robot_moves):
             idx+=1                                  # idx index is incremented
         
     frames = len(csa)                               # len(csa) defines the frames quantity
-    for i in range(frames):                         # iteration over the frames quantity
-        if i == 0:                                  # case of the first frame
-            disp.plot_status(csa[i], colors_a, startup=True)  # csa is plot to display, after setting the display up
-            time.sleep(2)                           # sleep time to let visible the cube status on display
-        else:                                       # case from the 2nd to the last frames
-            disp.plot_status(csa[i], colors_a)      # csa is plot to display
-            time.sleep(0.5)                         # (smaller) sleep time to let visible the cube status on display
-    time.sleep(3)                                   # additional sleep time at the end
+    
+    if not screen:                                  # case screen variable is set False (no screen connected)
+        t1 = 2.0                                    # t1 in s (plot time for initial and final cube status on the sketch)
+        t2 = 0.5                                    # t2 in s (plot time for cube status while moving the cube)
+        for i in range(frames):                     # iteration over the frames quantity
+            if robot_stop:                          # case there is a request to stop the robot
+                break                               # for loop is interrupted
+            if i == 0 and not robot_stop:           # case of the first frame
+                disp.plot_status(csa[i], colors_a, startup=True)  # csa is plot to display, after setting the display up
+                for i in range(10):                 # iteration for 10 times
+                    time.sleep(t1/10)               # sleep time at the first frame
+                    if robot_stop:                  # case there is a request to stop the robot
+                        break                       # for loop is interrupted
+            elif i > 0 and not robot_stop:          # case from the 2nd to the last frames
+                disp.plot_status(csa[i], colors_a)  # csa is plot to display
+                time.sleep(t2/5)                    # (smaller) sleep time to let visible the cube status on display          
+        for i in range(10):                         # iteration for 10 times
+            time.sleep(t1/10)                       # additional sleep time at the end (last frame)
+            if robot_stop:                          # case there is a request to stop the robot
+                break                               # for loop is interrupted
 
-    if screen:                                      # case screen variable is set True
+    elif screen:                                    # case screen variable is set True
         t1 = 3000                                   # t1 in ms (plot time for initial and final cube status on the sketch)
         t2 = 500                                    # t2 in ms(plot time for cube status while moving the cube)
         for i in range(frames):                     # iteration over the frames quantity
-            if i == 0:                              # case of the first frame
+            if i == 0 and not robot_stop:           # case of the first frame
                 show_ms = t1                        # sketch showing time as per t1
                 plot_animation(show_ms, colors_a, csa[i], startup=True) # initial cube status is plot to the screen
-            elif i< frames-1:                       # case from the 2nd to the last but frames
-                show_ms = t2                        # sketch showing time as per t1
+            elif i < frames-1 and not robot_stop:   # case from the 2nd to the last but frames
+                show_ms = t2                        # sketch showing time as per t2
                 plot_animation(show_ms, colors_a, csa[i])  # cube status is plot to the screen
-            if i == frames-1:                       # case for the last frames (the new if serves the case of 1 frames)
+            if i == frames-1 and not robot_stop:    # case for the last frames (the only one in the case of only 1 frame: cube already solved)
                 show_ms = t1                        # sketch showing time as per t1
                 plot_animation(show_ms, colors_a, csa[i], kill=True)  # the final cube status is plot with kill instruction
 
