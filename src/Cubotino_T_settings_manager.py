@@ -171,6 +171,22 @@ class Settings:
             else:                                                 # case the frameless parameter is not 'false', 'true' or 'auto'
                 print('\n\nAttention: Wrong frameless_cube parameter: It should be "true", "false" or "auto".\n')  # feedback is printed to the terminal
                 frameless_cube = 'auto'                           # cube with/without black frame around the facelets
+
+            if s['disp_type'].lower().strip() == 'st7735':        # Slect Display type st7735 default
+                s['disp_type'] = 'st7735'
+            elif s['disp_type'].lower().strip() == 'st7789':      # Slect Display type st7789
+                s['disp_type'] = 'st7789'
+            else:
+                print('\n\nAttention: Wrong disp_tyep parameter: It should be "st7735" or "st7789."\n')  # feedback is printed to the terminal
+                s['disp_type'] = 'st7735'
+
+            if s['disp_flip'].lower().strip() == 'false':          # Display not rotated.
+                s['disp_flip'] = False
+            elif s['disp_flip'].lower().strip() == 'true':         # Display flipped 180degrees
+                s['disp_flip'] = True
+            else:
+                print('\n\nAttention: Wrong disp_flip parameter: It should be "true" or "false."\n')  # feedback is printed to the terminal
+                s['disp_flip'] = False
             
             s['disp_width'] = int(s['disp_width'])                # display width, in pixels
             s['disp_height'] = int(s['disp_height'])              # display height, in pixels
@@ -465,6 +481,14 @@ class Settings:
         
         if 'fcs_delay' not in s_keys:
             s['fcs_delay']='3'
+            any_change = True
+        
+        if 'disp_type' not in s_keys:
+            s['disp_type'] = 'st7735'
+            any_change = True
+        
+        if 'disp_flip' not in s_keys:
+            s['disp_flip'] = 'false'
             any_change = True
          
         if any_change:

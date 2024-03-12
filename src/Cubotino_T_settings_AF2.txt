@@ -1,9 +1,11 @@
 {
 "frameless_cube": "auto",
+"disp_type": "st7735",
 "disp_width": "128",
 "disp_height": "164",
 "disp_offsetL": "0",
 "disp_offsetT": "-4",
+"disp_flip": "false",
 "camera_width_res": "640",
 "camera_hight_res": "480",
 "s_mode": "7",
