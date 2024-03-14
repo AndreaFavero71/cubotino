@@ -26,7 +26,7 @@ import os.path, pathlib                            # libraries for path manageme
 #    SPI: <Value 3900000-125000000> Spi bus speed.
 #    FontScale: Scale factor to apply to all fonts.
 LCDdata = { 'st7735': {'Colors': 'BGR', 'Inverted': False, 'BaseRotation': 270, 'SPI': 10000000, 'FontScale': 1.0, },
-            'st7789': {'Colors': 'RGB', 'Inverted': True,  'BaseRotation': 180, 'SPI': 50000000, 'FontScale': 2.0, }
+            'st7789': {'Colors': 'RGB', 'Inverted': True,  'BaseRotation': 180, 'SPI': 50000000, 'FontScale': 1.8, }
           }
 default_x = 160                                                           # Default X Resolution for scaling
 default_y = 128                                                           # Default Y Resolution for scaling
