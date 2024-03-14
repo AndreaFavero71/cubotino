@@ -3,7 +3,7 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 10 March 2024
+# Andrea Favero 14 March 2024
 # 
 # GUI helping tuninig CUBOTino servos positions, and some of the camera settings.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
@@ -36,7 +36,6 @@ from Cubotino_T import frame_cropping as crop            # import the image crop
 from Cubotino_T import warp_image as warp                # import the image warping function
 from Cubotino_T import close_camera as close_cam         # import the close_camera function
 from Cubotino_T import text_font as text_font            # import the font for cv2 function
-from get_macs_AF import get_macs_AF                      # import the get_macs_AF function
 ######################################################################################################################
 
 
@@ -190,35 +189,32 @@ def upload_servo_settings(srv_settings):
 
 def update_servo_settings_dict():
     """ Function to update the servo settings dictionary based on the global variables.""" 
-    
-    for key, value in srv_settings.items():                       # iteration trhough the srv_settings dict
-        srv_settings[key] = str(value)                            # dict values are converted to string
         
-#     srv_settings['t_min_pulse_width'] = str(t_min_pulse_width)    # defines the min Pulse With the top servo reacts to
-#     srv_settings['t_max_pulse_width'] = str(t_max_pulse_width)    # defines the max Pulse With the top servo reacts to
-#     srv_settings['t_servo_close'] = str(t_servo_close)            # Top_cover close position, in gpiozero format
-#     srv_settings['t_servo_open'] = str(t_servo_open)              # Top_cover open position, in gpiozero format
-#     srv_settings['t_servo_read'] = str(t_servo_read)              # Top_cover camera read position, in gpiozero format
-#     srv_settings['t_servo_flip'] = str(t_servo_flip)              # Top_cover flip position, in gpiozero format
-#     srv_settings['t_servo_rel_delta'] = str(t_servo_rel_delta)    # Top_cover release angle movement from the close position to release tension
-#     srv_settings['t_flip_to_close_time'] = str(t_flip_to_close_time)  # time for Top_cover from flip to close position
-#     srv_settings['t_close_to_flip_time'] = str(t_close_to_flip_time)  # time for Top_cover from close to flip position 
-#     srv_settings['t_flip_open_time'] = str(t_flip_open_time)      # time for Top_cover from open to flip position, and viceversa  
-#     srv_settings['t_open_close_time'] = str(t_open_close_time)    # time for Top_cover from open to close position, and viceversa
-#     srv_settings['t_rel_time'] = str(t_rel_time)                  # time for Top_cover to release tension from close to close position
-#     
-#     srv_settings['b_min_pulse_width'] = str(b_min_pulse_width)    # defines the min Pulse With the bottom servo reacts to
-#     srv_settings['b_max_pulse_width'] = str(b_max_pulse_width)    # defines the max Pulse With the bottom servo reacts to
-#     srv_settings['b_servo_CCW'] = str(b_servo_CCW)                # Cube_holder max CCW angle position
-#     srv_settings['b_servo_CW'] = str(b_servo_CW)                  # Cube_holder max CW angle position
-#     srv_settings['b_home'] = str(b_home)                          # Cube_holder home angle position
-#     srv_settings['b_rel_CCW'] = str(b_rel_CCW)                    # Cube_holder release angle from CCW angle positions, to release tension
-#     srv_settings['b_rel_CW'] = str(b_rel_CW)                      # Cube_holder release angle from CW angle positions, to release tension
-#     srv_settings['b_extra_home_CW'] = str(b_extra_home_CW)        # Cube_holder release angle from home angle positions, to release tension
-#     srv_settings['b_extra_home_CCW'] = str(b_extra_home_CCW)      # Cube_holder release angle from home angle positions, to release tension
-#     srv_settings['b_spin_time'] = str(b_spin_time)                # time for Cube_holder to spin 90 deg (cune not contrained)
-#     srv_settings['b_rotate_time'] = str(b_rotate_time)            # time for Cube_holder to rotate 90 deg (cube constrained)
-#     srv_settings['b_rel_time'] = str(b_rel_time)                  # time for Cube_holder to release tension at home, CCW and CW positions
+    srv_settings['t_min_pulse_width'] = str(t_min_pulse_width)    # defines the min Pulse With the top servo reacts to
+    srv_settings['t_max_pulse_width'] = str(t_max_pulse_width)    # defines the max Pulse With the top servo reacts to
+    srv_settings['t_servo_close'] = str(t_servo_close)            # Top_cover close position, in gpiozero format
+    srv_settings['t_servo_open'] = str(t_servo_open)              # Top_cover open position, in gpiozero format
+    srv_settings['t_servo_read'] = str(t_servo_read)              # Top_cover camera read position, in gpiozero format
+    srv_settings['t_servo_flip'] = str(t_servo_flip)              # Top_cover flip position, in gpiozero format
+    srv_settings['t_servo_rel_delta'] = str(t_servo_rel_delta)    # Top_cover release angle movement from the close position to release tension
+    srv_settings['t_flip_to_close_time'] = str(t_flip_to_close_time)  # time for Top_cover from flip to close position
+    srv_settings['t_close_to_flip_time'] = str(t_close_to_flip_time)  # time for Top_cover from close to flip position 
+    srv_settings['t_flip_open_time'] = str(t_flip_open_time)      # time for Top_cover from open to flip position, and viceversa  
+    srv_settings['t_open_close_time'] = str(t_open_close_time)    # time for Top_cover from open to close position, and viceversa
+    srv_settings['t_rel_time'] = str(t_rel_time)                  # time for Top_cover to release tension from close to close position
+    
+    srv_settings['b_min_pulse_width'] = str(b_min_pulse_width)    # defines the min Pulse With the bottom servo reacts to
+    srv_settings['b_max_pulse_width'] = str(b_max_pulse_width)    # defines the max Pulse With the bottom servo reacts to
+    srv_settings['b_servo_CCW'] = str(b_servo_CCW)                # Cube_holder max CCW angle position
+    srv_settings['b_servo_CW'] = str(b_servo_CW)                  # Cube_holder max CW angle position
+    srv_settings['b_home'] = str(b_home)                          # Cube_holder home angle position
+    srv_settings['b_rel_CCW'] = str(b_rel_CCW)                    # Cube_holder release angle from CCW angle positions, to release tension
+    srv_settings['b_rel_CW'] = str(b_rel_CW)                      # Cube_holder release angle from CW angle positions, to release tension
+    srv_settings['b_extra_home_CW'] = str(b_extra_home_CW)        # Cube_holder release angle from home angle positions, to release tension
+    srv_settings['b_extra_home_CCW'] = str(b_extra_home_CCW)      # Cube_holder release angle from home angle positions, to release tension
+    srv_settings['b_spin_time'] = str(b_spin_time)                # time for Cube_holder to spin 90 deg (cune not contrained)
+    srv_settings['b_rotate_time'] = str(b_rotate_time)            # time for Cube_holder to rotate 90 deg (cube constrained)
+    srv_settings['b_rel_time'] = str(b_rel_time)                  # time for Cube_holder to release tension at home, CCW and CW positions
     
     return srv_settings
 
@@ -863,7 +859,7 @@ def show_window(window, startup=False):
         if not startup:                        # case startup is set false (not at the start)
             try:                               # tentative approach
                 open_top_cover()               # top_cover is set in its open position
-                t_servo_pos = 'read'           # top_cover position tracker set 'read' disable sliders till OPEN btn pressed
+                t_servo_pos = '' # top_cover pos tracker set to '' (unknown position disables sliders till OPEN btn pressed)
                 btm_srv_widgets_status()       # updates the bottom servo related widgests status, based on top servo pos
             except:                            # case of expection
                 pass                           # do nothing
@@ -939,7 +935,6 @@ camWindow=tk.Frame(root)                  # a second windows (called camWindow) 
 for window in (servoWindow, camWindow):   # iteration over the two defined windows
     window.grid(row=0,column=0,sticky='nsew')  # each window goes to the only row/column, and centered
 
-startup = True
 show_window(servoWindow, startup)         # the first window (mainWindow) is the one that will initially appear
 ######################################################################################################################
 
