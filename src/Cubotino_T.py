@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 10 March 2024
+#  Andrea Favero, 15 March 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '7.0 (10 March 2024)'
+version = '7.0 (15 March 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -1526,7 +1526,7 @@ def load_coordinates():
     
     if os.path.exists(fname):                               # case the coordinates file exists
         with open(fname, "r") as f:                         # settings file is opened in reading mode
-            lines = f.readlines()                           # all lines are assigned as list to lines variable
+            lines = f.read().splitlines()                   # all lines (without LF) are assigned as list to lines variable
         if len(lines)>=1:                                   # case the file has at least one row of data
             historical_data = True                          # flag to track presence or assence of historical data is set True
     else:                                                   # case the coordinates file does not exist
@@ -4090,7 +4090,8 @@ def animation(screen, colors_a, cube_status_string, robot_moves):
             if i == frames-1 and not robot_stop:    # case for the last frames (the only one in the case of only 1 frame: cube already solved)
                 show_ms = t1                        # sketch showing time as per t1
                 plot_animation(show_ms, colors_a, csa[i], kill=True)  # the final cube status is plot with kill instruction
-
+        if robot_stop:                              # case there are requests to stop the robot 
+            cv2.destroyAllWindows()                 # all the windows are closed
 
 
 

@@ -27,7 +27,7 @@
 "detect_timeout": "40",
 "show_time": "7",
 "warn_time": "1.5",
-"quit_time": "4.5",
+"quit_time": "3.5",
 "cover_self_close": "True",
 "vnc_delay": "0.5",
 "built_by": "",
