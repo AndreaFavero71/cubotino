@@ -16,10 +16,6 @@
 from Cubotino_T_settings_manager import settings as settings  # settings manager Class
 from picamera2 import Picamera2        # Raspberry Pi specific package for the camera, since Raspberry Pi OS 11
 from libcamera import controls
-import os.path, pathlib, json          # library for the json parameter parsing for the display
-from getmac import get_mac_address     # library to get the device MAC ddress
-from get_macs_AF import get_macs_AF    # import the get_macs_AF function
-macs_AF = get_macs_AF()                # mac addresses of AF bots are retrieved
 import time
 
 
