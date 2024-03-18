@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 15 March 2024
+#  Andrea Favero 18 March 2024
 #
 # This script relates to CUBOTino Autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script manages the interactions with the settings files (json text files).
@@ -362,6 +362,7 @@ class Settings:
                 print('Copy of servos settings parameter is saved as backup at: ', backup_fname)  # feedback is printed to the terminal
             
             f.write(json.dumps(data, indent=0))                  # content of the setting file is saved in another file, as backup
+            f.truncate()  # truncates the file (prevents older characters at file-end, if new content is shorter)
         
         if "servo" in fname:                                     # case fname contains 'servo'
             self.servo_s = self.parse_servos_settings(data)      # servos settings datatypes are parsed
@@ -382,6 +383,7 @@ class Settings:
         backup_fname = os.path.join(self.folder, fname)          # folder and file name for the settings backup
         with open(os.open(backup_fname, os.O_CREAT | os.O_WRONLY, 0o777), 'w') as f:  # settings_backup file is opened in writing mode
             f.write(json.dumps(data, indent=0))                  # content of the setting file is saved in another file, as backup
+            f.truncate()  # truncates the file (prevents older characters at file-end, if new content is shorter)
 
 
 
@@ -510,6 +512,7 @@ class Settings:
             print('Action necessary for compatibility with the latest downloaded Cubotino_T.py \n')
             with open(fname, 'w') as f:
                 f.write(json.dumps(s, indent=0))   # content of the updated setting is saved
+                f.truncate()  # truncates the file (prevents older characters at file-end, if new content is shorter)
         
         return s
 
@@ -557,6 +560,7 @@ class Settings:
             print('Action necessary for compatibility with the latest downloaded Cubotino_T.py \n')
             with open(fname, 'w') as f:
                 f.write(json.dumps(servo_s, indent=0))   # content of the updated setting is saved
+                f.truncate()  # truncates the file (prevents older characters at file-end, if new content is shorter)
         
         return servo_s
 
