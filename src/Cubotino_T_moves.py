@@ -64,8 +64,26 @@ moves_dict = {'U1':'F2R1S3', 'U2':'F2R1S3R1S3', 'U3':'F2S1R3',
               'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
 
 
+moves_dict_home = {'U1':'F2R1', 'U2':'F2R1S3R1', 'U3':'F2S1R3',
+              'D1':'R1',   'D2':'R1S3R1',   'D3':'S1R3',
+              'F1':'F1R1', 'F2':'F1R1S3R1', 'F3':'F1S1R3',
+              'B1':'F3R1', 'B2':'F3R1S3R1', 'B3':'F3S1R3',
+              'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
+              'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
 
+moves_dict_cw = {'U1':'F2S3R1', 'U2':'F2S3S3R1R1', 'U3':'F2S3R3',
+              'D1':'S3R1',   'D2':'S3S3R1R1',   'D3':'S3R3',
+              'F1':'F1S3R1', 'F2':'F1S3S3R1R1', 'F3':'F1S3R3',
+              'B1':'F3S3R1', 'B2':'F3S3S3R1R1', 'B3':'F3S3R3',
+              'L1':'S3F3R1', 'L2':'S3F3S3R1R1', 'L3':'S3F3R3',
+              'R1':'S3F1R1', 'R2':'S3F1S3R1R1', 'R3':'S3F1R3'}
 
+moves_dict_ccw = {'U1':'F2R1', 'U2':'F2R1R1', 'U3':'F2S1R3',
+              'D1':'R1',   'D2':'R1R1',   'D3':'S1R3',
+              'F1':'F1R1', 'F2':'F1R1R1', 'F3':'F1S1R3',
+              'B1':'F3R1', 'B2':'F3R1R1', 'B3':'F3S1R3',
+              'L1':'S1F1R1', 'L2':'S1F1R1S3R1', 'L3':'S1F1R3',
+              'R1':'S1F3R1', 'R2':'S1F3R1S3R1', 'R3':'S1F3R3'}
 
 
 def starting_cube_orientation():
@@ -335,7 +353,21 @@ def count_moves(moves):
     return robot_tot_moves            # total amount of robot moves is returned
 
 
+def get_new_cube_angle(initial_angle, sequence):
 
+    str_length=len(sequence)                # length of the robot move string
+    new_angle = initial_angle
+    for i in range(0,str_length,2):      # for loop of with steps = 2
+        if sequence[i] == 'S' or sequence[i] == 'R':
+            if sequence[i+1] == '1':
+                new_angle += 90
+            elif sequence[i+1] == '3':
+                new_angle -= 90
+        if not -180 <= new_angle <= 180:
+            print("Angle error: %d" % new_angle)
+
+    print("Init Angle: %d, %s, New Angle:%d" % (initial_angle, sequence, new_angle))
+    return new_angle
 
 
 
@@ -350,8 +382,10 @@ def robot_required_moves(solution, solution_Text):
     solution=solution.replace(" ", "")            # eventual empty spaces are removed from the string
     starting_cube_orientation()                   # Cube orientation at the start, later updated after every cube movement on the robot
     robot={}                                      # empty dict to store all the robot moves
+    orig_moves=''
     moves=''                                      # empty string to store all the robot moves
     robot_tot_moves = 0                           # counter for all the robot movements
+    angle = 0
     
     if solution_Text != 'Error':                  # case the solver did not return an error
         blocks = int(round(len(solution)/2,0))    # total amount of blocks of movements (i.e. U2R1L3 are 3 blocks: U2, R1 and L1)
@@ -361,15 +395,27 @@ def robot_required_moves(solution, solution_Text):
             move=solution[:2]                     # move to be applied on this block, according to the solver
             solution=solution[2:]                 # remaining movements from the solver are updated
             adapted_move=adapt_move(move)         # the move from solver is adapted considering the real cube orientation
-            robot_seq=moves_dict[adapted_move]    # robot movement sequence is retrieved
+            robot_seq=moves_dict_home[adapted_move]    # robot movement sequence is retrieved
+            orig_moves+=robot_seq
+            if angle == 0:
+                robot_seq=moves_dict_home[adapted_move]    # robot movement sequence is retrieved
+            elif angle == -90:
+                robot_seq=moves_dict_ccw[adapted_move]    # robot movement sequence is retrieved
+            elif angle == 90:
+                robot_seq=moves_dict_cw[adapted_move]    # robot movement sequence is retrieved
+            angle = get_new_cube_angle(angle, robot_seq)
             robot[block]=robot_seq                # robot movements dict is updated
             moves+=robot_seq                      # robot movements string is updated
             cube_orient_update(robot_seq)         # cube orientation updated after the robot move from this block
                            
+        orig_moves = optim_moves1(orig_moves)               # removes eventual unnecessary moves (that would cancel each other out)
+        orig_moves = optim_moves2(orig_moves)               # removes eventual unnecessary flips
+        robot_tot_moves = count_moves(orig_moves)      # counter for the total amount of robot movements
+        print("Orig: %s :%d" %(orig_moves,robot_tot_moves))
         moves = optim_moves1(moves)               # removes eventual unnecessary moves (that would cancel each other out)
         moves = optim_moves2(moves)               # removes eventual unnecessary flips
         robot_tot_moves = count_moves(moves)      # counter for the total amount of robot movements
-        
+        print("New: %s :%d" %(moves,robot_tot_moves))
     return robot, moves, robot_tot_moves  # returns a dict with all the robot moves, string with all the moves and total robot movements
     # NOTE: dict has all the theorethical robot movements, the string might differ due to optimization
 
@@ -384,11 +430,11 @@ if __name__ == "__main__":
         Afterward all the strings are combined in a single string, for the Cubotino_servo.py module to control the servos."""  
     
     
-#     solution = 'U2 L1 R1 D2 B2 R1 D2 B2 D2 L3 B3 R3 F2 D3 L1 U2 F2 D3 B3 D1' # this cube solution allows type 1 optimization (at least 2 Spins removal)
+#93-87    solution = 'U2 L1 R1 D2 B2 R1 D2 B2 D2 L3 B3 R3 F2 D3 L1 U2 F2 D3 B3 D1' # this cube solution allows type 1 optimization (at least 2 Spins removal)
     solution = 'U2 D2 R2 L2 F2 B2'  # this cube solution allows type 2 optimization (2 flips removal)
-#     solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2' # this cube solution allows type 1 optimization (at least 2 Spins removal)
-#     solution = 'L1 D2 L1 D2 R2 F2 D2 R1 F3 R1 U1 R2 B3 L3 D1 R1 D2 B2 F3' # this cube solution has only 1st criteria for type2 optimization
-#     solution = 'F3 U1 D2 R2 L2 U2 D2 R1 L2' # this cube solution has only only 1st criteria for type2 optimization
+#74-83    solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2' # this cube solution allows type 1 optimization (at least 2 Spins removal)
+#89-88    solution = 'L1 D2 L1 D2 R2 F2 D2 R1 F3 R1 U1 R2 B3 L3 D1 R1 D2 B2 F3' # this cube solution has only 1st criteria for type2 optimization
+#49-44    solution = 'F3 U1 D2 R2 L2 U2 D2 R1 L2' # this cube solution has only only 1st criteria for type2 optimization
 
     print()
     print("Example of robot movements for solver solution: ", solution)
