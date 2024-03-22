@@ -19,7 +19,8 @@
 #
 #
 # Possible moves with this robot
-# 1) Spins the complete cube ("S") laying on the bottom face: 1 means CW 90deg turns, while 3 means 90CCW turn
+# 1) Spins the complete cube ("S") laying on the bottom face:
+#	 0 means CW 180deg, 1 means CW 90deg turns, 3 means CCW 90deg turn, while 4 means CCW 180deg turn
 # 2) Flips the complete cube ("F") by "moving" the Front face to Bottom face: Only positive values are possible
 # 3) Rotates the bottom layer ("R") while costraining the 2nd and 3rd layer.
 # 4) The order of S, F has to be strictly followed
@@ -56,34 +57,37 @@ by knowing 5 faces, the 6th (B face) is also known ;-)
 
 # Global variable
 # Below dict has all the possible robot movements, related to the cube solver string
-moves_dict = {'U1':'F2R1S3', 'U2':'F2R1S3R1S3', 'U3':'F2S1R3',
-              'D1':'R1S3',   'D2':'R1S3R1S3',   'D3':'S1R3',
-              'F1':'F1R1S3', 'F2':'F1R1S3R1S3', 'F3':'F1S1R3',
-              'B1':'F3R1S3', 'B2':'F3R1S3R1S3', 'B3':'F3S1R3',
-              'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
-              'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
+# Original moves with spins and rotates only 90 degrees
+# moves_dict = {'U1':'F2R1S3', 'U2':'F2R1S3R1S3', 'U3':'F2S1R3',
+              # 'D1':'R1S3',   'D2':'R1S3R1S3',   'D3':'S1R3',
+              # 'F1':'F1R1S3', 'F2':'F1R1S3R1S3', 'F3':'F1S1R3',
+              # 'B1':'F3R1S3', 'B2':'F3R1S3R1S3', 'B3':'F3S1R3',
+              # 'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
+              # 'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
 
+# Move dictionary if the cube servo is at home
+moves_dict_home = {'U1':'F2R1', 'U2':'F2S3R0', 'U3':'F2S1R3',
+              'D1':'R1',   'D2':'S3R0',   'D3':'S1R3',
+              'F1':'F1R1', 'F2':'F1S3R0', 'F3':'F1S1R3',
+              'B1':'F3R1', 'B2':'F3S3R0', 'B3':'F3S1R3',
+              'L1':'S3F3R1', 'L2':'S3F3R0', 'L3':'S1F1R3',
+              'R1':'S3F1R1', 'R2':'S3F1R0', 'R3':'S1F3R3'}
 
-moves_dict_home = {'U1':'F2R1', 'U2':'F2R1S3R1', 'U3':'F2S1R3',
-              'D1':'R1',   'D2':'R1S3R1',   'D3':'S1R3',
-              'F1':'F1R1', 'F2':'F1R1S3R1', 'F3':'F1S1R3',
-              'B1':'F3R1', 'B2':'F3R1S3R1', 'B3':'F3S1R3',
-              'L1':'S3F3R1', 'L2':'S3F3R1S3R1', 'L3':'S1F1R3',
-              'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
+# Move dictionary if the cube servo is at CW position
+moves_dict_cw = {'U1':'F2S3R1', 'U2':'F2R4', 'U3':'F2R3',
+              'D1':'S3R1',   'D2':'R4',   'D3':'R3',
+              'F1':'F1S3R1', 'F2':'F1R4', 'F3':'F1R3',
+              'B1':'F3S3R1', 'B2':'F3R4', 'B3':'F3R3',
+              'L1':'S3F3R1', 'L2':'S3F3S3R0', 'L3':'S3F3R3',
+              'R1':'S3F1R1', 'R2':'S3F1S3R0', 'R3':'S3F1R3'}
 
-moves_dict_cw = {'U1':'F2S3R1', 'U2':'F2S3S3R1R1', 'U3':'F2S3R3',
-              'D1':'S3R1',   'D2':'S3S3R1R1',   'D3':'S3R3',
-              'F1':'F1S3R1', 'F2':'F1S3S3R1R1', 'F3':'F1S3R3',
-              'B1':'F3S3R1', 'B2':'F3S3S3R1R1', 'B3':'F3S3R3',
-              'L1':'S3F3R1', 'L2':'S3F3S3R1R1', 'L3':'S3F3R3',
-              'R1':'S3F1R1', 'R2':'S3F1S3R1R1', 'R3':'S3F1R3'}
-
-moves_dict_ccw = {'U1':'F2R1', 'U2':'F2R1R1', 'U3':'F2S1R3',
-              'D1':'R1',   'D2':'R1R1',   'D3':'S1R3',
-              'F1':'F1R1', 'F2':'F1R1R1', 'F3':'F1S1R3',
-              'B1':'F3R1', 'B2':'F3R1R1', 'B3':'F3S1R3',
-              'L1':'S1F1R1', 'L2':'S1F1R1S3R1', 'L3':'S1F1R3',
-              'R1':'S1F3R1', 'R2':'S1F3R1S3R1', 'R3':'S1F3R3'}
+# Move dictionary if the cube servo is at CCW position
+moves_dict_ccw = {'U1':'F2R1', 'U2':'F2R0', 'U3':'F2S1R3',
+              'D1':'R1',   'D2':'R0',   'D3':'S1R3',
+              'F1':'F1R1', 'F2':'F1R0', 'F3':'F1S1R3',
+              'B1':'F3R1', 'B2':'F3R0', 'B3':'F3S1R3',
+              'L1':'S1F1R1', 'L2':'S1F1S3R0', 'L3':'S1F1R3',
+              'R1':'S1F3R1', 'R2':'S1F3S3R0', 'R3':'S1F3R3'}
 
 
 def starting_cube_orientation():
@@ -174,15 +178,18 @@ def cube_orient_update(movement):
         
         elif movement[i] == 'S':                   # case there is a cube spin on robot movements
             repeats=int(movement[i+1])             # retrieves how many spin
-            if repeats=='3':                       # case the spin is CCW
+            if repeats == 3:                       # case the spin is CCW
                 spinCCW_effect(h_faces,v_faces)    # re-order the cube orientation on the robot due to the CCW spin
-            else:                                  # case the spin is CW
-                for j in range(repeats):           # iterates over the amount of spin
-                    spinCW_effect(h_faces,v_faces) # re-order the cube orientation on the robot due to the CW spin             
-
-
-
-
+            elif repeats == 4:                     # case the spin is CCW 180deg
+                spinCCW_effect(h_faces,v_faces)    # re-order the cube orientation on the robot due to the CCW 180deg spin
+                spinCCW_effect(h_faces,v_faces)
+            elif repeats == 0:                     # case the spin is CW 180deg
+                spinCW_effect(h_faces,v_faces)     # re-order the cube orientation on the robot due to the CW 180deg spin
+                spinCW_effect(h_faces,v_faces)
+            elif repeats == 1:                     # case the spin is CW
+                spinCW_effect(h_faces,v_faces) # re-order the cube orientation on the robot due to the CW spin
+            else:
+                print('Error: Unknown move for cube orientation update')
 
 
 def adapt_move(move):
@@ -333,8 +340,6 @@ def optim_moves2(moves):
 
 
 
-
-
 def count_moves(moves):
     """Counts the total amount of robot movements."""
 
@@ -359,14 +364,18 @@ def get_new_cube_angle(initial_angle, sequence):
     new_angle = initial_angle
     for i in range(0,str_length,2):      # for loop of with steps = 2
         if sequence[i] == 'S' or sequence[i] == 'R':
-            if sequence[i+1] == '1':
+            if sequence[i+1] == '0':     # CW 180 deg spin
+                new_angle += 180
+            elif sequence[i+1] == '1':	 # CW 90 deg spin
                 new_angle += 90
-            elif sequence[i+1] == '3':
+            elif sequence[i+1] == '3':	 # CCW 90 deg spin
                 new_angle -= 90
-        if not -180 <= new_angle <= 180:
+            elif sequence[i+1] == '4':	 # CCW 180 deg spin
+                new_angle -= 180
+        if not -90 <= new_angle <= 90:	 # Check angle is coherent
             print("Angle error: %d" % new_angle)
 
-    print("Init Angle: %d, %s, New Angle:%d" % (initial_angle, sequence, new_angle))
+    # print("Init Angle: %d, %s, New Angle:%d" % (initial_angle, sequence, new_angle))
     return new_angle
 
 
@@ -380,12 +389,13 @@ def robot_required_moves(solution, solution_Text):
     
     solution=solution.strip()                     # eventual empty spaces are removed from the string
     solution=solution.replace(" ", "")            # eventual empty spaces are removed from the string
+    st_solution=solution
     starting_cube_orientation()                   # Cube orientation at the start, later updated after every cube movement on the robot
     robot={}                                      # empty dict to store all the robot moves
-    orig_moves=''
     moves=''                                      # empty string to store all the robot moves
     robot_tot_moves = 0                           # counter for all the robot movements
     angle = 0
+    adapted_solution = ''
     
     if solution_Text != 'Error':                  # case the solver did not return an error
         blocks = int(round(len(solution)/2,0))    # total amount of blocks of movements (i.e. U2R1L3 are 3 blocks: U2, R1 and L1)
@@ -395,27 +405,26 @@ def robot_required_moves(solution, solution_Text):
             move=solution[:2]                     # move to be applied on this block, according to the solver
             solution=solution[2:]                 # remaining movements from the solver are updated
             adapted_move=adapt_move(move)         # the move from solver is adapted considering the real cube orientation
-            robot_seq=moves_dict_home[adapted_move]    # robot movement sequence is retrieved
-            orig_moves+=robot_seq
+            adapted_solution+=adapted_move
             if angle == 0:
                 robot_seq=moves_dict_home[adapted_move]    # robot movement sequence is retrieved
             elif angle == -90:
                 robot_seq=moves_dict_ccw[adapted_move]    # robot movement sequence is retrieved
             elif angle == 90:
                 robot_seq=moves_dict_cw[adapted_move]    # robot movement sequence is retrieved
+            else:
+                print("Error converting solution to moves")
             angle = get_new_cube_angle(angle, robot_seq)
             robot[block]=robot_seq                # robot movements dict is updated
             moves+=robot_seq                      # robot movements string is updated
             cube_orient_update(robot_seq)         # cube orientation updated after the robot move from this block
-                           
-        orig_moves = optim_moves1(orig_moves)               # removes eventual unnecessary moves (that would cancel each other out)
-        orig_moves = optim_moves2(orig_moves)               # removes eventual unnecessary flips
-        robot_tot_moves = count_moves(orig_moves)      # counter for the total amount of robot movements
-        print("Orig: %s :%d" %(orig_moves,robot_tot_moves))
+        #print('Initial: %s' % st_solution)
+        #print('Adapted: %s' % adapted_solution)
+        #print('Orig: %s :%d' %(moves,robot_tot_moves))
         moves = optim_moves1(moves)               # removes eventual unnecessary moves (that would cancel each other out)
         moves = optim_moves2(moves)               # removes eventual unnecessary flips
         robot_tot_moves = count_moves(moves)      # counter for the total amount of robot movements
-        print("New: %s :%d" %(moves,robot_tot_moves))
+        #print('New : %s :%d' %(moves,robot_tot_moves))
     return robot, moves, robot_tot_moves  # returns a dict with all the robot moves, string with all the moves and total robot movements
     # NOTE: dict has all the theorethical robot movements, the string might differ due to optimization
 
