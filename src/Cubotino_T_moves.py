@@ -66,28 +66,28 @@ by knowing 5 faces, the 6th (B face) is also known ;-)
               # 'R1':'S3F1R1', 'R2':'S3F1R1S3R1', 'R3':'S1F3R3'}
 
 # Move dictionary if the cube servo is at home
-moves_dict_home = {'U1':'F2R1', 'U2':'F2S3R0', 'U3':'F2S1R3',
-              'D1':'R1',   'D2':'S3R0',   'D3':'S1R3',
-              'F1':'F1R1', 'F2':'F1S3R0', 'F3':'F1S1R3',
-              'B1':'F3R1', 'B2':'F3S3R0', 'B3':'F3S1R3',
-              'L1':'S3F3R1', 'L2':'S3F3R0', 'L3':'S1F1R3',
-              'R1':'S3F1R1', 'R2':'S3F1R0', 'R3':'S1F3R3'}
+moves_dict_home = {'U1':'F2R1',     'U2':'F2S3R0',   'U3':'F2R3',
+                   'D1':'R1',       'D2':'S3R0',     'D3':'R3',
+                   'F1':'F1R1',     'F2':'F1S3R0',   'F3':'F1R3',
+                   'B1':'F3R1',     'B2':'F3S3R0',   'B3':'F3R3',
+                   'L1':'S1F1S3R1', 'L2':'S1F1S4R0', 'L3':'S1F1R3',
+                   'R1':'S3F1R1',   'R2':'S3F1R0',   'R3':'S3F1S1R3'}
 
 # Move dictionary if the cube servo is at CW position
-moves_dict_cw = {'U1':'F2S3R1', 'U2':'F2R4', 'U3':'F2R3',
-              'D1':'S3R1',   'D2':'R4',   'D3':'R3',
-              'F1':'F1S3R1', 'F2':'F1R4', 'F3':'F1R3',
-              'B1':'F3S3R1', 'B2':'F3R4', 'B3':'F3R3',
-              'L1':'S3F3R1', 'L2':'S3F3S3R0', 'L3':'S3F3R3',
-              'R1':'S3F1R1', 'R2':'S3F1S3R0', 'R3':'S3F1R3'}
+moves_dict_cw =   {'U1':'F2S3R1',   'U2':'F2R4',     'U3':'F2R3',
+                   'D1':'S3R1',     'D2':'R4',       'D3':'R3',
+                   'F1':'F1S3R1',   'F2':'F1R4',     'F3':'F1R3',
+                   'B1':'F3S3R1',   'B2':'F3R4',     'B3':'F3R3',
+                   'L1':'S3F3R1',   'L2':'S3F3S3R0', 'L3':'S3F3R3',
+                   'R1':'S3F1R1',   'R2':'S3F1S3R0', 'R3':'S3F1R3'}
 
 # Move dictionary if the cube servo is at CCW position
-moves_dict_ccw = {'U1':'F2R1', 'U2':'F2R0', 'U3':'F2S1R3',
-              'D1':'R1',   'D2':'R0',   'D3':'S1R3',
-              'F1':'F1R1', 'F2':'F1R0', 'F3':'F1S1R3',
-              'B1':'F3R1', 'B2':'F3R0', 'B3':'F3S1R3',
-              'L1':'S1F1R1', 'L2':'S1F1S3R0', 'L3':'S1F1R3',
-              'R1':'S1F3R1', 'R2':'S1F3S3R0', 'R3':'S1F3R3'}
+moves_dict_ccw =  {'U1':'F2R1',     'U2':'F2R0',     'U3':'F2S1R3',
+                   'D1':'R1',       'D2':'R0',       'D3':'S1R3',
+                   'F1':'F1R1',     'F2':'F1R0',     'F3':'F1S1R3',
+                   'B1':'F3R1',     'B2':'F3R0',     'B3':'F3S1R3',
+                   'L1':'S1F1R1',   'L2':'S1F1S3R0', 'L3':'S1F1R3',
+                   'R1':'S1F3R1',   'R2':'S1F3S3R0', 'R3':'S1F3R3'}
 
 
 def starting_cube_orientation():
@@ -360,6 +360,8 @@ def count_moves(moves):
 
 def get_new_cube_angle(initial_angle, sequence):
 
+    global robot_stop
+
     str_length=len(sequence)                # length of the robot move string
     new_angle = initial_angle
     for i in range(0,str_length,2):      # for loop of with steps = 2
@@ -373,7 +375,8 @@ def get_new_cube_angle(initial_angle, sequence):
             elif sequence[i+1] == '4':	 # CCW 180 deg spin
                 new_angle -= 180
         if not -90 <= new_angle <= 90:	 # Check angle is coherent
-            print("Angle error: %d" % new_angle)
+            print(f'Sequence {sequence} creates a servo angle error {new_angle}')
+            robot_stop = True
 
     # print("Init Angle: %d, %s, New Angle:%d" % (initial_angle, sequence, new_angle))
     return new_angle
@@ -439,16 +442,19 @@ if __name__ == "__main__":
         Afterward all the strings are combined in a single string, for the Cubotino_servo.py module to control the servos."""  
     
     
-#93-87    solution = 'U2 L1 R1 D2 B2 R1 D2 B2 D2 L3 B3 R3 F2 D3 L1 U2 F2 D3 B3 D1' # this cube solution allows type 1 optimization (at least 2 Spins removal)
+#     solution = 'U2 L1 R1 D2 B2 R1 D2 B2 D2 L3 B3 R3 F2 D3 L1 U2 F2 D3 B3 D1' # this cube solution allows type 1 optimization (at least 2 Spins removal)
     solution = 'U2 D2 R2 L2 F2 B2'  # this cube solution allows type 2 optimization (2 flips removal)
-#74-83    solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2' # this cube solution allows type 1 optimization (at least 2 Spins removal)
-#89-88    solution = 'L1 D2 L1 D2 R2 F2 D2 R1 F3 R1 U1 R2 B3 L3 D1 R1 D2 B2 F3' # this cube solution has only 1st criteria for type2 optimization
-#49-44    solution = 'F3 U1 D2 R2 L2 U2 D2 R1 L2' # this cube solution has only only 1st criteria for type2 optimization
+#     solution = 'R2 L1 D3 F2 L2 B1 L1 U3 R1 F1 L2 D3 F2 D1 F2 B2 D2' # this cube solution allows type 1 optimization (at least 2 Spins removal)
+#     solution = 'L1 D2 L1 D2 R2 F2 D2 R1 F3 R1 U1 R2 B3 L3 D1 R1 D2 B2 F3' # this cube solution has only 1st criteria for type2 optimization
+#     solution = 'F3 U1 D2 R2 L2 U2 D2 R1 L2' # this cube solution has only only 1st criteria for type2 optimization
 
     print()
     print("Example of robot movements for solver solution: ", solution)
     print("Robot moves are noted with the 3 letters S, F, R (Spin, Flip, Rotate) followed by a number")
-    print("Number '1' for S ans R identifies CW rotation, by loking to the bottom face, while number '3' stands for CCW")
+    print("Number '0' for S and R identifies 180deg CW rotation, by looking to the bottom face,")
+    print("       '1' for S and R identifies 90deg CW rotation")
+    print("       '3' for S and R identifies 90deg CCW rotation")
+    print("       '4' for S and R identifies 180deg CCW rotation")
     print("Example 'F1R1S3' means: 1x cube Flip, 1x (90deg) CW rotation of the 1st (bottom) layer, 1x (90deg) CCW cube Spin")
     print()
     

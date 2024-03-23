@@ -650,12 +650,12 @@ def spin_out(direction, target=0, release=0, timer1=0, test=False):
     if not b_servo_operable and t_top_cover=='read':
         flip_to_open()
 
-    if direction[-1] == '2':
-        direction=direction[0:-1]
-        number = 2.1
-        b_servo_home=True  ## Needed to trick routine
+    if direction[-1] == '2':                         # Full 180deg movement requested
+        direction=direction[0:-1]                    # Get just the direction
+        number = 2.1                                 # 180deg movement is time adjustment to b_spin_time
+        b_servo_home=True                            # Routine checks for home position
     else:
-        number = 1.0
+        number = 1.0                                 # No move time adjustment for 90deg moves
 
     if not stop_servos:                              # case there is not a stop request for servos
         if b_servo_operable==True:                   # variable to block/allow bottom servo operation
@@ -726,12 +726,11 @@ def spin_home():
 
 
 
-
-# def spin(direction):
-    # """ Spins the cube during the cube detection phase"""
+def spin(direction):
+    """ Spins the cube during the cube detection phase"""
     
-    # spin_out(direction)  # calls the spin_out function
-    # spin_home()          # calls the spin home function
+    spin_out(direction)  # calls the spin_out function
+    spin_home()          # calls the spin home function
 
 
 
@@ -745,31 +744,31 @@ def rotate_out(direction):
     
     global t_top_cover, b_servo_operable, b_servo_stopped, b_servo_home, b_servo_CW_pos, b_servo_CCW_pos
     
-    if direction[-1] == '2':
-        direction=direction[0:-1]
-        number = 2.1
-        b_servo_home=True  ## Needed to trick routine
+    if direction[-1] == '2':                         # Full 180deg movement requested
+        direction=direction[0:-1]                    # Get just the direction
+        number = 2.1                                 # 180deg movement is time adjustment to b_spin_time
+        b_servo_home=True                            # Routine checks for home position
     else:
-        number = 1.0
+        number = 1.0                                 # No move time adjustment for 90deg moves
 
     if not stop_servos:                                   # case there is not a stop request for servos
         if t_top_cover!='close':                          # case the top cover is not in close position
             close_cover()                                 # top cover is lowered in close position
-        
+
         if b_servo_operable==True:                        # variable to block/allow bottom servo operation
             if b_servo_home==True:                        # boolean of bottom servo at home=
                 b_servo_stopped=False                     # boolean of bottom servo at location the lifter can be operated
-                
+
                 if direction=='CCW':                      # case the set direction is CCW
                     b_servo.value = b_servo_CCW           # bottom servo moves to the most CCW position
-                    time.sleep(b_rotate_time*number)             # time for the bottom servo to reach the most CCW position
+                    time.sleep(b_rotate_time*number)      # time for the bottom servo to reach the most CCW position
                     b_servo.value = b_servo_CCW_rel       # bottom servo moves slightly to release the tensions
                     time.sleep(b_rel_time)                # time for the servo to release the tensions
                     b_servo_CCW_pos=True                  # boolean of bottom servo at full CCW position
                     b_servo_CW_pos=False
                 elif direction=='CW':                     # case the set direction is CW
                     b_servo.value = b_servo_CW            # bottom servo moves to the most CCW position
-                    time.sleep(b_rotate_time*number)             # time for the bottom servo to reach the most CCW position
+                    time.sleep(b_rotate_time*number)      # time for the bottom servo to reach the most CCW position
                     b_servo.value = b_servo_CW_rel        # bottom servo moves slightly to release the tensions
                     time.sleep(b_rel_time)                # time for the servo to release the tensions
                     b_servo_CW_pos=True                   # boolean of bottom servo at full CW position
@@ -1092,18 +1091,18 @@ def servo_solve_cube(moves, scrambling=False, print_out=s_debug, test=False):
             if print_out:                          # case the print_out variable is set true
                 print(f'To do S{direction} {curpos}')       # for print_out
 
-            if direction==4:                       # case the direction is CCW
-                set_dir='CCW2'                      # CCW directio is assigned to the variable
-            elif direction==3:                       # case the direction is CCW
-                set_dir='CCW'                      # CCW directio is assigned to the variable
-            elif direction==0:                       # case the direction is CCW
-                set_dir='CW2'                      # CCW directio is assigned to the variable
-            else:                                  # case the direction is CW
-                set_dir='CW'                       # CW directio is assigned to the variable
+            if direction==4:                       # case the direction is 180 CCW
+                set_dir='CCW2'                     # CCW2 direction is assigned to the variable
+            elif direction==3:                     # case the direction is 90 CCW
+                set_dir='CCW'                      # CCW direction is assigned to the variable
+            elif direction==0:                     # case the direction is 180 CW
+                set_dir='CW2'                      # CW2 direction is assigned to the variable
+            else:                                  # case the direction is 90 CW
+                set_dir='CW'                       # CW direction is assigned to the variable
             
             if b_servo_home==True:                 # case bottom servo is at home
                 spin_out(set_dir)                  # call to function to spin the full cube to full CW or CCW
-            elif set_dir[-1] == '2':
+            elif set_dir[-1] == '2':               # If the call is for 180deg spin
                 spin_out(set_dir)                  # call to function to spin the full cube to full CW or CCW
             else:                                  # case the bottom servo is at full CW or CCW position
                 spin_home()                        # call to function to spin the full cube toward home position
@@ -1114,25 +1113,21 @@ def servo_solve_cube(moves, scrambling=False, print_out=s_debug, test=False):
             if print_out:                          # case the print_out variable is set true
                 print(f'To do R{direction} {curpos}')       # for print_out
 
-            if direction==4:                       # case the direction is CCW
-                set_dir='CCW2'                      # CCW directio is assigned to the variable
-            elif direction==3:                       # case the direction is CCW
-                set_dir='CCW'                      # CCW directio is assigned to the variable
-            elif direction==0:                       # case the direction is CCW
-                set_dir='CW2'                      # CCW directio is assigned to the variable
-            else:                                  # case the direction is CW
-                set_dir='CW'                       # CW directio is assigned to the variable
+            if direction==4:                       # case the direction is 180 CCW
+                set_dir='CCW2'                     # CCW2 direction is assigned to the variable
+            elif direction==3:                     # case the direction is 90 CCW
+                set_dir='CCW'                      # CCW direction is assigned to the variable
+            elif direction==0:                     # case the direction is 180 CW
+                set_dir='CW2'                      # CW2 direction is assigned to the variable
+            else:                                  # case the direction is 90 CW
+                set_dir='CW'                       # CW direction is assigned to the variable
             
             if b_servo_home==True:                 # case bottom servo is at home
                 rotate_out(set_dir)                # call to function to rotate cube 1st layer on the set direction, moving out from home              
-            elif set_dir[-1] == '2':
+            elif set_dir[-1] == '2':               # If the call is for 180deg spin
                 rotate_out(set_dir)                # call to function to spin the full cube to full CW or CCW
-            elif b_servo_CW_pos==True:             # case the bottom servo is at full CW position
-                if set_dir=='CCW':                 # case the set direction is CCW
-                    rotate_home(set_dir)           # call to function to spin the full cube toward home position
-            elif b_servo_CCW_pos==True:            # case the bottom servo is at full CCW position
-                if set_dir=='CW':                  # case the set direction is CW
-                    rotate_home(set_dir)           # call to function to spin the full cube toward home position
+            else:                                  # case the bottom servo needs to rotate home
+                rotate_home(set_dir)               # call to function to spin the full cube toward home position
     
     if stop_servos:                                # case there is a stop request for servos 
         if print_out:                              # case the print_out variable is set true
@@ -1505,9 +1500,9 @@ def test_set_of_movements():
     
     print('\nDemonstration of the robot servos current settings, by solving a predefined scrambled cube')   
     print('Press the touch button to interrupt the test')
-
-    movements= 'F1R1S3R1F3S3R1F1S4R0F3S4R0S3F1S3R0S3F3R1F1S4R0F1S3R1F3S4R0F1S4R0S3F1R3F1S1R3S1F1R3F2S1R3S1F1R3S1F1R3S1F3R3F3R1F2R1S3R1F1S3R1F2S4R0'
-#    movements += 'F1R3S1F1R3F1S1R3S3F1R1S3R1F3S1R3F1R1S3S3F3R1S3R1F3R1S3R1S3F1S1R3S1F3R3F1R1S3'
+        
+    movements= 'F2R1S3R1S3S3F1R1F2R1S3S3F1R1S3R1F3R1S3R1S3S3F3R1S3F1R1S3R1F3R1S3R1S3F3R1S3R1'
+    movements += 'F1R3S1F1R3F1S1R3S3F1R1S3R1F3S1R3F1R1S3S3F3R1S3R1F3R1S3R1S3F1S1R3S1F3R3F1R1S3'
     # to complete the moves of this string CUBOTino takes 1m:8secs (18/04/2022)
     
     
