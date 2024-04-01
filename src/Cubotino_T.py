@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 15 March 2024
+#  Andrea Favero, 01 April 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '7.0 (15 March 2024)'
+version = '7.2 (01 April 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -2248,7 +2248,7 @@ def scrambling_cube():
     print(solution_Text)            # feedback is printed to the terminal
     
     # dict and string with robot movements, and total movements
-    _, robot_moves, total_robot_moves = rm.robot_required_moves(solution, solution_Text)
+    _, robot_moves, total_robot_moves, _ = rm.robot_required_moves(solution, solution_Text, simulation=False, informative=debug)
     print('Total robot movements: ', total_robot_moves)  # nice information to print at terminal
     if not robot_stop:              # case there are no request to stop the robot
         robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time, scrambling=True) # movements to the robot are finally applied
@@ -2479,7 +2479,7 @@ def faces_collage(faces, cube_status, color_detection_winner, cube_color_sequenc
 
 
 
-def cube_sketch_coordinates(x_start, y_start, d):
+def cube_sketch_coordinates(x_start, y_start, d, g=0):
     """ Generates a list and a dict with the top-left coordinates of each facelet, as per the URFDLB order.
     These coordinates are later used to draw a cube sketch
     The cube sketch (overall a single rectangle with all the facelets in it) starts at x_start, y_start
@@ -2487,12 +2487,12 @@ def cube_sketch_coordinates(x_start, y_start, d):
     
     square_start_pt=[]   # lits of all the top-left vertex coordinate for the 54 facelets
     
-    starts={0:(x_start+3*d, y_start),
-            1:(x_start+6*d, y_start+3*d),
-            2:(x_start+3*d, y_start+3*d),
-            3:(x_start+3*d, y_start+6*d),
-            4:(x_start,     y_start+3*d),
-            5:(x_start+9*d, y_start+3*d)}   # dict with the top-left coordinate of each face (not facelets !)
+    starts={0:(x_start+3*d+g   , y_start),
+            1:(x_start+6*d+2*g , y_start+3*d+g),
+            2:(x_start+3*d+g   , y_start+3*d+g),
+            3:(x_start+3*d+g   , y_start+6*d+2*g),
+            4:(x_start         , y_start+3*d+g),
+            5:(x_start+9*d+3*g , y_start+3*d+g)}   # dict with the top-left coordinate of each face (not facelets !)
     
     for value in starts.values():                          # iteration over the 6 faces
         x_start=value[0]                                   # x coordinate fo the face top left corner
@@ -2908,7 +2908,7 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
     global robot_stop
     
     # dict and string with robot movements, and total movements
-    _, robot_moves, total_robot_moves = rm.robot_required_moves(solution, solution_Text) 
+    _, robot_moves, total_robot_moves, _ = rm.robot_required_moves(solution, solution_Text, simulation=False, informative=debug) 
 #     print(f'\nRobot movements sequence: {robot_moves}')   # nice information to print at terminal, sometime useful to copy 
     
     if solution_Text != 'Error':                # case the solver has returned an error
@@ -2939,7 +2939,7 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
             for i, col in enumerate(cube_color_sequence):                 # iteration ove the detected cube color sequence
                 colors_a[URFDLB[i]] = cube_bright_colors[col]             # colors are assigned to the dictionary
             
-            if animation_activated:                                       # case animation_activated is set True
+            if animation_activated and len(robot_moves) > 0 and not robot_stop:  # case animation_activated is set True
                 animation(screen, colors_a, cube_status_string, robot_moves)  # call the animation function
         
         # some relevant info are logged into a text file
@@ -3209,9 +3209,23 @@ def close_camera():
 
 def robot_set_servo(debug):
     """ The robot uses a couple of servos; This functions positions the servos to the start position."""
+
+    global silent
     
-    # servos are initialized, and set to their starting positions
-    return servo.init_servo(debug, start_pos = 'read', f_to_close_mode=flip_to_close_one_step)
+    if debug:                           # case debug is set True
+        print("Setting servos with silent as:", silent) # feedback is printed to the terminal
+    
+    timer = []                          # empty list to store the timer values
+    
+    if not silent:                      # case silent is set True
+        # servos are initialized, and set to their starting positions
+        ret, timer = servo.init_servo(debug, start_pos = 'read', f_to_close_mode=flip_to_close_one_step)
+    else:                               # case silent is set False
+        ret, timer = servo.init_servo(debug, start_pos = 'read', f_to_close_mode=flip_to_close_one_step, s_silent=True)
+        print("timer:", timer)
+    
+    return ret, timer
+
 
 
 
@@ -3994,11 +4008,13 @@ def plot_animation(wait, colors_a, cube_status, startup=False, kill=False):
         x_start_a = 20                              # x coordinate origin for the sketch
         y_start_a = 20                              # y coordinate origin for the sketch
         d_a = 60                                    # edge lenght for each facelet reppresentation
-        
-        sketch_a = np.zeros([9*d_a + 2*y_start_a, 12*d_a + 2*x_start_a, 3],dtype=np.uint8)  # empty array
+        g_a = d_a // 10                             # gap between cube faces
+        w_a = 12*d_a + 2*x_start_a + 3*g_a          # image width for the animation
+        h_a = 9*d_a + 2*y_start_a + 2*g_a           # image height for the animation
+        sketch_a = np.zeros([h_a, w_a , 3],dtype=np.uint8)  # empty array
         sketch_a.fill(230)                          # array is filled with light gray
         
-        _, facelets_start_a = cube_sketch_coordinates(x_start_a, y_start_a, d_a)  # dict with the top-left coordinates for each of the 54 facelets
+        _, facelets_start_a = cube_sketch_coordinates(x_start_a, y_start_a, d_a, g_a)  # dict with the top-left coordinates for each of the 54 facelets
         
         inner_points_a = []                         # empty list to store the inner points (coordinates) to be later colored
         for i in range(54):                         # iteration over the 54 facelets
@@ -4042,6 +4058,16 @@ def animation(screen, colors_a, cube_status_string, robot_moves):
     # changing the URF oriented cube status to the cube orientation after the scanning 
     cube_status_a = cube_facelets_permutation(cube_status_a, 'S', '3')  # facelets permutation assigned to updated cube_status_a
     cube_status_a = cube_facelets_permutation(cube_status_a, 'F', '1')  # facelets permutation assigned to updated cube_status_a
+    
+    # if the last Spin or Rotation is 180deg, a spin to home is added to match the final cube orientation on the Cube_holder
+    for i in range(len(robot_moves)-2, -2, -2):     # iteration over the robot_moves, from the end by two characters at the time
+        if robot_moves[i:i+2] in ('S0','S4','R0','R4'):  # case the robot movement was of a 180deg type
+            if robot_moves[i:i+2] in ('S0','R0'):   # case the 180deg Spin or Rotation was CW (+180deg)
+                robot_moves += 'S3'                 # a CCW spin (-90deg) is added to Spin to Home
+                break                               # for loop is interrupted
+            elif robot_moves[i:i+2] in ('S4','R4'): # case the 180deg Spin or Rotation was CCW (-180deg)
+                robot_moves += 'S1'                 # a CW spin (+90deg) is added to Spin to Home
+                break                               # for loop is interrupted
     
     idx = 1                                         # idx variale used for the dict key
     csa = {}                                        # dict to store the cube status from the start until solution
@@ -4113,9 +4139,7 @@ def start_up(first_cycle=False, set_cropping=False):
     global sides, side, faces, prev_side, BGR_mean, H_mean, URFDLB_facelets_BGR_mean   # cube status detection related variables
     global timeout, detect_timeout, robot_stop                             # robot related variables
     global font, fontScale, fontColor, lineType                            # cv2 text related variables
-    global f_coordinates, fcs_delay
-
-
+    global f_coordinates, fcs_delay, timer
 
     # series of variables settings, to re-set at each cycle
     prev_side=0                      # set the initial previous side to zero
@@ -4151,7 +4175,8 @@ def start_up(first_cycle=False, set_cropping=False):
         font, fontScale, fontColor, lineType = text_font()     # setting text font paramenters
         camera, width, height = set_camera()                   # camera object is created
         robot_set_GPIO()                                       # GPIO settings used on the Raspberry pi
-        robot_init_status = robot_set_servo(debug)             # settings for the servos
+        robot_init_status, timer = robot_set_servo(debug)      # settings for the servos
+        
         if not robot_init_status:                              # case the servo init function returns False
             print("Error occurs at servos init")               # feedback is printed to the terminal
             disp.set_backlight(1)                              # display backlight is turned on, in case it wasn't

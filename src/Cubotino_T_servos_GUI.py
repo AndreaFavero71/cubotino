@@ -3,7 +3,7 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 14 March 2024
+# Andrea Favero 01 April 2024
 # 
 # GUI helping tuninig CUBOTino servos positions, and some of the camera settings.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
@@ -631,21 +631,21 @@ def warp_f_get(val):
 
 def warp_s_get(val):
     global warp_slicing
-    warp_slicing = int(s_warp_s.get())         # Warping slicing
+    warp_slicing = float(s_warp_s.get())       # Warping slicing
     disp.show_on_display('WARP SLICING', str(warp_slicing), fs1=15, y2=75, fs2=18)  # feedback is printed to the display
     take_image(widgets_freeze=False)           # camera reads one frame
 
 
 def led_pwm_get(val):
     global cam_led_bright
-    cam_led_bright = float(s_led_pwm.get())      # cam_led_bright 
+    cam_led_bright = float(s_led_pwm.get())    # cam_led_bright 
     disp.show_on_display('LED PWM', str(round(cam_led_bright,2)), fs1=15, y2=75, fs2=18)  # feedback is printed to the display
     take_image(widgets_freeze=False)           # camera reads one frame
     
     
 def expo_shift_get(val):
     global expo_shift
-    expo_shift = float(s_expo_shift.get())      # cam_led_bright 
+    expo_shift = float(s_expo_shift.get())     # cam_led_bright 
     disp.show_on_display('EXPO SHIFT', str(round(expo_shift,2)), fs1=15, y2=75, fs2=18)  # feedback is printed to the display
     reset_camera()
     take_image(widgets_freeze=False)           # camera reads one frame
