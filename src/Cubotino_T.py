@@ -3950,15 +3950,21 @@ def cube_facelets_permutation(cube_status, move_type, direction):
              18,19,20,21,22,23,24,25,26,42,39,36,43,40,37,44,41,38,35,34,33,32,31,30,29,28,27)
     
     elif move_type == 'S':       # case the robot move is a spin (complete cube rotation around vertical axis)
-        if direction == '1':     # case spin is CW
+        if direction == '0' or direction == '4':     # case spin is 180deg
+            ref=(8,7,6,5,4,3,2,1,0,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,\
+                 35,34,33,32,31,30,29,28,27,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26)
+        elif direction == '1':   # case spin is CW
             ref=(2,5,8,1,4,7,0,3,6,18,19,20,21,22,23,24,25,26,36,37,38,39,40,41,42,43,44,\
                  33,30,27,34,31,28,35,32,29,45,46,47,48,49,50,51,52,53,9,10,11,12,13,14,15,16,17)
-        elif direction == '3':      # case spin is CCW
+        elif direction == '3':   # case spin is CCW
             ref=(6,3,0,7,4,1,8,5,2,45,46,47,48,49,50,51,52,53,9,10,11,12,13,14,15,16,17,\
                  29,32,35,28,31,34,27,30,33,18,19,20,21,22,23,24,25,26,36,37,38,39,40,41,42,43,44)
-    
+   
     elif move_type == 'R':       # case the robot move is a rotation (lowest layer rotation versus mid and top ones) 
-        if direction == '1':     # case 1st layer rotation is CW
+        if direction == '0' or direction == '4':     # case 1st layer rotation is 180deg
+            ref=(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,42,43,44,18,19,20,21,22,23,51,52,53,\
+                 35,34,33,32,31,30,29,28,27,36,37,38,39,40,41,15,16,17,45,46,47,48,49,50,24,25,26)
+        elif direction == '1':   # case 1st layer rotation is CW
             ref=(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,24,25,26,18,19,20,21,22,23,42,43,44,\
                  33,30,27,34,31,28,35,32,29,36,37,38,39,40,41,51,52,53,45,46,47,48,49,50,15,16,17)
         elif direction == '3':   # case 1st layer rotation is CCW
