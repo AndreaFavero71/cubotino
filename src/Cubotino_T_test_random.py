@@ -319,8 +319,8 @@ def cube_solution(cube_string, printout, informative):
     
     _, robot_moves, total_moves, opt = rm.robot_required_moves(s, solution_Text, simulation=simulation, informative=informative)
     est_time = servo.estimate_time(robot_moves, timer, slow_time=0)   # estimated time for the robot moves in argument
-    depth = len(s)//2                             # cube status depth
-    
+    depth = len(s.replace(" ","")) // 2           # cube status depth
+  
     if debug and solution_Text != 'Error':        # case debug variable is set True
         print("Estimated time for the servos:", est_time, "secs")  # feedback is printed to Terminal
     
