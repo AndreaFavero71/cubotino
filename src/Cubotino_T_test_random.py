@@ -62,8 +62,7 @@ def imports(plot):
     import numpy as np                            # arrays
     import datetime as dt                         # used for timestamp
     import os.path, pathlib                       # folder names management
-#     import Cubotino_T_moves as rm                 # custom library, traslates the cuber solution string in robot movements string
-    import Cubotino_T_moves_orig as rm            # custom library, traslates the cuber solution string in robot movements string
+    import Cubotino_T_moves as rm                 # custom library, traslates the cuber solution string in robot movements string
     import Cubotino_T_servos as servo             # custom library for the servos control
     if plot:                                      # case plot is set True (cube status sketch plotting to screen)
         global cv2                                # openCV library is set as global variable
