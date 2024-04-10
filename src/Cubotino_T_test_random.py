@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 01 April 2024
+# Andrea Favero 10 April 2024
 # 
 # Script to virtually solve random generated Rubik's cube status, by the by CUBOTino_T
 #
@@ -262,7 +262,7 @@ def plot_interpreted_colors(wait, cube_status, test, startup=False, kill=False):
         
         x_start=20                                # top lef corner of the rectangle from where all the cube's faces are referring to
         y_start=20                                # top lef corner of the rectangle from where all the cube's faces are referring to
-        d = 50                                    # edge lenght for each facelet reppresentation
+        d = 40                                     # edge lenght for each facelet reppresentation
         g = d//10                                 # gap between cube faces
         w = 2*x_start + 12*d + 3*g                # image width for the animation
         h = 2*y_start + 9*d  + 2*g                # image height for the animation
@@ -357,26 +357,6 @@ def solved_status_check(cube_status):
 
 
 
-def check_robot_moves(robot_moves):
-    """ If the last Spin or Rotation is a 180deg, then a spin to home is added for the animation,
-        to match the final cube orientation on the Cube_holder."""
-    
-    for i in range(len(robot_moves)-2, -2, -2):   # iteration over the robot_moves_ from the end by two characters at the time
-        if robot_moves[i:i+2] in ('S0','S4','R0','R4'):  # case the robot movement was of a 180deg type
-            if robot_moves[i:i+2] in ('S0','R0'):  # case the 180deg Spin or Rotation was CW (+180deg)
-                robot_moves += 'S3'               # a CCW spin (-90deg) is added to Spin to Home
-                break                             # for loop is interrupted
-            elif robot_moves[i:i+2] in ('S4','R4'): # case the 180deg Spin or Rotation was CCW (-180deg)
-                robot_moves += 'S1'               # a CW spin (+90deg) is added to Spin to Home
-                break                             # for loop is interrupted
-    
-    return robot_moves
-
-
-
-
-
-
 def test_random_permutations(runs, cube_status, timer, plot, debug, printout):
     """Generates random cube status (permutations) of a Rubik's cube.
     Each random permutation is analysed from the Cubotino_T_moves.
@@ -443,8 +423,6 @@ def test_random_permutations(runs, cube_status, timer, plot, debug, printout):
                     startup=True                  # startup variable is set True (preparing the fix graphical part for the cube sketch)
                 show_ms = t1                      # sketch showing time as per t1
                 plot_interpreted_colors(show_ms, cube_status, test, startup=True) # initial cube status is plot to the screen
-           
-            robot_moves = check_robot_moves(robot_moves)   # check if the last Spin or Rotation is of 180deg
             
             for i in range(0, len(robot_moves),2): # iteration over the robot movements
                 if plot:                          # case plot variable is set True (sketch with the cube status on screen)

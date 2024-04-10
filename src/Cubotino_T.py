@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 01 April 2024
+#  Andrea Favero, 10 April 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -2909,10 +2909,9 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
     
     # dict and string with robot movements, and total movements
     _, robot_moves, total_robot_moves, _ = rm.robot_required_moves(solution, solution_Text, simulation=False, informative=debug) 
-#     print(f'\nRobot movements sequence: {robot_moves}')   # nice information to print at terminal, sometime useful to copy 
     
     if solution_Text != 'Error':                # case the solver has returned an error
-        print('Total robot movements: ', total_robot_moves)  # nice information to print at terminal, sometime useful to copy
+        print(f"Robot solution: {total_robot_moves} moves   {robot_moves}") # nice information to print at terminal, sometime useful to copy
 
     if color_detection_winner == 'BGR':         # case the cube status has been positively detected by the BGR color distance method
         facelets_data=BGR_mean                  # data to be later logged in a text file         
@@ -4058,16 +4057,6 @@ def animation(screen, colors_a, cube_status_string, robot_moves):
     # changing the URF oriented cube status to the cube orientation after the scanning 
     cube_status_a = cube_facelets_permutation(cube_status_a, 'S', '3')  # facelets permutation assigned to updated cube_status_a
     cube_status_a = cube_facelets_permutation(cube_status_a, 'F', '1')  # facelets permutation assigned to updated cube_status_a
-    
-    # if the last Spin or Rotation is 180deg, a spin to home is added to match the final cube orientation on the Cube_holder
-    for i in range(len(robot_moves)-2, -2, -2):     # iteration over the robot_moves, from the end by two characters at the time
-        if robot_moves[i:i+2] in ('S0','S4','R0','R4'):  # case the robot movement was of a 180deg type
-            if robot_moves[i:i+2] in ('S0','R0'):   # case the 180deg Spin or Rotation was CW (+180deg)
-                robot_moves += 'S3'                 # a CCW spin (-90deg) is added to Spin to Home
-                break                               # for loop is interrupted
-            elif robot_moves[i:i+2] in ('S4','R4'): # case the 180deg Spin or Rotation was CCW (-180deg)
-                robot_moves += 'S1'                 # a CW spin (+90deg) is added to Spin to Home
-                break                               # for loop is interrupted
     
     idx = 1                                         # idx variale used for the dict key
     csa = {}                                        # dict to store the cube status from the start until solution

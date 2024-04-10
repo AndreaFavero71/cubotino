@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 01 April 2024
+# Andrea Favero 10 April 2024
 # 
 # From Kociemba solver to robot moves
 # This applies to "CUBOTino" autonomous, a simpler Rubik's cube solver robot than my first one:
@@ -270,7 +270,8 @@ def optim_moves1(moves, informative):
     
 #     print("initial moves: ", moves)
 #     print("len initial moves:", len(moves))
-        
+    
+    opt1 = 0                             # zero is assigned to opt1 (a counter for optimizaion type1 effectiveness)
     optimization = False                 # boolean to track if optimizations are made
     to_optmize=[]                        # empty list to be populated with string index where optimization is possible
     str_length=len(moves)                # length of the robot move string
@@ -297,7 +298,7 @@ def optim_moves1(moves, informative):
 #         print("Robot moves string: not optimization type 1 needed")
 #         print("moves at opt1: ", moves)
 #         print("len moves at opt1:", len(moves))
-        return moves, 0                  # original moves are returned
+        return moves, opt1               # original moves are returned
 
     else:                                # case the moves string has the need to be optimized
         to_remove=[]                     # empty list to be populated with all indididual characters to be removed from the moves
@@ -314,7 +315,8 @@ def optim_moves1(moves, informative):
             print("Robot moves string: applied optimization type 1")
 #             print("new_moves at opt1: ", new_moves)
 #             print("len new_moves at opt1:", len(new_moves))
-        return new_moves, 1                          # the new string of robot moves is returned
+        opt1 = 1                                    # opt2 is increased to 1
+        return new_moves, opt1                      # the new string of robot moves is returned
 
 
 
@@ -325,9 +327,10 @@ def optim_moves2(moves, informative):
     """Removes 2 flips when the second-last flip is F3, the last one is F2 and both are followed by same spins/rotations.
         Under these conditions, the second-last flip (F3) can be changed (to F1)."""
     
+    opt2 = 0                             # zero is assigned to opt2 (a counter for optimizaion type2 effectiveness)
     str_length = len(moves)              # length of the robot move string
     F_list = []                          # empty lit collecting all the Flips
-    F_count = 0                          # variable F_count (counter) is set to zero                         
+    F_count = 0                          # variable F_count (counter) is set to zero
     for i in range(str_length-2,-2,-2):  # iteration over the moves string, from the end, in steps of 2
         if moves[i] == 'F':              # case there is a F (flip) into the moves string
             to_add = 'F' + moves[i+1]    # type of flip (cases are 'F1', 'F2'and 'F3')
@@ -337,12 +340,12 @@ def optim_moves2(moves, informative):
                 break                    # for loop is interrupted
 
     if F_count < 2:                      # case there are less than two Flip cases in moves string
-        return moves                     # moves in argument are returned
+        return moves, opt2               # moves in argument are returned
     
     else:                                # case there are at least two Flip cases in moves
         if not (F_list[-1] == 'F3' and F_list[-2] == 'F2'):  # case second-last flip is not 'F3' and last flip is not 'F2'
             # the first condition to remove 2 flips is not met
-            return moves, 0              # moves in argument are returned
+            return moves, opt2           # moves in argument are returned
         
         else:                                # case the second-last flip is 'F3' and last flip is 'F2'
             # the first condition to remove 2 flips is met
@@ -359,27 +362,36 @@ def optim_moves2(moves, informative):
                 if 'R' in moves[F2_idx+chrs+2:]:   # case the moves after F2 have an extra Rotation not present after F3
                     # the second condition to remove 2 flips is not met
 #                     print("Robot moves string: not optimization type 2 needed")
-                    return moves, 0          # moves in argument are returned
-
-            if moves[F3_idx+2: F3_idx+chrs+2] != moves[F2_idx+2: F2_idx+chrs+2]: # case moves in between F3 and F2 differ from those after F2
-                # the second condition to remove 2 flips is not met
-#                     print("Robot moves string: not optimization type 2 needed")
-                return moves, 0              # moves in argument are returned
+                    return moves, opt2       # moves in argument are returned
             
-            else:                            # case the moves in between F3 and F2 equal those after F2
-                # the second condition to remove 2 flips is also met
-                new_moves=''                 # new_moves empty string to be populated with the new moves
-                for i in range(str_length):  # iteration over the moves string
-                    if i == F3_idx+1:        # moves index where to apply the change, from 3 (F3) to 1 (F1)
-                        new_moves += '1'     # character 1 is added to the new_moves string
-                    else:                    # moves index to keep the original moves
-                        new_moves += moves[i]  # original moves charactes are appended to new_moves string
-                
-                if informative:
-                    print("Robot moves string: applied optimization type 2")
+            move1 = moves[F3_idx+2: F3_idx+chrs+2]  # moves after thr F3
+            move2 = moves[F2_idx+2: F2_idx+chrs+2]  # moves after the F2
+            if move1 != move2 :              # case moves in between F3 and F2 differ from those after F2
+                if 'R0' in move1 and move2 == 'R4': # case there is a R0 after F3 and moves after F2 is R4
+                    pass                     # do nothing (just prevent the else case)
+                elif 'R4' in move1 and move2 == 'R0':  # case there is a R4 after F3 and moves after F2 is R0
+                    pass                     # do nothing (just prevent the else case)
+                else:                        # case move1 and move2 differ, and not falling into previous if cases
+                    # the second condition to remove 2 flips is not met
+#                     print("Robot moves string: not optimization type 2 needed")
+                    return moves, opt2       # moves in argument are returned
+            
+            
+            # what follow implies the second condition to remove 2 flips is also met
+            new_moves=''                 # new_moves empty string to be populated with the new moves
+            for i in range(str_length):  # iteration over the moves string
+                if i == F3_idx+1:        # moves index where to apply the change, from 3 (F3) to 1 (F1)
+                    new_moves += '1'     # character 1 is added to the new_moves string
+                else:                    # moves index to keep the original moves
+                    new_moves += moves[i]  # original moves charactes are appended to new_moves string
+            
+            if informative:
+                print("Robot moves string: applied optimization type 2")
 #                     print("new_moves at opt2: ", new_moves)
 #                     print("len new_moves at opt2:", len(new_moves))
-                return new_moves, 1          # the new string of robot moves is returned
+            opt2 = 1                     # opt2 is increased to 1
+            return new_moves, opt2       # the new string of robot moves is returned
+
 
 
 
@@ -403,7 +415,13 @@ def count_moves(moves):
     return robot_tot_moves            # total amount of robot moves is returned
 
 
+
+
+
+
 def get_new_cube_angle(initial_angle, sequence):
+    """Function monitoring the Cube_holder angle.
+    Expected angle is between -90 and +90."""
 
     str_length=len(sequence)             # length of the robot move string
     new_angle = initial_angle
@@ -425,6 +443,8 @@ def get_new_cube_angle(initial_angle, sequence):
 
 
 
+
+
 def robot_required_moves(solution, solution_Text, simulation, informative=False):
     """ This function splits the cube manouvre from Kociemba solver string, and generates a dict with all the robot movements.
         Based on the dict with all the robot moves, a string with all the movements is generated.
@@ -438,9 +458,9 @@ def robot_required_moves(solution, solution_Text, simulation, informative=False)
     robot={}                                      # empty dict to store all the robot moves
     moves=''                                      # empty string to store all the robot moves
     robot_tot_moves = 0                           # counter for all the robot movements
-    angle = 0
-    adapted_solution = ''
-    opt = (0,0)
+    angle = 0                                     # initial angle is set to zero
+    opt1, opt2 = 0, 0                             # opt1 and opt2 are set to zero (count optimization 1 and 2 effectiveness)
+    opt = (opt1, opt2)                            # tuple with the optimizations type1 and type2
     
     if solution_Text != 'Error':                  # case the solver did not return an error
         blocks = int(round(len(solution)/2,0))    # total amount of blocks of movements (i.e. U2R1L3 are 3 blocks: U2, R1 and L1)
@@ -450,24 +470,31 @@ def robot_required_moves(solution, solution_Text, simulation, informative=False)
             move=solution[:2]                     # move to be applied on this block, according to the solver
             solution=solution[2:]                 # remaining movements from the solver are updated
             adapted_move=adapt_move(move)         # the move from solver is adapted considering the real cube orientation
-            adapted_solution+=adapted_move
-            if angle == 0:
+            if angle == 0:                        # case Cube_holder is at angle 0 
                 robot_seq=moves_dict_home[adapted_move] # robot movement sequence is retrieved
-            elif angle == -90:
+            elif angle == -90:                    # case Cube_holder is at angle -90 
                 robot_seq=moves_dict_ccw[adapted_move]  # robot movement sequence is retrieved
-            elif angle == 90:
+            elif angle == 90:                     # case Cube_holder is at angle 90 
                 robot_seq=moves_dict_cw[adapted_move]   # robot movement sequence is retrieved
-            else:
-                print("Error converting solution to moves")
-            angle = get_new_cube_angle(angle, robot_seq)
-            robot[block]=robot_seq                      # robot movements dict is updated
-            moves+=robot_seq                            # robot movements string is updated
-            cube_orient_update(robot_seq)               # cube orientation updated after the robot move from this block
+            else:                                 # case Cube_holder is not at angle -90, 0 or 90
+                print("Error converting solution to moves")  # feedback is printed to the terminal
+            angle = get_new_cube_angle(angle, robot_seq)  # angle is updated, based on current angle and robot move
+            robot[block]=robot_seq                # robot movements dict is updated
+            moves+=robot_seq                      # robot movements string is updated
+            cube_orient_update(robot_seq)         # cube orientation updated after the robot move from this block
 
-        moves, opt1 = optim_moves1(moves, informative)  # removes eventual unnecessary moves (that would cancel each other out)
+        # in case the Cube_holder is not in its neutral position (Home, 0 deg), and 90deg spin CW or CCW is added
+        if angle == -90:                          # case the angle equals -90
+            moves+='S1'                           # a 90deg spin (CW) is added
+        elif angle == 90:                         # case the angle equals 90
+            moves+='S3'                           # a -90deg spin (CCW) is added
+        
+        # optimization type1 is not anymore useful with the 180deg rotations (since 1st April 2024)
+        # moves, opt1 = optim_moves1(moves, informative)  # removes eventual unnecessary moves (that would cancel each other out)
+        
         moves, opt2 = optim_moves2(moves, informative)  # removes eventual unnecessary flips
-        opt = (opt1, opt2)                              # tuple with the optimizations type1 and type2
-        robot_tot_moves = count_moves(moves)            # counter for the total amount of robot movements
+        opt = (opt1, opt2)                        # tuple with the optimizations type1 and type2
+        robot_tot_moves = count_moves(moves)      # counter for the total amount of robot movements
 
     # info:
     # "robot" variable (dict type) has all the robot movements prio the optimization analysis
@@ -502,8 +529,10 @@ if __name__ == "__main__":
     
 
     
+    simulation = False
+    informative = False
     solution_Text = ""
-    robot, moves, robot_tot_moves = robot_required_moves(solution, solution_Text)
+    robot, moves, robot_tot_moves, opt = robot_required_moves(solution, solution_Text, simulation, informative)
     print(f'\nnumber of robot movements: {robot_tot_moves}')
     
     print()    
