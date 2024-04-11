@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 10 April 2024
+#  Andrea Favero, 11 April 2024
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '7.2 (01 April 2024)'
+version = '7.3 (11 April 2024)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -2556,16 +2556,19 @@ def plot_interpreted_colors(cube_status, detect_winner, cube_color_sequence, HSV
                           'yellow':(0,245,245), 'orange':(0,128,255), 'blue':(204,0,0)}   # bright colors assigned to the six faces colors
     std_color_sequence = list(cube_bright_colors.keys())                                  # URFDLB color order if white on top and red at right
     
-    for i, color in enumerate(cube_status.values()):                     # iteration over the 54 facelets interpreted colors
+    for i in range(54):                                                  # iteration over the 54 facelets
         start_point=square_dict[i]                                       # top-left point coordinate for the facelet square
         cv2.rectangle(collage, tuple(start_point), (start_point[0]+d, start_point[1]+d), (0, 0, 0), 1) # square black frame
+    
+    for i, color in enumerate(cube_status.values()):                     # iteration over the 54 facelets interpreted color
+        start_point=square_dict[i]                                       # top-left point coordinate for the facelet square
         if HSV_analysis:                                                 # case the detected 6 center facelets have 6 different colors
             col=cube_color_sequence[std_color_sequence.index(color)]     # from standard color sequence to the one detected, due to cube orientation at start
             B,G,R = cube_bright_colors[col]                              # BGR values of the bright colors for the corresponding detected color
             inner_points=inner_square_points(square_dict,i,d)            # array with the 4 square inner vertex coordinates
             cv2.fillPoly(collage, pts = [inner_points], color=(B,G,R))   # inner square is colored with bright color of the interpreted one
         else:                                                            # case the detected 6 center facelets do not have 6 different colors
-            cv2.putText(collage, cube_status_string[i], (start_point[0]+int(0.2*d), int(start_point[1]+int(0.8*d))),\
+            cv2.putText(collage, cube_status_string[i], (int(start_point[0]+0.2*d), int(start_point[1]+0.8*d)),\
                         font, fontScale*0.9,(0,0,0),lineType)            # facelets side LETTER is printed on the sketch
 
     
@@ -2930,16 +2933,30 @@ def robot_solve_cube(fixWindPos, screen, frame, faces, cube_status, cube_color_s
         # movements to the robot are finally applied
         solved, tot_robot_time, robot_solving_time = robot_move_cube(robot_moves, total_robot_moves, solution_Text, start_time)
         
-        if solution_Text != 'Error' and not robot_stop:  # case the solver has not returned an error and no stop requests
-            cube_bright_colors = {'white':(255,255,255), 'red':(0,0,204), 'green':(0,132,0),
-                                  'yellow':(0,245,245), 'orange':(0,128,255), 'blue':(204,0,0)}   # bright colors assigned to the six faces colors
-            URFDLB = 'URFDLB'                                             # string with the faces order when plotting
-            colors_a={}                                                   # empty dict to store the colors to plot
-            for i, col in enumerate(cube_color_sequence):                 # iteration ove the detected cube color sequence
-                colors_a[URFDLB[i]] = cube_bright_colors[col]             # colors are assigned to the dictionary
+        # preparing the data for the animation
+        # case the solver has not returned an error and no stop requests
+        if animation_activated and solution_Text != 'Error' and len(robot_moves) > 0 and not robot_stop:
+            animate = True                                                    # animate variable is set True
+            if len(cube_color_sequence) != 6:                                 # case the cube_color_sequence does not have 6 elements
+                animate = False                                               # animate is set False
             
-            if animation_activated and len(robot_moves) > 0 and not robot_stop:  # case animation_activated is set True
+            cols = ('white','red','green','yellow','orange','blue')           # tuple with the expected colors in cube_color_sequence
+            for col in cols:                                                  # iteration over the colors
+                if col not in cube_color_sequence:                            # case col is not in cube_color_sequence
+                    # this happens when not 6 different colors are detected at centers
+                    animate = False                                           # animate is set False 
+                    break                                                     # for loop is interrupted
+
+            if animate:                                                       # case animate is (still) set True
+                cube_bright_colors = {'white':(255,255,255), 'red':(0,0,204),
+                                      'green':(0,132,0), 'yellow':(0,245,245),
+                                      'orange':(0,128,255), 'blue':(204,0,0)} # bright colors assigned to the six faces colors
+                URFDLB = 'URFDLB'                                             # string with the faces order when plotting
+                colors_a = {}                                                 # empty dict to store the colors to plot
+                for i, col in enumerate(cube_color_sequence):                 # iteration ove the detected cube color sequence
+                    colors_a[URFDLB[i]] = cube_bright_colors[col]             # colors are assigned to the dictionary
                 animation(screen, colors_a, cube_status_string, robot_moves)  # call the animation function
+
         
         # some relevant info are logged into a text file
         log_data(timestamp, facelets_data, cube_status_string, solution, color_detection_winner, tot_robot_time, \
