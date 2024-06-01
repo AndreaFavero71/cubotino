@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 01 April 2024
+# Andrea Favero 31 May 2024
 #
 # This script relates to CUBOTino Autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -102,7 +102,7 @@ def load_servos_parameters(print_out):
     global b_spin_time, b_rotate_time, b_rel_time                                           # bottom servo timers
     
 
-    servo_settings = settings.get_servos_settings()  # settings are retrieved from the settings Class
+    servo_settings = settings.get_servos_settings(reload=True)  # settings are retrieved from the settings Class
 
     if print_out:                                # case print_out variable is set true
         fname = settings.get_servo_settings_fname() # settings filename is retrieved
@@ -174,13 +174,14 @@ def load_servos_parameters(print_out):
 
 
 
-def init_servo(print_out=s_debug, start_pos=0, f_to_close_mode=False, s_silent=False):
+def init_servo(print_out=s_debug, start_pos=0, f_to_close_mode=False, s_silent=False, init_display=True):
     """ Function to initialize the robot (servos position) and some global variables, do be called once, at the start."""
     
     global robot_init_status, fun_status, flip_to_close_one_step, led_init_status, top_cover_led
     global flip_to_close_one_step
     
-    set_display()
+    if init_display:
+        set_display()
     
     if s_silent and not led_init_status:      # case s_silent is se True
         led_init_status, top_cover_led = init_top_cover_led()  # the GPIO for the led is initialized
@@ -1393,22 +1394,24 @@ def test_servos_positions():
         elif ui == "print":                             # case the input is 'print'
             del t_servo                                 # object is deleted, to prevent issue on re-generating it
             del b_servo                                 # object is deleted, to prevent issue on re-generating it
+            load_servos_parameters(print_out=False)     # settings are loaded again from the Json file
+            parameters = update_parameters()            # parameters for --tune are updated
             robot_init_status=False                     # boolean to track the servos inititialization status
             init_servo(print_out=s_debug, start_pos='open')  # servos are initialized, with parameters from the json files
             t_servo.value = t_servo_open                # top servo is rotated to open position (as defined at the json file)
-            parameters = update_parameters()            # parameters for --tune are updated
             print('\nRe-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
             print("Last saved values are:\n")           # feedback is printed to terminal
-            for parameter, value in parameters.items():    # iteration over the testable parameters via --tune
+            for parameter, value in parameters.items(): # iteration over the testable parameters via --tune
                 print("  {:<20} {:<10}".format(parameter[:-1], value)) # parameters and values are printed
     
         elif ui == "init":                              # case the input is 'init'
             del t_servo                                 # object is deleted, to prevent issue on re-generating it
             del b_servo                                 # object is deleted, to prevent issue on re-generating it
+            load_servos_parameters(print_out=False)     # settings are loaded again from the Json file
+            parameters = update_parameters()            # parameters for --tune are updated
             robot_init_status=False                     # boolean to track the servos inititialization status
             init_servo(print_out=s_debug, start_pos='open')  # servos are initialized, with parameters from the json files
             t_servo.value = t_servo_open                # top servo is rotated to open position (as defined at the json file)
-            parameters = update_parameters()            # parameters for --tune are updated
             print('Re-loaded Cubotino_T_servo_settings.txt settings')  # feedback is printed to terminal
         
         elif ui == 'test':                              # case the input is 'test'
@@ -1462,8 +1465,8 @@ def test_servos_positions():
         
         elif ui == 'pw' or ui == 'PW':                  # case the input is 'pw'
             done = False                                # boolean variable later used to exit the while loop
-            choice =''                                  # 
-            while done == False:
+            choice =''                                  # empty string is assigned to choice variable (= no choice yet)
+            while done == False:                        # iteration until done equals False 
                 choice = input('  type: \n'
                                '  0       for range 0.5 to 2.5ms \n'
                                '  1       for range 1.0 to 2.0ms \n'

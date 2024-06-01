@@ -3,7 +3,7 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 01 April 2024
+# Andrea Favero 31 May 2024
 # 
 # GUI helping tuninig CUBOTino servos positions, and some of the camera settings.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
@@ -49,8 +49,9 @@ def on_closing():
     disp.show_cubotino()                         # cubotino logo is plot to the screen
     print("\nClosing the GUI application\n\n")   # feedback is printed to the terminal
     camWindow.destroy()                          # frame camWindow is destroyied
+    
     servoWindow.destroy()                        # frame servoWindow is destroyied
-    servo.servo_off()                            # PWM signal interruption toward the servos (free to be manually moved, servos dependant)
+#     servo.servo_off()                            # PWM signal interruption toward the servos (free to be manually moved, servos dependant)
     servo.quit_func()                            # GPIO for PWM set to a fix level, to prevent servos movements after quitting
     close_cam()                                  # close the camera object
     time.sleep(0.5)                              # little delay

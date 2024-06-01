@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 10 March 2024
+#  Andrea Favero 31 May 2024
 #
 # This script relates to CUBOTino Pocket, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the CUBOTino versions for the Rubik's cube 2x2x2.
@@ -16,45 +16,78 @@
 from Cubotino_T_settings_manager import settings as settings  # settings manager Class
 from picamera2 import Picamera2        # Raspberry Pi specific package for the camera, since Raspberry Pi OS 11
 from libcamera import controls
-import time
+import os, time
 
 
 class Camera:
     
     def __init__(self):
-        """ Imports and set the picamera (V1.3)"""
+        """ Imports and set the picamera (V1.3, V2 or V3).
+            In Cubotino_T_settings.txt set:
+             s_mode to 7 for PiCamera V1.3
+             s_mode to 5 for PiCamera V2
+             s_mode to 1 for PiCamera V3
+            Run Cubotino_T_servos_GUI.py to adjust the cropping, and warping.
+        """
         
         print("\nLoading camera parameters")
+        
+
+        debug = False                                    # set a debug variable
+        
+        # libcamera log levels
+        # "1" - INFO, "2" - WARN, "3" - ERROR, "4" - FATAL
+        if debug:                                        # case debug is set True
+            os.environ["LIBCAMERA_LOG_LEVELS"] = "1"     # libcamera prints INFO, WARN, ERROR, FATAL feedback
+        else:                                            # case debug is set False
+            os.environ["LIBCAMERA_LOG_LEVELS"] = "2"     # libcamera prints WARN, ERROR, FATAL feedback
+        
         sett = settings.get_settings()                   # settings are retrieved from the settings Class
         camera_width_res = sett['camera_width_res']      # Picamera resolution on width 
         camera_height_res = sett['camera_hight_res']     # Picamera resolution on heigh
+        s_mode = sett['s_mode']                          # camera setting mode (pixels binning)
+        x_l = sett['x_l']                                # image crop on left (before warping)
+        x_r = sett['x_r']                                # image crop on right (before warping)
+        y_u = sett['y_u']                                # image crop on top (before warping)
+        y_b = sett['y_b']                                # image crop on bottom (before warping)
         self.kl = sett['kl']                             # coff. for PiCamera stability acceptance
         self.expo_shift = sett['expo_shift']             # Picamera shift on exposure value
-  
-            
-        print("Setting up the camera\n")                              # feedback is printed to the terminal
-        self.width = camera_width_res                                 # image width
-        self.height = camera_height_res                               # image height
+
+        print("Setting up the camera\n")                 # feedback is printed to the terminal
+        self.width = camera_width_res                    # image width
+        self.height = camera_height_res                  # image height
         
-        self.cam = Picamera2()                                        # camera object is defined
+        # creating the camera object
+        self.cam = Picamera2()                           # camera object is defined
+
+        # getting picamera info related to the chosen camera mode (s_mode)
+        mode = self.cam.sensor_modes[s_mode]
         
-        # configguration object for the preview stream
-        self.config = self.cam.create_preview_configuration({"size": (self.width, self.height), "format":"RGB888"})
+        # configuration camera object
+        self.config = self.cam.create_preview_configuration(
+            main =  {"size": (self.width, self.height), "format": "RGB888"},
+            lores = {"size": (self.width, self.height), "format": "YUV420"},
+            raw =   {'size': mode['size'], 'format': mode['format']},encode = "lores")
         self.cam.preview_configuration.align(self.config)             # additional setting, to align (round) resolutions to the convenient ones
-        self.cam.configure(self.config)                               # configuration is applied to the camera
-        time.sleep(1)
+        self.cam.configure(self.config)                               # configuration is applied to the camera                                   
+        
+        # configuring the exposure shift to the camera
         self.cam.set_controls({"ExposureValue": self.expo_shift})     # exposition target is shifted by expo_shift value (range from -8 to 8)
+        
+#################################################
+# In case of PiCamera V3:                       #
+# --> at Cubotino_settings.txt set s_mode to 1  #
+# --> uncoment the 4 rows below                 #
+#################################################
+#         """Sets 0.07 meter (1/0.07 = 14). Minimim focus distance (datasheet) is 0.5m for V3 wide and 0.1m for V3."""
+#         focus_dist_m = 0.07                                           # focus distance, in meters (7cm = 0.07m)
+#         focus_dist = 1/focus_dist_m if focus_dist_m > 0 else 14       # preventing zero division;
+#         self.cam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": focus_dist}) # manual focus setting to camera
+# ##############################################
+            
         self.cam.start()                                              # camera (object) is started
         print()                                                       # an empty line is printed for separation
          
-    
-    def set_resolution(self, w, h):
-        self.cam.stop()
-        self.config = self.cam.create_preview_configuration({"size": (w, h), "format":"RGB888"})
-        self.cam.preview_configuration.align(self.config)
-        self.cam.configure(self.config)
-        self.cam.start()
-        time.sleep(0.15)                # little delay to let the camera setting
     
     
     def get_width(self):
@@ -160,7 +193,7 @@ camera = Camera()
 
 if __name__ == "__main__":
     """the main function can be used to test the camera. """
-
+    
     print(camera.printout())
 
 

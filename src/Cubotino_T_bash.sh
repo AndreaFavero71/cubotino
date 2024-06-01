@@ -13,6 +13,7 @@ source /home/pi/cubotino/src/.virtualenvs/bin/activate
 cd /home/pi/cubotino/src
 
 # runs the robot main script
+#python Cubotino_T.py -F -D
 python Cubotino_T.py
 
 # exit code from the python script

@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 18 March 2024
+#  Andrea Favero 31 May 2024
 #
 # This script relates to CUBOTino Autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script manages the interactions with the settings files (json text files).
@@ -32,14 +32,20 @@ class Settings:
         self.folder = pathlib.Path().resolve()            # active folder (should be home/pi/cubotino/src)
         self.macs_AF = self.get_macs_AF(self.folder)      # mac addresses of AF bots are retrieved
         self.eth_mac = get_mac_address().lower()          # mac address of the Pi board is retrieved
-        
         self.check_local_settings()                       # checks whether local settings files exist
+        self.load_settings()                              # loads settings
+
+
+
+
+    def load_settings(self):
+        """Calls the function to read and parse the settings."""
         
         s = self.read_settings()                          # reads the general robot settings
         servos_s = self.read_servos_settings()            # reads the servos settings
         
-        self.s = self.parse_settings(s)                   # converts settings to correct datatype
-        self.servos_s = self.parse_servos_settings(servos_s) # converts servos settings to correct datatype
+        self.s = self.parse_settings(s)                        # converts settings to correct datatype
+        self.servos_s = self.parse_servos_settings(servos_s)   # converts servos settings to correct datatype
 
 
 
@@ -114,9 +120,12 @@ class Settings:
 
 
 
-    def get_servos_settings(self):
+    def get_servos_settings(self, reload=False):
         """Returns the servos settings dict."""
+        if reload:
+            self.load_settings()
         return self.servos_s
+        
 
 
 
