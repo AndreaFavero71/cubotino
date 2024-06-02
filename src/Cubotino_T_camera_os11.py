@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 31 May 2024
+#  Andrea Favero 02 June 2024
 #
 # This script relates to CUBOTino Pocket, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the CUBOTino versions for the Rubik's cube 2x2x2.
@@ -24,7 +24,7 @@ class Camera:
     def __init__(self):
         """ Imports and set the picamera (V1.3, V2 or V3).
             In Cubotino_T_settings.txt set:
-             s_mode to 7 for PiCamera V1.3
+             s_mode to 1 for PiCamera V1.3
              s_mode to 5 for PiCamera V2
              s_mode to 1 for PiCamera V3
             Run Cubotino_T_servos_GUI.py to adjust the cropping, and warping.
@@ -61,7 +61,18 @@ class Camera:
         self.cam = Picamera2()                           # camera object is defined
 
         # getting picamera info related to the chosen camera mode (s_mode)
-        mode = self.cam.sensor_modes[s_mode]
+        try:
+            mode = self.cam.sensor_modes[s_mode]
+        except IndexError:
+            print('\n'*3)
+            print('#'*76)
+            print("#  Since 31/05/2024, in case of OS Bullseye (OS11) and PiCamera V1.3:      #")
+            print("#  The s_mode parameter in Cubotino_T.txt must be set to 1 instaed of 7    #")
+            print("#  Parameter temporary changed for this run.                               #")
+            print('#'*76)
+            print('\n'*3)
+            s_mode = 1 if s_mode == 7 else s_mode
+            mode = self.cam.sensor_modes[s_mode]
         
         # configuration camera object
         self.config = self.cam.create_preview_configuration(
