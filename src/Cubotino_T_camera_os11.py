@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 02 June 2024
+#  Andrea Favero 16 June 2024
 #
 # This script relates to CUBOTino Pocket, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the CUBOTino versions for the Rubik's cube 2x2x2.
@@ -85,17 +85,20 @@ class Camera:
         # configuring the exposure shift to the camera
         self.cam.set_controls({"ExposureValue": self.expo_shift})     # exposition target is shifted by expo_shift value (range from -8 to 8)
         
+        
 #################################################
-# In case of PiCamera V3:                       #
+# In case of PiCamera V3 (it has autofocus):    #
 # --> at Cubotino_settings.txt set s_mode to 1  #
 # --> uncoment the 4 rows below                 #
 #################################################
-#         """Sets 0.07 meter (1/0.07 = 14). Minimim focus distance (datasheet) is 0.5m for V3 wide and 0.1m for V3."""
+
+#         """Sets 0.07 meter (1/0.07 = 14). Minimim focus distance (datasheet) is 0.05m for V3 wide and 0.1m for V3."""
 #         focus_dist_m = 0.07                                           # focus distance, in meters (7cm = 0.07m)
 #         focus_dist = 1/focus_dist_m if focus_dist_m > 0 else 14       # preventing zero division;
 #         self.cam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": focus_dist}) # manual focus setting to camera
+
 # ##############################################
-            
+        
         self.cam.start()                                              # camera (object) is started
         print()                                                       # an empty line is printed for separation
          
