@@ -15,8 +15,13 @@ This git repo simplifies the download of the individual files and automates as m
 
 This installation has proved to work on different Raspberry Pi models; Please report in case you experience issues.
 
+The installation covers up to OS 13 (Trixie).
+
+
+
+
 # How to use it:
-1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20260511.pdf) , Chapter 7, Step1 to Step3
+1. Flash your SD card according to the procedure in the [document here](doc/How_to_make_CUBOTino_autonomous_robot_20261025.pdf) , Chapter 7, Step1 to Step3
 2. Put the sd card in the pi and power it. You can monitor the boot process if you connect an hdmi monitor to it but it is not essential. 
 3. Try to connect to the Raspberry Pi via SSH. On Windows you can use Putty. On linux and mac you can type directly:
 ```
@@ -30,9 +35,12 @@ cd cubotino/src
 chmod +x install/setup.sh
 sudo ./install/setup.sh
 ```
-6. Make sure the script runs without error until the end. It should ask you to reboot. Type 'y' and hit enter.
-7. If the question "Reboot (y/n)" does't appear, them the installation is facing issues; Try to fix the errors, and run the script again.
-8. If the question "Reboot (y/n) does appear, You should get the proper environment after the reboot.
+6. Follow the prompts from the setup.sh script. It will ask you to choose a remote access method.
+   -For a Pi Zero 2 W, choose option 1 (RealVNC on X11). This is essential for the graphical tuning steps.
+   -Option 2 (Raspberry Pi Connect) is suitable when using Raspberry Pi 4 or 5, as its screen-sharing feature is required for tuning and is not available on Pi Zero/Zero 2 W. 
+7. Make sure the script runs without error until the end. It should ask you to reboot. Type 'y' and hit enter.
+8. If the question "Reboot (y/n)" doesn't appear, then the installation is facing issues; Try to fix the errors, and run the script again.
+9. If the question "Reboot (y/n) does appear, after the reboot you should get the proper environment.
 
 
 # Build the robot:
@@ -59,16 +67,16 @@ of course, you can replace `Cubotino_T.py` by any other python scripts as mentio
 
 
 # Enabling autostart
-When everything is tuned and you want to autostart the software automatically on reboot, just type :
+When everything is tuned and you want to start the software automatically on reboot, edit the crontab for the root user:
 ```
     sudo crontab -e
 ```
-select the nano editor '1' then go to the last line of the window and remove the first '#' character of the line . This uncomment the startup script that launches cubotino on startup. You can reboot after to test it.
+select the nano editor '1' then go to the last line of the window and remove the leading '#' character of the line. This uncomment the startup script that launches cubotino on startup. You can reboot after to test it.
 
 # VNC connection
 You can always connect with ssh. If you prefere VNC you can download the RealVNC client (this is the one I use). You just have that start it like this:
 ```
-vncviewer cubotino.local
+vncviewer cubotino.local:1
 ```
 It will ask for the credential. Use 'pi' and the same password you use for ssh. You should have a desktop version in this way
 

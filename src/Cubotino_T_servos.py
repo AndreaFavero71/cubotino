@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 31 May 2024
+# Andrea Favero 25 October 2026
 #
 # This script relates to CUBOTino Autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -24,6 +24,9 @@
 #  - Raspberry pi Zero 2 
 #  - Raspberry Pi OS (Legacy) A port of Debian Buster with security updates and desktop environment
 #    (Linux raspberry 5.10.103-v7+ #1529 SMP Tue 8 12:21:37 GMT 2022 armv71 GNU/Linux)
+#
+#  Updated for:
+#  - Raspberry Pi [32-bit Desktop] OS 11 (Bullseye), OS 12 (Bookworm) and OS 13 (Trixie)
 #
 #############################################################################################################
 """
@@ -64,8 +67,8 @@ led_init_status = False
 
 def init_top_cover_led():
     global factory
-    from gpiozero.pins.pigpio import PiGPIOFactory    # pigpio library is used, to use hardare timers on PWM (to avoid servo jitter)
-    factory = PiGPIOFactory()                         # pin factory setting to use hardware timers, to avoid servo jitter
+    import Cubotino_T_platform_io as platform_io      # pigpio library is used, to use hardare timers on PWM (to avoid servo jitter)
+    factory = platform_io.get_gpio_pin_factory()      # pin factory setting to use hardware timers, to avoid servo jitter
     
     # NOTE: High freq. on the led PWM prevents camera from seeing flickering
     top_cover_led = PWMLED(top_cover_led_pin,

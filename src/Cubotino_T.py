@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 31 May 2024
+#  Andrea Favero, 25 October 2026
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -27,14 +27,14 @@
 #  - Numpy: 1.21.4
 #
 #  Updated for:
-#  - Raspberry Pi OS 11 (A port of Debian Bullseye with security updates and desktop environment)
+#  - Raspberry Pi [32-bit Desktop] OS 11 (Bullseye), OS 12 (Bookworm) and OS 13 (Trixie)
 #
 #############################################################################################################
 """
 
 
 # __version__ variable
-version = '7.4 (31 May 2024)'
+version = '8.0 (25 October 2026)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -110,7 +110,7 @@ print(''.join(f'{k}={v}\n' for k,v in vars(args).items())) # arguments values ar
 
 
 import sys                                               # sys library is imported
-
+import Cubotino_T_platform_io as platform_io             # os-specific compatibility layer
 
 
 def import_parameters(debug=False):
@@ -378,46 +378,28 @@ def check_screen_presence():
 
 
 
-def get_os_version():
-    os_version = 0
-    with open('/etc/os-release', 'r') as file:
-        for row in file:
-            if "VERSION_ID" in row:
-                os_version = int(''.join(x for x in row if x.isdigit()))
-                return os_version
-    return os_version
-
-
-
-
-
-
-
 def set_camera(expo_shift=0):
-    """ Set the camera and its resolution.
-        Different libraries will be used depending on OS version (picamera on OS 10, picamera2 on OS 11)"""
-  
-    os_version = get_os_version()
-    
-    if os_version >0 and os_version <= 10:
-        from Cubotino_T_camera_os10 import camera
+    """ set the camera and its resolution.
+        the camera backend is chosen by Cubotino_T_platform_io, which hides the
+        os-specific import (picamera on os 10, picamera2 on os 11+)."""
+
+    backend = platform_io.get_camera_backend()   # os-specific camera module
+    camera = backend.camera                      # singleton camera instance
+
+    if platform_io.is_legacy_camera():           # os 10 and older (picamera)
         width = camera.get_width()
         height = camera.get_height()
-        
+
         # case cube side is zero, no request to stop the robot and not automated cycles
         if side == 0 and not robot_stop and cycles_num == 0 and not picamera_test:
             camera.printout()
-        
-    elif os_version >= 11:
-        from Cubotino_T_camera_os11 import camera
+
+    else:                                        # os 11 and newer (picamera2)
         width = camera.get_width()
         height = camera.get_height()
         time.sleep(1)
         camera.set_exposure_shift(expo_shift)
-    
-    else:
-        print("Raspberry Pi OS version not recognized")
-    
+
     return camera, width, height
 
 
@@ -4996,13 +4978,19 @@ if __name__ == "__main__":
      
     
     ################    OS version info    ##########################################################
-    os_version = get_os_version()          # OS is checkjed
+    os_version = platform_io.get_os_version()   # os version is retrieved from the layer
     if os_version==10:                     # case os_version equals 10
         print(f'Operative System found: Buster (OS10)') # print to terminal the OS version detected
         os_ver_txt = 'Buster'
-    elif os_version==11:                   # case os_version equals 11
-        print(f'Operative System found: Bullseye (OS11)')  # print to terminal the OS version detected
+    elif os_version==11:
+        print(f'Operative System found: Bullseye (OS11)')
         os_ver_txt = 'Bullseye'
+    elif os_version==12:
+        print(f'Operative System found: Bookworm (OS12)')
+        os_ver_txt = 'Bookworm'
+    elif os_version==13:
+        print(f'Operative System found: Trixie (OS13)')
+        os_ver_txt = 'Trixie'
     else:                                  # other cases
         line = "#"*80
         print('\n\n')
