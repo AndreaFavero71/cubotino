@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 25 October 2026
+# Andrea Favero 01 November 2026
 #
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script checks the pigpiod status, and reset it once at the start
@@ -28,6 +28,10 @@ class Pigpiod:
             ok = platform_io.ensure_pigpiod(verbose=True)
             if ok:
                 self.pigpiod_once = True
+    
+    def stop(self):
+        """stop the pigpiod daemon."""
+        return platform_io.stop_pigpiod(verbose=True)
 
 pigpiod = Pigpiod()
 

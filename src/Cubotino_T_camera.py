@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 25 October 2026
+# Andrea Favero 01 November 2026
 #
 # This script relates to CUBOTino Pocket, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the CUBOTino versions for the Rubik's cube 2x2x2.
@@ -209,6 +209,3 @@ if __name__ == "__main__":
     """the main function can be used to test the camera. """
     
     print(camera.printout())
-
-
-

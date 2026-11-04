@@ -3,14 +3,16 @@
 
 """
 ######################################################################################################################
-# Andrea Favero 31 May 2024
+# Andrea Favero 01 November 2026
 # 
 # GUI helping tuninig CUBOTino servos positions, and some of the camera settings.
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
 # 
+# Updated for Trixie (OS13) and to be compatible with the new platform_io layer.
 #
 ######################################################################################################################
 """
+
 
 
 # ################################## Imports  ########################################################################
@@ -27,9 +29,26 @@ import os.path                       # os is imported to check for file presence
 
 # project specific libraries
 from Cubotino_T_settings_manager import settings as settings   # custom library managing the settings from<>to the settings files
-from Cubotino_T_pigpiod import pigpiod as pigpiod        # start the pigpiod server
-import Cubotino_T_servos as servo                        # custom library controlling Cubotino servos and led module
+import Cubotino_T_platform_io as platform_io            # os-specific compatibility layer
+
+# 1) Stop any stale pigpiod BEFORE anything claims GPIO.
+#    The ST7735 display driver uses RPi.GPIO (lgpio backend) and must
+#    own its pins. A running pigpiod may already hold them.
+platform_io.stop_pigpiod(verbose=False)
+
+# 2) Initialise the display. It claims its own pins via RPi.GPIO.
 from Cubotino_T_display import display as disp           # custom library controlling Cubotino disply module
+
+# 3) Now start pigpiod. It will pick up the remaining pins (servos, LED).
+#    Cubotino_T_pigpiod ensures the daemon is up before the servo module
+#    builds its PiGPIOFactory.
+from Cubotino_T_pigpiod import pigpiod as pigpiod
+
+# 4) Servo module: this builds the gpiozero Servo/PWMLED objects with
+#    PiGPIOFactory. pigpiod must already be reachable at this point.
+import Cubotino_T_servos as servo                        # custom library controlling Cubotino servos and led module
+
+# 5) Import Cubotino_T (pure functions only). This must NOT re-stop pigpiod.
 from Cubotino_T import tune_image_setup as camera_setup  # import the camera setting up function
 from Cubotino_T import read_camera as read_camera        # import the camera reading function
 from Cubotino_T import frame_cropping as crop            # import the image cropping function
@@ -48,16 +67,48 @@ def on_closing():
     open_top_cover()                             # top_cover is set in its open position
     disp.show_cubotino()                         # cubotino logo is plot to the screen
     print("\nClosing the GUI application\n\n")   # feedback is printed to the terminal
-    camWindow.destroy()                          # frame camWindow is destroyied
     
+
+    # 1) Turn the LED off and detach the servos while pigpiod is still alive
+    try:
+        servo.cam_led_Off()                      # sets off the led at top_cover
+    except:
+        print("Raised exception while servo.cam_led_Off at GUI quitting")
+        pass
+
+    try:
+        servo.servo_off()                        # detach both servos (stops PWM), pigpiod still up
+    except Exception:
+        pass
+    
+    
+    # 3) Now we can stop pigpiod and force the pins low
+    try:
+        platform_io.stop_pigpiod(verbose=False)
+    except Exception:
+        pass
+    
+    # Now stop the pigpiod daemon. This releases the PWM resources
+    # and sets the GPIO pins to LOW to prevent servo movement.
+    try:
+        servo.quit_func()                        # sets to low the GPIO pins and stops pigpiod
+    except:
+        print("Raised exception while servo.quit_func at GUI quitting")
+        pass
+
+    try:
+        close_cam()                              # close the camera object
+    except:
+        print("Raised exception while close_camera at GUI quitting")
+        pass
+    
+    
+    
+    camWindow.destroy()                          # frame camWindow is destroyied
     servoWindow.destroy()                        # frame servoWindow is destroyied
-#     servo.servo_off()                            # PWM signal interruption toward the servos (free to be manually moved, servos dependant)
-    servo.quit_func()                            # GPIO for PWM set to a fix level, to prevent servos movements after quitting
-    close_cam()                                  # close the camera object
     time.sleep(0.5)                              # little delay
     root.destroy()                               # main window is destroyed
 ######################################################################################################################
-
 
 
 
@@ -1332,4 +1383,3 @@ hs = root.winfo_screenheight()                   # retrieves the height of the s
 
 root.protocol("WM_DELETE_WINDOW", on_closing)    # closing the GUI
 root.mainloop()                                  # tkinter main loop
-

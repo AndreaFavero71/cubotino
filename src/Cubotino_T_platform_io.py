@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 25 October 2026
+# Andrea Favero 01 November 2026
 #
 # This is the ONLY module in Cubotino that is allowed to know which Raspberry Pi OS
 # (or which Raspberry Pi model) the robot is running on. Everything OS-specific lives here.
@@ -169,90 +169,64 @@ def _is_pi5() -> bool:
 def ensure_pigpiod(verbose: bool = False) -> bool:
     """ensure the pigpiod daemon is running and has claimed its GPIO resources.
 
-    on os <= 11 the daemon is restarted unconditionally with kill + start,
-    solving a Bullseye/pigpiod/systemd race on GPIO resource claim.
-
-    on os >= 12 the daemon is started only if it is not reachable (there
-    is no known boot-time race on these OS, so no forced restarted).
-
-    returns True if the daemon is reachable after this call, false
-    otherwise. never raises.
+    The daemon is always stopped and restarted to ensure a clean claim on
+    the GPIO resources. This prevents conflicts with previous (possibly
+    interrupted) runs.
     """
     import subprocess
 
-    if get_os_version() <= 11:
-        # force a clean daemon state
-        try:
-            subprocess.run(
-                ['sudo', 'killall', 'pigpiod'],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                timeout=5
-            )
-        except Exception:
-            pass
-        time.sleep(0.2)
+    # Force a clean daemon state
+    try:
+        subprocess.run(
+            ['sudo', 'killall', 'pigpiod'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=3
+        )
+    except Exception:
+        pass
+    time.sleep(0.3)
 
-        started = False
-        for cmd in (['sudo', 'systemctl', 'start', 'pigpiod'],
-                    ['sudo', 'pigpiod']):
-            try:
-                subprocess.run(
-                    cmd,
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    timeout=5
-                )
-            except Exception:
-                continue
-            time.sleep(0.5)   # let the daemon claim dma/pwm resources
-            if _pigpiod_reachable():
-                started = True
-                break
+    # Start the daemon
+    try:
+        subprocess.run(
+            ['sudo', 'systemctl', 'start', 'pigpiod'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=5
+        )
+    except Exception:
+        pass
+    time.sleep(0.5)
 
-        if started:
-            if verbose:
-                print("pigpiod restarted")
-            return True
-
-        if verbose:
-            print(
-                "could not restart pigpiod.\n"
-                "fix: make sure the daemon is installed and can be started:\n"
-                "  sudo systemctl status pigpiod\n"
-                "  sudo systemctl restart pigpiod"
-            )
-        return False
-
-    # os >= 12
     if _pigpiod_reachable():
         if verbose:
-            print("pigpiod already running")
+            print("pigpiod restarted")
         return True
 
-    # try to start it (works if the user installed a unit manually)
-    for cmd in (['sudo', 'systemctl', 'start', 'pigpiod'],
-                ['sudo', 'pigpiod']):
-        try:
-            subprocess.run(
-                cmd,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                timeout=5
-            )
-        except Exception:
-            continue
-        time.sleep(0.5)
-        if _pigpiod_reachable():
-            if verbose:
-                print("pigpiod started")
-            return True
+    # Fallback: try starting directly
+    try:
+        subprocess.run(
+            ['sudo', 'pigpiod'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=5
+        )
+    except Exception:
+        pass
+    time.sleep(0.5)
+
+    if _pigpiod_reachable():
+        if verbose:
+            print("pigpiod started")
+        return True
 
     if verbose:
         print(
-            "pigpiod is not reachable.\n"
-            "fix: start the daemon with  sudo systemctl start pigpiod  "
-            "(or  sudo pigpiod  if the unit is not installed),\n"
-            "then run Cubotino again."
+            "could not start pigpiod.\n"
+            "fix: make sure the daemon is installed and can be started:\n"
+            "  sudo systemctl status pigpiod\n"
+            "  sudo pigpiod"
         )
     return False
+
 
 
 def _pigpiod_reachable() -> bool:
@@ -265,6 +239,64 @@ def _pigpiod_reachable() -> bool:
         return ok
     except Exception:
         return False
+
+
+def stop_pigpiod(verbose: bool = False) -> bool:
+    """stop the pigpiod daemon.
+
+    this is useful to release the pwm hardware resources before the python
+    script sets the gpio pins to a stable low state, preventing servo
+    movement at shutdown.
+
+    uses killall for a faster shutdown than systemctl stop, with a fallback
+    to kill -9 if the process does not respond.
+
+    returns True if the daemon was stopped (or was not running), False otherwise.
+    never raises.
+    """
+    import subprocess
+
+    # check if it's even running to avoid unnecessary sudo calls
+    if not _pigpiod_reachable():
+        if verbose:
+            print("pigpiod is not running, nothing to stop.")
+        return True
+
+    # attempt 1: graceful termination with killall
+    try:
+        subprocess.run(
+            ['sudo', 'killall', 'pigpiod'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=2
+        )
+        time.sleep(0.3) # short delay to let the process exit
+        if not _pigpiod_reachable():
+            if verbose:
+                print("pigpiod stopped (killall).")
+            return True
+    except Exception as e:
+        if verbose:
+            print(f"killall attempt failed: {e}")
+
+    # attempt 2: forced termination with kill -9
+    try:
+        subprocess.run(
+            ['sudo', 'killall', '-9', 'pigpiod'],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=2
+        )
+        time.sleep(0.2)
+        if not _pigpiod_reachable():
+            if verbose:
+                print("pigpiod stopped (kill -9).")
+            return True
+    except Exception as e:
+        if verbose:
+            print(f"kill -9 attempt failed: {e}")
+
+    if verbose:
+        print("could not stop pigpiod after all attempts.")
+    return False
 
 
 # ---------------------------------------------------------------------------

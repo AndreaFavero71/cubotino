@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-# Andrea Favero 25 October 2026
+# Andrea Favero 01 November 2026
 #
 # This script relates to CUBOTino Autonomous, a very small and simple Rubik's cube solver robot 3D printed
 # CUBOTino autonomous is the 'Top version', of the CUBOTino versions
@@ -327,9 +327,19 @@ def servo_tune_via_gui(debug, start_pos):
 def quit_func():
     """ Sets the used GPIO as output, and force them to low. This wants to prevent servos to move after closing the script."""
     
-    GPIO.setup(top_cover_led_pin, GPIO.OUT, initial=GPIO.LOW)   # GPIO top_cover_led_pin (Top_cover_Led) is set as output, and force low
-    GPIO.setup(t_servo_pin, GPIO.OUT, initial=GPIO.LOW)         # GPIO t_servo_pin (Top_cover servo) is set as output, and force low
-    GPIO.setup(b_servo_pin, GPIO.OUT, initial=GPIO.LOW)         # GPIO b_servo_pin (Cube_holder servo) is set as output, and force low
+    # stop the pigpiod daemon first, to release the PWM hardware resources.
+    # this prevents the servos from receiving conflicting signals when the
+    # GPIO pins are set to LOW by RPi.GPIO, and it ensures a clean shutdown.
+    try:
+        from Cubotino_T_pigpiod import pigpiod
+        pigpiod.stop()
+    except Exception as e:
+        print(f"Warning: could not stop pigpiod: {e}")
+    
+    # now it is safe to set the GPIO pins to a stable LOW state.
+    GPIO.setup(top_cover_led_pin, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(t_servo_pin, GPIO.OUT, initial=GPIO.LOW)
+    GPIO.setup(b_servo_pin, GPIO.OUT, initial=GPIO.LOW)
 
 
 
@@ -1741,4 +1751,3 @@ if __name__ == "__main__":
     else:     # case the Cubotino_T_servos.py has been launched without 'set' or 'tune' arguments
         test_set_of_movements()   # call to the function that holds the predefined set of movements
     # #############################################################################################
-        

@@ -3,7 +3,7 @@
 
 """
 #############################################################################################################
-#  Andrea Favero 25 October 2026
+# Andrea Favero 01 November 2026
 #
 # This script relates to CUBOTino autonomous, a small and simple Rubik's cube solver robot 3D printed
 # This specific script manages the display, and it's imported by other Cubotino_T scripts.

@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 25 October 2026
+#  Andrea Favero, 01 November 2026
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -34,7 +34,7 @@
 
 
 # __version__ variable
-version = '8.0 (25 October 2026)'
+version = '8.0 (01 November 2026)'
 
 
 ################  setting argparser for robot remote usage, and other settings  #################
@@ -461,11 +461,9 @@ def robot_camera_setting(debug, os_version, camera, face):
             time.sleep(0.11)                           # similar time when there is no camera reading and plot to screen
         
         if os_version <= 10:
-            pts = 8   # consecutive datapoints to analyse if parameters within acceptable range
             a_gain, d_gain, awb_gains, exposure = camera.get_metadata()  # camera is inquired
  
         elif os_version >= 11:
-            pts = 9   # consecutive datapoints to analyse if parameters within acceptable range
             metadata = camera.get_metadata()           # camera is inquired
             a_gain = metadata["AnalogueGain"]          # analog gain from metadata is assigned to the variable
             d_gain = metadata["DigitalGain"]           # digital gain from metadata is assigned to the variable
@@ -1481,8 +1479,8 @@ def save_coordinates(coordinates):
     
     coordinates = np.array(coordinates)                     # the coordinates list is converted to numpy array 
     avg = coordinates.mean(axis=0)                          # coordinates are averaged by 'columns'
-    avg = np.round(avg, decimals=0).astype(int)             # coordinates are first rounded to 0 decimal then converted to integers
-    avg = str(list(avg))                                    # coordinates are converted from array to list to string
+    avg = np.round(avg, decimals=0).astype(int).tolist()    # tolist() yields Python ints, not numpy scalars
+    avg = str(avg)                                          # coordinates are converted from array to list to string
     avg = avg.replace('[','').replace(']','').replace(' ','')+'\n'  # coordinates string without parentheses and empty spaces
     fname = 'Cubotino_T_coordinates.txt'                    # fname for the text file to retrieve the coordinates
     folder = pathlib.Path().resolve()                       # active folder (should be home/pi/cubotino/src)
@@ -1784,7 +1782,7 @@ def cube_colors_interpr(BGR_detected):
         BGR=BGR_detected[i]                                 # BGR detected on facelet i
         BGR_detected_dict[i]=BGR                            # BGR detected on facelet i is assigned to the dict, having the facelet i as key
         hsv = cv2.cvtColor( np.array([[[BGR[0],BGR[1],BGR[2]]]], dtype=np.uint8), cv2.COLOR_BGR2HSV)   # HSV color space
-        HSV_detected[i]=(hsv[0][0][0],hsv[0][0][1],hsv[0][0][2])                                       # HSV tuple 
+        HSV_detected[i]=(int(hsv[0][0][0]),int(hsv[0][0][1]),int(hsv[0][0][2]))                        # HSV tuple 
 
     if debug:                                               # case debug variable is set True
         print(f'\nBGR_detected: {BGR_detected}')            # feedback is printed to the terminal
@@ -2041,7 +2039,7 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         VSdelta={}                                                       # dict to store the V-S (value-Saturation) value of all facelets
         i=0                                                              # iterator index
         for H,S,V in HSV_detected.values():                              # Hue, Saturation and Value are retrieved from the HSV dict
-            VSdelta[i]=int((V)-int(S))                                   # difference between value (brightness) and saturation, for all the facelets
+            VSdelta[i]=int(V)-int(S)                                     # difference between value (brightness) and saturation, for all the facelets
             i+=1                                                         # iterator index is increased
         
         # ordering the VSdelta by increasing values (9 highest values are the 9 white facelets)
@@ -2050,8 +2048,17 @@ def cube_colors_interpr_HSV(BGR_detected, HSV_detected):
         # a new dict with V-S delta value ordered is generated, in order to have the white facelets close to each other
         VSdelta_ordered={k: v for k, v in sorted(VSdelta_copy.items(), key=lambda item: item[1])}
         key_ordered_by_VSdelta = [x for x in VSdelta_ordered.keys()]    # list with the key of the (ordered) dict is generated
-        white_facelets_list=key_ordered_by_VSdelta[-9:]                 # white facelets have the biggest H-S value, therefore are the last 9
-
+        
+        # white facelets have the biggest V-S value, therefore are the last 9 in the ordered list.
+        # The 5 coloured centres are excluded from the candidates: by definition a centre facelet
+        # cannot be a white facelet, and under some camera/light conditions the V-S gap between
+        # the 9 real white facelets and the coloured centres can collapse to the point that a
+        # coloured centre (e.g. the green one) ends up in the last 9 -- which then breaks the
+        # subsequent "Hue[x] for x in colored_centers" lookup.
+        colored_centers_set = set(colored_centers)
+        white_candidates = [k for k in key_ordered_by_VSdelta if k not in colored_centers_set]
+        white_facelets_list = white_candidates[-9:]
+        
         if debug:                                                       # case debug variable is set True
             print('White facelets: ', white_facelets_list)              # feedback is printed to the terminal
             print('\nHue dict all facelets ', Hue)                      # feedback is printed to the terminal
@@ -5170,4 +5177,4 @@ if __name__ == "__main__":
                     else:                       # case the --shutoff argument has not been provided
                         automated = False       # automated variable is set False, robot waits for solve button commands
                 
-                start_up(first_cycle = False)   # sets the initial variables, to use the camera in manual mode
+                start_up(first_cycle = False)   # sets the initial variables, to use the camera in manual mod
