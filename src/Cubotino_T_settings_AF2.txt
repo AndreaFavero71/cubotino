@@ -33,6 +33,6 @@
 "built_by": "",
 "built_by_x": "25",
 "built_by_fs": "16",
-"expo_shift": "-0.3",
+"expo_shift": "0.0",
 "fcs_delay": "3.0"
 }

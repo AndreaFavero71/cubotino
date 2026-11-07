@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Since 25/10/2026 file adapted for Raspberry Pi OS 13 (further than Raspberry Pi OS 10, 11 and 12)
+# Since 07/11/2026 file adapted for Raspberry Pi OS 13 (further than Raspberry Pi OS 10, 11 and 12)
 
 # ##################################### initial part (common) #####################################
 
@@ -10,6 +10,128 @@ print_header () {
   echo
   echo $1
   echo
+}
+
+set_camera_timeout () {
+  # set_camera_timeout <yaml_path> <timeout_ms>
+  #
+  # Adds, uncomments, or updates "camera_timeout_value_ms" inside the
+  # "pipeline_handler" block of a libcamera rpi_apps.yaml file.
+  #
+  # Handles three layouts of the key inside that block:
+  #   1) key present and active      -> value is replaced
+  #   2) key present but commented   -> line is uncommented, value is set,
+  #                                     indentation is preserved
+  #   3) key absent                  -> inserted just before the closing
+  #                                     brace of the "pipeline_handler" block
+  #
+  # Returns:
+  #   0  success, file updated
+  #   1  bad arguments or file missing
+  #   2  layout not recognised (block, closing brace, or line shape);
+  #      the file is left untouched
+  #
+  # The function deliberately fails closed: if the layout is not the one
+  # it knows how to handle, it will not edit the file. This is important
+  # for a script distributed to other users, where silently editing the
+  # wrong location would be worse than doing nothing.
+
+  local path="$1"
+  local timeout_ms="$2"
+
+  if [ -z "$path" ] || [ -z "$timeout_ms" ]; then
+    echo "set_camera_timeout: missing arguments"
+    return 1
+  fi
+
+  if [ ! -f "$path" ]; then
+    echo "set_camera_timeout: file not found: $path"
+    return 1
+  fi
+
+  # python3 is guaranteed on every Raspberry Pi OS image we support.
+  # Using it here avoids all the layout and whitespace assumptions of sed.
+  #
+  # The three branches (active / commented / absent) are mutually exclusive
+  # and fall through to a single write at the end. Do NOT add sys.exit(0)
+  # inside a branch: that would bypass the write and leave the file
+  # unchanged while reporting success to the caller.
+  python3 - "$path" "$timeout_ms" <<'PYEOF'
+import re
+import sys
+
+path = sys.argv[1]
+timeout_ms = sys.argv[2]
+
+with open(path) as f:
+    lines = f.readlines()
+
+# --- locate the "pipeline_handler" block ---
+start = None
+for i, line in enumerate(lines):
+    if line.strip().startswith('"pipeline_handler"'):
+        start = i
+        break
+
+if start is None:
+    print('set_camera_timeout: "pipeline_handler" block not found')
+    sys.exit(2)
+
+# --- locate the closing brace of that block ---
+end = None
+for j in range(start + 1, len(lines)):
+    if lines[j].strip() == '}':
+        end = j
+        break
+
+if end is None:
+    print('set_camera_timeout: closing brace of "pipeline_handler" block not found')
+    sys.exit(2)
+
+# --- find the key inside the block, preferring the active form ---
+active_idx = None
+commented_idx = None
+for i in range(start, end):
+    if '"camera_timeout_value_ms"' in lines[i]:
+        if lines[i].lstrip().startswith('#'):
+            if commented_idx is None:
+                commented_idx = i
+        else:
+            active_idx = i
+            break
+
+value_re = r'("camera_timeout_value_ms"\s*:\s*)\d+'
+
+if active_idx is not None:
+    # case 1: active line, replace the value
+    lines[active_idx] = re.sub(value_re, r'\g<1>' + timeout_ms, lines[active_idx])
+
+elif commented_idx is not None:
+    # case 2: uncomment and set value, preserving indentation
+    match = re.match(r'^(\s*)#\s*(.*)$', lines[commented_idx])
+    if match:
+        indent, rest = match.group(1), match.group(2)
+        rest = re.sub(value_re, r'\g<1>' + timeout_ms, rest).rstrip('\n')
+        lines[commented_idx] = indent + rest + '\n'
+    else:
+        print('set_camera_timeout: could not parse commented line')
+        sys.exit(2)
+
+else:
+    # case 3: key absent inside the block, insert before the closing brace
+    lines.insert(end, '                "camera_timeout_value_ms": ' + timeout_ms + ',\n')
+
+# --- single write point for all three cases ---
+with open(path, 'w') as f:
+    f.writelines(lines)
+PYEOF
+
+  local rc=$?
+  if [ $rc -eq 0 ]; then
+    return 0
+  else
+    return $rc
+  fi
 }
 
 
@@ -72,42 +194,49 @@ esac
 echo "Selected remote access: $remote_choice"
 
 
-echo -e "\nChecking SWAP SIZE"
+print_header "Configuring SWAP SIZE (OOM protection)"
+# Current swap size in KiB (0 if swap is not enabled or /proc/meminfo lacks it)
 SWAPSPACE=$(sed -n "s/^SwapTotal: *\([0-9]*\) kB/\1/p" /proc/meminfo)
-echo "Current SWAP SIZE is $SWAPSPACE Kb"
+echo "Current SWAP SIZE is ${SWAPSPACE} KiB"
 
+TARGET_SWAP_MIB=1024
+
+# -4000 KiB: a 1024 MiB swapfile reports ~1020 MiB of SwapTotal in
+# /proc/meminfo due to swapfile overhead, so subtract a small tolerance
+# to avoid re-triggering the resize on every run.
 if [[ "$os_version" =~ ^[0-9]+$ && "$os_version" -ge 12 ]]; then
-  # ---------- Trixie+ : rpi-swap ----------
-  if [[ "$SWAPSPACE" -le 524000 ]]; then
-    echo "Configuring SWAP SIZE to 512Mb via rpi-swap drop-in"
+  if [[ "${SWAPSPACE:-0}" -le $((TARGET_SWAP_MIB * 1024 - 4000)) ]]; then
+    echo "Configuring SWAP SIZE to ${TARGET_SWAP_MIB}MiB via rpi-swap drop-in"
     mkdir -p /etc/rpi/swap.conf.d
-    cat > /etc/rpi/swap.conf.d/90-cubotino-swap.conf <<'EOF'
+    cat > /etc/rpi/swap.conf.d/80-cubotino-swap.conf <<EOF
 [Main]
 Mechanism=swapfile
 
 [File]
-FixedSizeMiB=512
+FixedSizeMiB=${TARGET_SWAP_MIB}
 EOF
     echo "Swap drop-in written; it will take effect after reboot."
+    echo "IMPORTANT: if apt upgrade fails with OOM during this run, reboot and run setup.sh again."
   else
-    echo "SWAP SIZE is sufficient"
+    echo "SWAP SIZE is sufficient (${SWAPSPACE} KiB >= target)"
   fi
 else
-  # ---------- Buster / Bullseye : dphys-swapfile ----------
   if [ -f /etc/dphys-swapfile ]; then
-    if [[ $SWAPSPACE -le 524000 ]]; then
-      echo "Increasing SWAP SIZE to 512Mb"
-      sudo sed -i 's/^CONF_SWAPSIZE=[0-9]*$/CONF_SWAPSIZE=512/' /etc/dphys-swapfile
-      sudo /etc/init.d/dphys-swapfile restart
+    if [[ "${SWAPSPACE:-0}" -le $((TARGET_SWAP_MIB * 1024 - 4000)) ]]; then
+      echo "Increasing SWAP SIZE to ${TARGET_SWAP_MIB}MiB"
+      sed -i "s/^CONF_SWAPSIZE=[0-9]*$/CONF_SWAPSIZE=${TARGET_SWAP_MIB}/" /etc/dphys-swapfile
+      sed -i -e "s/^CONF_MAXSWAP=.*$/CONF_MAXSWAP=${TARGET_SWAP_MIB}/" \
+             -e "s/^#CONF_MAXSWAP=.*$/CONF_MAXSWAP=${TARGET_SWAP_MIB}/" \
+             /etc/dphys-swapfile
+      /etc/init.d/dphys-swapfile restart
     else
-      echo "SWAP SIZE is sufficient"
+      echo "SWAP SIZE is sufficient (${SWAPSPACE} KiB >= target)"
     fi
-    echo -e "\n"
+    echo
   else
-    echo -e "\n\nNOT found /etc/dphys-swapfile file, or not able to parse CONF_SWAPSIZE value"
+    echo "NOT found /etc/dphys-swapfile; cannot configure swap on this image"
   fi
 fi
-
 
 
 if [[ "$os_version" =~ ^[0-9]+$ && "$os_version" -ge 12 ]]; then
@@ -176,7 +305,7 @@ if [[ "$os_version" == "10" ]]; then
         if ! crontab -l 2>/dev/null | grep -q "Cubotino_T_bash.sh"; then
             (crontab -l 2>/dev/null;\
             echo -e 'MAILTO=""';\
-            echo -e '@reboot su - pi -c "/usr/bin/vncserver :0 -geometry 1280x720\"';\
+            echo -e '@reboot su - pi -c "/usr/bin/vncserver :0 -geometry 1280x720"';\
             echo -e '#@reboot su - pi -c "/usr/bin/vncserver :0 -geometry 1920x1080"';\
             echo -e '#@reboot /bin/sleep 5; bash -l /home/pi/cubotino/src/Cubotino_T_bash.sh > /home/pi/cubotino/src/Cubotino_T_terminal.log 2>&1')\
             | crontab -
@@ -338,6 +467,26 @@ if systemctl list-unit-files | grep -q '^pigpiod\.service'; then
     systemctl enable pigpiod || echo "WARNING: could not enable pigpiod"
 else
     echo "Warning: pigpiod.service not found; skipping enable."
+fi
+
+print_header "Configuring libcamera camera timeout (vc4 pipeline)"
+CAM_CFG="/usr/share/libcamera/pipeline/rpi/vc4/rpi_apps.yaml"
+if [[ "$os_version" =~ ^[0-9]+$ && "$os_version" -ge 11 ]]; then
+  if set_camera_timeout "$CAM_CFG" 10000; then
+    echo "Camera timeout set to 10000 in $CAM_CFG"
+  else
+    rc=$?
+    if [ $rc -eq 2 ]; then
+      echo "WARNING: $CAM_CFG does not match the expected layout."
+      echo "         The camera timeout was not modified."
+      echo "         Please add '  \"camera_timeout_value_ms\": 10000,' manually"
+      echo "         inside the \"pipeline_handler\" block of $CAM_CFG and reboot."
+    else
+      echo "WARNING: could not update $CAM_CFG (rc=$rc); camera timeout not modified."
+    fi
+  fi
+else
+  echo "Skipping camera timeout setting (OS $os_version does not use the vc4 libcamera pipeline)"
 fi
 
 print_header "Remote access summary"

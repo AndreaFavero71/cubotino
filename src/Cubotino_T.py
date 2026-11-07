@@ -3,7 +3,7 @@
 
 """ 
 #############################################################################################################
-#  Andrea Favero, 01 November 2026
+#  Andrea Faavero, 07 November 2026
 #
 #  This code relates to CUBOTino autonomous, a very small and simple Rubik's cube solver robot 3D printed.
 #  CUBOTino autonomous is the 'Top version', of the CUBOTino robot series.
@@ -422,17 +422,17 @@ def robot_camera_setting(debug, os_version, camera, face):
 
     if os_version <= 10:      # case the OS is Buster or older
         t_max = 5             # timeout to quit this function and deliver the latest camera parameters
-        if debug:             # case debug variable is set True
+        if debug or screen:   # case debug or screen variable is set True
             pts = 8           # consecutive datapoints to analyse if parameters within acceptable range
         else:                 # case debug variable is set False
             pts = 10          # consecutive datapoints to analyse if parameters within acceptable range
         
     elif os_version >= 11:    # case the OS is Bullseye or newer
         t_max = 3             # timeout to quit this function and deliver the latest camera parameter
-        if debug:             # case debug variable is set True
-            pts = 9           # consecutive datapoints to analyse if parameters within acceptable range
+        if debug or screen:   # case debug or screen variable is set True
+            pts = 12          # consecutive datapoints to analyse if parameters within acceptable range
         else:                 # case debug variable is set False
-            pts = 11          # consecutive datapoints to analyse if parameters within acceptable range
+            pts = 20          # consecutive datapoints to analyse if parameters within acceptable range
     
     if Rpi_ZeroW:             # case a ZeroW board is used
         t_max = 3*t_max       # max time for camera setting is increased
@@ -483,19 +483,19 @@ def robot_camera_setting(debug, os_version, camera, face):
         exp_check=False                                # a flag is negatively set for the exposure time (being stable...)
 
         if len(a_gain_list) > pts:                     # requested a minimum amount of datapoints
-            check = a_gain_list[-1]/(sum(a_gain_list[-pts:])/pts)  # last analog gain value is compared to the average of last pts points
+            check = a_gain_list[-1]/(sum(a_gain_list[-pts +4:])/(pts-4))  # last analog gain value is compared to the average of last pts points
             if check > kl and check < ku:              # if comparison within acceptance boundaries
                 a_check=True                           # flag is positively set for this gain             
         
-            check = awb_blue_list[-1]/(sum(awb_blue_list[-pts:])/pts) # last awb_blue gain is compared to the average of last pts points
+            check = awb_blue_list[-1]/(sum(awb_blue_list[-pts +4:])/(pts-4)) # last awb_blue gain is compared to the average of last pts points
             if check > kl and check < ku:              # if comparison within acceptance boundaries
                 awb_blue_check=True                    # flag is positively set for this gain    
                 
-            check = awb_red_list[-1]/(sum(awb_red_list[-pts:])/pts) # last awb_red gain is compared to the average of last pts points
+            check = awb_red_list[-1]/(sum(awb_red_list[-pts +4:])/(pts-4)) # last awb_red gain is compared to the average of last pts points
             if check > kl and check < ku:              # if comparison within acceptance boundarie
                 awb_red_check=True                     # flag is positively set for this gain
             
-            check = exp_list[-1]/(sum(exp_list[-pts:])/pts)  # last exposure time is compared to the average of last pts points
+            check = exp_list[-1]/(sum(exp_list[-pts +4:])/(pts-4))  # last exposure time is compared to the average of last pts points
             if check > kl and check < ku:              # if comparison within acceptance boundarie
                 exp_check=True                         # flag is positively set for the exposure time                
      
@@ -556,7 +556,8 @@ def robot_consistent_camera_images(debug, os_version, camera, start_time):
         # AWB mode (AutoWitheBalance) to use when the camera is set to automati mode
         # AwbMode: 0=Auto - any illumant, 1=Tungsten - tungsten lighting, 2=Fluorescent - fluorescent lighting
         # 3=Indoor - indoor illumination, 4=Daylight - daylight illumination, 5=Cloudy - cloudy illumination
-        awb_mode = 3          # this is the  mode that seems to work better in Cubotino
+        # awbmode 0 better separates white and yellow
+        awb_mode = 0          # this is the  mode that seems to work better in Cubotino
         camera.set_auto(debug, awb_mode, expo_shift)    # camera is set to automatic mode, by also passing the chosen AWB mode
     
     if debug:                                           # case debug variable is set True
@@ -1385,37 +1386,80 @@ def contour_shifter(w, h, pts, shift = 0):
 
 
 
-def order_4points(pts, w, h):
-    """ Based on: https://www.pyimagesearch.com/2016/03/21/ordering-coordinates-clockwise-with-python-and-opencv/
-    Modified to only use Numpy instead of also Scipy library.
-    This function orders the 4 vertex of (simplified) contours, so that the first one is top left (CW order)
-    Argument is a contour
-    Function returns a contour with coordinates ordered as per below sketch
-    
-    0  1
-    3  2
-    """
-    
-    xSorted = pts[np.argsort(pts[:, 0]), :]        # sort the points based on their x-coordinates
-    leftMost = xSorted[:2, :]                      # grab the left-most point from the sorted x-coodinate points
-    rightMost = xSorted[2:, :]                     # grab the right-most point from the sorted x-coodinate points
-    
-    # sort the left-most according to their y-coordinates, to grab the top-left and bottom-left points, respectively
-    (tl, bl) = leftMost[np.argsort(leftMost[:, 1]), :]
-    
-    # Euclidean distance from top-left and right-most points: the point with largest distance will be bottom-right
-    D = tl.reshape(1, 2)[:, np.newaxis, :] - rightMost[np.newaxis, :, :]   # matrix difference, by broadcasting tl and rightMost
-    D = np.linalg.norm(D, axis=-1)[0]                                      # matrix distance of all rightMost vertices from tl
-    
-    (br, tr) = rightMost[np.argsort(D)[::-1], :]
-    pts = np.array([tl, tr, br, bl])         # CW ordered coordinates, from top left, of the detected contour
-    
-    return pts
+# def order_4points(pts, w, h):
+#     """ Based on: https://www.pyimagesearch.com/2016/03/21/ordering-coordinates-clockwise-with-python-and-opencv/
+#     Modified to only use Numpy instead of also Scipy library.
+#     This function orders the 4 vertex of (simplified) contours, so that the first one is top left (CW order)
+#     Argument is a contour
+#     Function returns a contour with coordinates ordered as per below sketch
+#     
+#     0  1
+#     3  2
+#     """
+#     
+#     xSorted = pts[np.argsort(pts[:, 0]), :]        # sort the points based on their x-coordinates
+#     leftMost = xSorted[:2, :]                      # grab the left-most point from the sorted x-coodinate points
+#     rightMost = xSorted[2:, :]                     # grab the right-most point from the sorted x-coodinate points
+#     
+#     # sort the left-most according to their y-coordinates, to grab the top-left and bottom-left points, respectively
+#     (tl, bl) = leftMost[np.argsort(leftMost[:, 1]), :]
+#     
+#     # Euclidean distance from top-left and right-most points: the point with largest distance will be bottom-right
+#     D = tl.reshape(1, 2)[:, np.newaxis, :] - rightMost[np.newaxis, :, :]   # matrix difference, by broadcasting tl and rightMost
+#     D = np.linalg.norm(D, axis=-1)[0]                                      # matrix distance of all rightMost vertices from tl
+#     
+#     (br, tr) = rightMost[np.argsort(D)[::-1], :]
+#     pts = np.array([tl, tr, br, bl])         # CW ordered coordinates, from top left, of the detected contour
+#     
+#     return pts
     
 #     inner_pts = contour_shifter(w, h, pts, shift = 3)  # ordered coordinates, sligtly shifted toward the contour inner side
 #     outer_pts = contour_shifter(w, h, pts, shift = -3) # ordered coordinates, sligtly shifted toward the contour outer side
 
 #     return pts, inner_pts, outer_pts
+
+
+
+def order_4points(pts, w, h):
+    """ Orders the 4 vertices of a (simplified) contour in clockwise order, starting from top-left.
+    Based on the concept of https://www.pyimagesearch.com/2016/03/21/ordering-coordinates-clockwise-with-python-and-opencv/
+    but re-implemented with an angle-around-centroid sort, in place of the distance-from-top-left heuristic.
+    The original distance heuristic fails on tilted quadrilaterals: the vertex farthest from the
+    top-left point is not necessarily the bottom-right one, and when it flips the returned order
+    becomes self-intersecting (a "bow-tie" / two triangles sharing a vertex), which is exactly what
+    cv2.drawContours plots as two crossed segments on the cube_collage images.
+
+    Argument is a contour (array of 4 integer pixel coordinates), as returned by approxPolyDP.
+    Function returns an array of 4 (integer) pixel coordinates, ordered as per below sketch:
+
+        0  1
+        3  2
+
+    Note on precision: the input coordinates are integer pixels. They are temporarily promoted to
+    float32 to compute the angle around the centroid (arctan2), and are then cast back to int32.
+    The sort is a permutation of the input indices, so no coordinate value is altered by the
+    float trip: the returned integer coordinates are the very same 4 input integer tuples,
+    only reordered. float32 is more than enough here: arctan2 on 4 points has a precision of
+    ~1e-7 rad, i.e. it distinguishes angles differing by far less than one pixel over the image
+    size, and the ordering is a strict monotone comparison, not an accumulated sum.
+    """
+
+    pts = np.asarray(pts, dtype=np.float32)      # integer pixels promoted to float32 only for arctan2
+    c = pts.mean(axis=0)                         # centroid of the 4 vertices
+
+    # angle of each vertex around the centroid.
+    # With image coordinates (y pointing down), increasing angle is a clockwise sequence on screen.
+    angles = np.arctan2(pts[:, 1] - c[1], pts[:, 0] - c[0])
+
+    order = np.argsort(angles)                   # permutation of indices → guaranteed simple (non self-intersecting) polygon
+    pts = pts[order]
+
+    # rotate the sequence so that the top-left-most vertex comes first.
+    # "top-left-most" is defined as the minimum x+y, which is the vertex closest to the image origin.
+    start = int(np.argmin(pts[:, 0] + pts[:, 1]))
+    pts = np.roll(pts, -start, axis=0)
+
+    return pts.astype(np.int32)                  # back to integer pixel coordinates, as the rest of the code expects
 
 
 
@@ -3046,14 +3090,16 @@ def robot_to_cube_side(side, cam_led_bright):
             if not silent:                       # case silent variable is set False
                 servo.read()                     # top cover positioned to have the PiCamera in read position
             if led:                              # case the led is not set off
-                servo.cam_led_On(cam_led_bright) # led on top_cover is switched on 
+                servo.cam_led_On(cam_led_bright) # led on top_cover is switched on
+                time.sleep(0.15)                 # small delay to let the led to stabilize
         
     elif side in (1,2,3):                        # first 4 sides (3 sides apart the one already in front of the camera)
         servo.cam_led_Off()                      # led on top_cover is switched off, for power management
         if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
             servo.flip()                         # are reached by simply flipping the cube
             if led:                              # case the led is not set off
-                servo.cam_led_On(cam_led_bright) # led on top_cover is switched on 
+                servo.cam_led_On(cam_led_bright) # led on top_cover is switched on
+                time.sleep(0.15)                 # small delay to let the led to stabilize
     
     elif side == 4 :                             # at side 4 is needed to change approach to show side 5 to the camera
         servo.cam_led_Off()                      # led on top_cover is switched off, for power managements
@@ -3070,6 +3116,7 @@ def robot_to_cube_side(side, cam_led_bright):
             servo.read()                         # top cover positioned to have the PiCamera in read position
             if led:                              # case the led is not set off
                 servo.cam_led_On(cam_led_bright) # led on top_cover is switched on
+                time.sleep(0.15)                 # small delay to let the led to stabilize
             
     elif side == 5 :                             # when side5 is in front of the camera
         servo.cam_led_Off()                      # led on top_cover is switched off, for power management
@@ -3079,6 +3126,7 @@ def robot_to_cube_side(side, cam_led_bright):
         if not robot_stop:                       # case there are not request to stop the robot
             if led:                              # case the led is not set off
                 servo.cam_led_On(cam_led_bright) # led on top_cover is switched on
+                time.sleep(0.15)                 # small delay to let the led to stabilize
   
     elif side == 6 :                             # case side equal 6 (it is when the cube has been fully scanned)
         if not robot_stop and not silent:        # case there are not request to stop the robot nor to silent the servos
